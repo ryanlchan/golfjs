@@ -1,7 +1,3 @@
-// const turf = require('@turf/turf');
-// const fetch = require('node-fetch');
-// const osmtogeojson = require('osmtogeojson');
-
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search?q=";
 
@@ -41,16 +37,20 @@ function fetchOSMData(query, storageKey) {
     return fetch(OVERPASS_URL, opt)
         .then(response => {
             if (!response.ok) {
-                return Promise.reject('Request failed: HTTP ' + response.status);
+                return Promise.reject(new Error('Request failed: HTTP ' + response.status));
             }
             return response.json();
         }).then((data) => {
             console.debug("Succesfully downloaded OSM polys, starting processing")
             data = osmtogeojson(data);
-            data = scrubOSMData(data)
-            console.debug("Succesfully processed OSM polys, caching as " + storageKey)
-            setCache(storageKey, data)
-            return data
+            data = scrubOSMData(data);
+            if (data.features.length > 0) {
+                console.debug("Succesfully processed OSM polys, caching as " + storageKey);
+                setCache(storageKey, data);
+                return data;
+            } else {
+                return Promise.reject(new Error('No polygons returned'));
+            }
         });
 }
 
@@ -116,7 +116,9 @@ function getGolfHoleLine(courseName, holeNumber) {
     }
     return data
         .features.map((feature) => {
-            if (feature.properties.ref && feature.properties.ref == holeNumber) return feature
+            const props = feature.properties;
+            if ((props.golf && props.golf == "hole") &&
+                (props.ref && props.ref == holeNumber)) return feature
         }).filter((el) => el !== undefined)[0];
 }
 
@@ -296,6 +298,25 @@ function calculateStrokesRemaining(distanceToHole, terrainType) {
     return totalStrokes;
 }
 
+/**
+ * Given a geographic feature, calculate strokes remaining from its center
+ * @param {Feature} feature the geographic feature to calculate from
+ * @param {Array} holeCoordinate an array containing [lat, long] coordinates in WGS84
+ * @param {string} courseName the course name to get polygons for
+ * @returns {Number} estimated strokes remaining
+ */
+function calculateStrokesRemainingFrom(feature, holeCoordinate, courseName) {
+    let golfCourseData = getGolfCourseData(courseName);
+    if (golfCourseData instanceof Error) {
+        // If no data currently available, reraise error to caller
+        return golfCourseData;
+    }
+    const center = turf.center(feature);
+    const distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
+    const terrainType = findTerrainType(center, golfCourseData);
+    return calculateStrokesRemaining(distanceToHole, terrainType);
+}
+
 function calculateStrokesGained(grid, holeCoordinate, strokesRemainingStart, golfCourseData) {
     let bounds = findBoundaries(golfCourseData);
 
@@ -339,7 +360,7 @@ function sgGridCalculate(startCoordinate, aimCoordinate, holeCoordinate, dispers
     let weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
 
     console.log('Total Weighted Strokes Gained:', weightedStrokesGained);
-    properties = {
+    let properties = {
         strokesRemainingStart: strokesRemainingStart,
         distanceToHole: distanceToHole,
         weightedStrokesGained: weightedStrokesGained
@@ -347,25 +368,6 @@ function sgGridCalculate(startCoordinate, aimCoordinate, holeCoordinate, dispers
     hexGrid.properties = properties
 
     return hexGrid;
-}
-
-/**
- * Given a geographic feature, calculate strokes remaining from its center
- * @param {Feature} feature the geographic feature to calculate from
- * @param {Array} holeCoordinate an array containing [lat, long] coordinates in WGS84
- * @param {string} courseName the course name to get polygons for
- * @returns {Number} estimated strokes remaining
- */
-function calculateStrokesRemainingFrom(feature, holeCoordinate, courseName) {
-    let golfCourseData = getGolfCourseData(courseName);
-    if (golfCourseData instanceof Error) {
-        // If no data currently available, reraise error to caller
-        return golfCourseData;
-    }
-    const center = turf.center(feature);
-    const distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
-    const terrainType = findTerrainType(center, golfCourseData);
-    return calculateStrokesRemaining(distanceToHole, terrainType);
 }
 
 /**

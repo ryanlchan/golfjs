@@ -522,7 +522,7 @@ function roundCreate() {
 }
 
 function roundUpdateWithData(courseData) {
-    lines = courseData.features.filter((feature) => feature.properties.ref)
+    let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
     for (let line of lines) {
         const number = parseInt(line.properties.ref);
         const green = getGolfHoleGreen(round.course, number);
