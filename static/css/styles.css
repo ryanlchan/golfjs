@@ -1,0 +1,103 @@
+/* Button classes */
+button {
+    padding: 10px;
+}
+
+.buttonRow {
+    margin-bottom: 10px
+}
+
+.success {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #fff;
+}
+
+.danger {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.dark {
+    color: #fff;
+    background-color: #343a40;
+    border-color: #343a40;
+}
+
+.secondary {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.inactive {
+    display: none;
+}
+
+/* Specific styles */
+
+body {
+    margin: 0;
+}
+
+.bodyContainer {
+    margin: 8px;
+}
+
+#error {
+    color: red;
+}
+
+#locationData {
+    white-space: pre;
+}
+
+#mapid {
+    margin-bottom: 10px;
+    height: 500px;
+    width: 100%;
+}
+
+#roundInfo {
+    display: auto;
+}
+
+#holeStats {
+    display: inline-block;
+}
+
+#clubStrokeCreateContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    text-align: center;
+    background-color: #fff;
+    z-index: 10000;
+}
+
+#clubStrokeCreateContainer button {
+    margin: 15px;
+    width: 100px;
+    height: 100px;
+    font-weight: bold;
+    font-size: 18pt;
+}
+
+#clubStrokeCreateContainerCloseContainer {
+    width: 100%;
+    margin: 15px auto 30px auto;
+}
+
+#clubStrokeCreateContainerCloseContainer button {
+    width: 80%;
+    height: 50px;
+}
+
+/* Map styles */
+
+.active-marker {
+    background-color: #dc3545;
+}

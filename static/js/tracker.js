@@ -128,7 +128,7 @@ function strokeMarkerCreate(stroke, options) {
     console.debug(`Creating stroke markers for stroke ${stroke.index}`);
     const coordinate = stroke.start;
     const icon = L.icon({
-        iconUrl: "circle-ypad.png", // replace with the path to your flag icon
+        iconUrl: "static/img/circle-ypad.png", // replace with the path to your flag icon
         iconSize: [30, 45], // size of the icon
     });
     let opt = { draggable: true, opacity: .8, icon, stroke }
