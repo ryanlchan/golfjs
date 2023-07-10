@@ -145,7 +145,6 @@ function strokeMarkerCreate(stroke, options) {
     let marker = markerCreate(id, coordinate, opt);
     marker.bindTooltip((function () { return strokeTooltipText(stroke) }), { permanent: true, direction: "top", offset: [0, 10] })
     marker.on('click', strokeMarkerActivate(marker));
-    mapView.setView([coordinate.y, coordinate.x], 18);
 }
 
 /**
