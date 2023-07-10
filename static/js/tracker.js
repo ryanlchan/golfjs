@@ -41,7 +41,7 @@ function strokeCreate(position, options = {}) {
         ...options
     };
     if (currentHole.pin) {
-        stroke.aim = currentHole.pin;
+        stroke.aim = { ...currentHole.pin };
     }
 
     // Add the stroke to the data layer
@@ -65,9 +65,12 @@ function strokeDelete(holeNumber, strokeIndex) {
         let stroke = hole.strokes[strokeIndex];
         undoCreate("strokeDelete");
 
+        // Deactivate
+        strokeMarkerDeactivate();
+
         // Delete Marker
-        let markerID = strokeMarkerID(stroke)
-        layerDelete(markerID)
+        let markerID = strokeMarkerID(stroke);
+        layerDelete(markerID);
 
         // Delete from data layer
         hole.strokes.splice(strokeIndex, 1);
