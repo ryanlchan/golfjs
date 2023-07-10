@@ -205,9 +205,8 @@ function strokeMarkerDeactivate() {
 
         // Hide the "Set aim" button and remove the aim marker
         strokeMarkerAimCreateButton.classList.add("inactive")
-        if (layerRead("active_aim")) {
-            layerDelete("active_aim");
-        }
+        layerDelete("active_aim");
+        layerDelete("active_aim_ring");
 
         // Hide sg grid
         sgGridDelete();
@@ -240,6 +239,8 @@ function strokeMarkerAimCreate(e) {
     }
     marker = markerCreate("active_aim", activeStroke.aim);
     marker.bindTooltip(strokeMarkerAimTooltip, { permanent: true, direction: "top", offset: [-15, 0] })
+    ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
+    layerCreate("active_aim_ring", ring);
     sgGridCreate();
 }
 
@@ -256,7 +257,9 @@ function strokeMarkerAimTooltip() {
 
 function strokeMarkerAimUpdate() {
     try {
-        layerRead("active_aim").getTooltip().update();
+        const marker = layerRead("active_aim")
+        marker.getTooltip().update();
+        layerRead("active_aim_ring").setLatLng(marker.getLatLng());
     } catch (e) {
         return;
     }
@@ -316,9 +319,7 @@ function sgGridCreate() {
 
 function sgGridDelete() {
     aimStatsDelete();
-    if (layerRead("active_grid")) {
-        layerDelete("active_grid");
-    }
+    layerDelete("active_grid");
 }
 
 function sgGridUpdate() {
