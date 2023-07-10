@@ -112,9 +112,9 @@ function strokeDistance(stroke) {
     const hole = round.holes[stroke.hole - 1]
     const following = hole.strokes[stroke.index + 1]
     if (following) {
-        distance = calculateDistance(stroke.start, following.start);
+        distance = getDistance(stroke.start, following.start);
     } else if (hole.pin) {
-        distance = calculateDistance(stroke.start, hole.pin);
+        distance = getDistance(stroke.start, hole.pin);
     }
 
     return distance
@@ -240,7 +240,7 @@ function strokeMarkerAimCreate(e) {
         }
     }
     marker = markerCreate("active_aim", stroke.aim);
-    marker.bindTooltip((function () { return `${calculateDistance(stroke.start, stroke.aim).toFixed(2)}m` }), { permanent: true, direction: "top", offset: [-15, 0] })
+    marker.bindTooltip((function () { return `${getDistance(stroke.start, stroke.aim).toFixed(2)}m` }), { permanent: true, direction: "top", offset: [-15, 0] })
     sgGridCreate();
 }
 
@@ -264,7 +264,7 @@ function sgGridCreate() {
         layerDelete("active_grid");
     }
 
-    let grid = sgGridCalculate(
+    let grid = sgGrid(
         [activeStrokeMarker.options.stroke.start.y, activeStrokeMarker.options.stroke.start.x],
         [activeStrokeMarker.options.stroke.aim.y, activeStrokeMarker.options.stroke.aim.x],
         [currentHole.pin.y, currentHole.pin.x],
@@ -800,7 +800,7 @@ function layerReadAll() {
  * @param {Object} coord2 - The second coordinate object { x, y }.
  * @returns {number} The distance between the coordinates in meters.
  */
-function calculateDistance(coord1, coord2) {
+function getDistance(coord1, coord2) {
     const lat1 = coord1.y;
     const lon1 = coord1.x;
     const lat2 = coord2.y;
@@ -1099,9 +1099,9 @@ function holeStatsUpdate() {
         currentHole.strokes.forEach(function (stroke, index) {
             let distance = 0;
             if (currentHole.strokes[index + 1]) {
-                distance = calculateDistance(stroke.start, currentHole.strokes[index + 1].start);
+                distance = getDistance(stroke.start, currentHole.strokes[index + 1].start);
             } else if (currentHole.pin) {
-                distance = calculateDistance(stroke.start, currentHole.pin);
+                distance = getDistance(stroke.start, currentHole.pin);
             }
             const listItem = document.createElement("li");
             listItem.innerHTML = `${index + 1}. ${stroke.club} (${Math.round(distance)}m) | `;
@@ -1137,7 +1137,7 @@ function aimStatsUpdate() {
         let nextStart = currentHole.strokes[stroke.index + 1].start;
         let startPoint = turf.point([nextStart.x, nextStart.y]);
         let pinCoord = [hole.pin.x, hole.pin.y];
-        srn = calculateStrokesRemainingFrom(startPoint, pinCoord, round.course);
+        srn = strokesRemainingFrom(startPoint, pinCoord, round.course);
     }
     const sga = sr - srn - 1;
 

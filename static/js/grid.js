@@ -187,33 +187,6 @@ function scrubOSMData(geojson) {
     return geojson
 }
 
-function createHexGrid(feature) {
-    // Calculate the hexagon sidelength according to a max cell count
-    const maximum_cells = 2000;
-    const bbox = turf.bbox(feature);
-
-    // Get sidelength. turf.area calculates in sq meters, we need to convert back to kilometers 
-    const x = Math.sqrt((turf.area(feature)) / (maximum_cells * (3 * Math.sqrt(3) / 2))) / 1000;
-
-
-    let options = { units: 'kilometers' };
-    let grid = turf.hexGrid(bbox, x, options);
-    // Create an empty feature collection to store the filtered features
-    const filteredGrid = turf.featureCollection([]);
-
-    // Iterate over each cell in geojson1
-    turf.featureEach(grid, (cell) => {
-        // Check if the cell exists within the aim feature
-        if (turf.booleanContains(feature, cell)) {
-            // Add the cell to the filtered collection
-            filteredGrid.features.push(cell);
-        }
-    });
-    // const filteredGrid = grid;
-
-    return filteredGrid;
-}
-
 function presortTerrain(collection) {
     // Define the priority of terrains
     const terrainPriority = ["green", "tee", "bunker", "fairway", "hazard", "penalty"];
@@ -271,6 +244,31 @@ function findTerrainType(point, collection, bounds) {
     return "rough";
 }
 
+function hexGridCreate(feature) {
+    // Calculate the hexagon sidelength according to a max cell count
+    const maximum_cells = 2000;
+    const bbox = turf.bbox(feature);
+
+    // Get sidelength. turf.area calculates in sq meters, we need to convert back to kilometers
+    const x = Math.sqrt((turf.area(feature)) / (maximum_cells * (3 * Math.sqrt(3) / 2))) / 1000;
+
+
+    let options = { units: 'kilometers' };
+    let grid = turf.hexGrid(bbox, x, options);
+    // Create an empty feature collection to store the filtered features
+    const filteredGrid = turf.featureCollection([]);
+
+    // Iterate over each cell in geojson1
+    turf.featureEach(grid, (cell) => {
+        // Check if the cell exists within the aim feature
+        if (turf.booleanContains(feature, cell)) {
+            // Add the cell to the filtered collection
+            filteredGrid.features.push(cell);
+        }
+    });
+    return filteredGrid;
+}
+
 function probability(stddev, distance, mean = 0) {
     // Normal distribution pdf value for the given point distance
     const coefficient = 1 / (stddev * Math.sqrt(2 * Math.PI));
@@ -292,9 +290,92 @@ function probabilityGrid(grid, aimPoint, dispersionNumber) {
     });
 }
 
-function calculateStrokesRemaining(distanceToHole, terrainType) {
-    // Assume that we have an polynomial function defined by POLY_COEFFS
-    let totalStrokes = POLY_COEFFS[terrainType].reduce((acc, coeff, index) => acc + coeff * Math.pow(distanceToHole, index), 0);
+/**
+ * Calculates an estimated % chance to hole out from this distance and terrain
+ * @param {Number} distanceToHole the distance to the hole, in meters
+ * @param {String} terrainType the terrain type
+ * @returns {Number} a decimal between 0 and 1 representing the chance of holing out
+ */
+function holeOutRate(distanceToHole, terrainType) {
+    if (!(terrainType in HOLE_OUT_COEFFS)) {
+        console.warn("No polynomial for terrainType" + terrainType);
+        return 0;
+    }
+    const polys = HOLE_OUT_COEFFS[terrainType];
+
+    // Find which domain the distanceToHole falls within
+    let domainIndex;
+    for (let i = 0; i < polys.domains.length; i++) {
+        if (distanceToHole >= polys.domains[i][0] && distanceToHole <= polys.domains[i][1]) {
+            domainIndex = i;
+            break;
+        }
+    }
+
+    if (domainIndex === undefined) {
+        console.error("Distance to hole is outside the supported range.");
+        return 0;
+    }
+
+    // Get the coefficients for the polynomial within the valid domain
+    let coeffs = polys.coeffs[domainIndex];
+
+    // Calculate the estimated chance to hole out
+    let rate = coeffs.reduce(((acc, coeff, index) => acc + coeff * Math.pow(distanceToHole, index)), 0);
+
+    // Clamp the result between 0 and 1
+    rate = Math.max(0, Math.min(1, rate));
+
+    return rate;
+}
+
+/**
+ * Add a circular feature representing the golf hole with stats that represent holing out
+ * @param {FeatureCollection} hexGrid the grid feature
+ * @param {Number} distanceToHole the distance to the hole in meters
+ * @param {String} terrainType the terrain type
+ * @param {Point} holePoint a turf.js point representing the hole
+ * @returns FeatureCollection
+ */
+function addHoleOut(hexGrid, distanceToHole, terrainType, holePoint) {
+    console.debug(`Accomodating hole outs from ${distanceToHole}m on ${terrainType}`)
+
+    // Get holeout rate
+    const hor = holeOutRate(distanceToHole, terrainType);
+    if (hor == 0) {
+        console.debug("0% chance, skip")
+        return hexGrid;
+    }
+    console.debug(`${(100 * hor).toFixed(1)}% from ${distanceToHole}m on ${terrainType}`)
+
+    // Adjust the probability of all other featuers for hole probability
+    hexGrid.features.forEach(feature => feature.properties.probability *= (1 - hor))
+    const holeFeature = turf.circle(holePoint, 0.0002, { units: 'kilometers' });
+    holeFeature.properties = {
+        "distanceToHole": 0,
+        "terrainType": "hole",
+        "probability": hor,
+        "strokesRemaining": 0,
+    };
+
+    hexGrid.features.push(holeFeature);
+    return hexGrid;
+}
+
+/**
+ * Calculates an estimated number of strokes remaining from this distance and terrain
+ * @param {Number} distanceToHole the distance to the hole, in meters
+ * @param {String} terrainType the terrain type
+ * @returns {Number} the number of strokes remaining
+ */
+function strokesRemaining(distanceToHole, terrainType) {
+    if (!(terrainType in STROKES_REMAINING_COEFFS)) {
+        console.error("No polynomial for terrainType" + terrainType);
+        return
+    }
+
+    // Assume that we have an polynomial function defined by STROKES_REMAINING_COEFFS
+    let totalStrokes = STROKES_REMAINING_COEFFS[terrainType].reduce((acc, coeff, index) => acc + coeff * Math.pow(distanceToHole, index), 0);
     return totalStrokes;
 }
 
@@ -305,7 +386,7 @@ function calculateStrokesRemaining(distanceToHole, terrainType) {
  * @param {string} courseName the course name to get polygons for
  * @returns {Number} estimated strokes remaining
  */
-function calculateStrokesRemainingFrom(feature, holeCoordinate, courseName) {
+function strokesRemainingFrom(feature, holeCoordinate, courseName) {
     let golfCourseData = getGolfCourseData(courseName);
     if (golfCourseData instanceof Error) {
         // If no data currently available, reraise error to caller
@@ -314,27 +395,30 @@ function calculateStrokesRemainingFrom(feature, holeCoordinate, courseName) {
     const center = turf.center(feature);
     const distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
     const terrainType = findTerrainType(center, golfCourseData);
-    return calculateStrokesRemaining(distanceToHole, terrainType);
+    return strokesRemaining(distanceToHole, terrainType);
 }
 
-function calculateStrokesGained(grid, holeCoordinate, strokesRemainingStart, golfCourseData) {
+function strokesGained(grid, holeCoordinate, strokesRemainingStart, golfCourseData) {
     let bounds = findBoundaries(golfCourseData);
 
     grid.features.forEach((feature) => {
-        const center = turf.center(feature);
-        const distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
-        const terrainType = findTerrainType(center, golfCourseData, bounds);
-        const strokesRemaining = calculateStrokesRemaining(distanceToHole, terrainType);
-        const strokesGained = strokesRemainingStart - strokesRemaining - 1;
-        feature.properties.distanceToHole = distanceToHole;
-        feature.properties.terrainType = terrainType;
-        feature.properties.strokesRemaining = strokesRemaining;
-        feature.properties.strokesGained = strokesGained;
-        feature.properties.weightedStrokesGained = strokesGained * feature.properties.probability;
+        let props = feature.properties;
+        // Check if strokesRemaining is undefined, and if it is, then calculate it
+        // Hole out rate will add a cell with strokesRemaining defined already, this skips it
+        if (props.strokesRemaining === undefined) {
+            const center = turf.center(feature);
+            props.distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
+            props.terrainType = findTerrainType(center, golfCourseData, bounds);
+            props.strokesRemaining = strokesRemaining(props.distanceToHole, props.terrainType);
+        }
+
+        // Calculate strokes gained
+        props.strokesGained = strokesRemainingStart - props.strokesRemaining - 1;
+        props.weightedStrokesGained = props.strokesGained * props.probability;
     });
 }
 
-function sgGridCalculate(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseName) {
+function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseName) {
     let golfCourseData = getGolfCourseData(courseName);
     if (golfCourseData instanceof Error) {
         // If no data currently available, reraise error to caller
@@ -348,14 +432,15 @@ function sgGridCalculate(startCoordinate, aimCoordinate, holeCoordinate, dispers
     // Determine strokes gained at the start
     let terrainTypeStart = findTerrainType(startPoint, golfCourseData);
     let distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000
-    let strokesRemainingStart = calculateStrokesRemaining(distanceToHole, terrainTypeStart);
+    let strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
 
     // Create a grid
-    let hexGrid = createHexGrid(aimWindow);
+    let hexGrid = hexGridCreate(aimWindow);
 
     // Get probabilities
     probabilityGrid(hexGrid, aimPoint, dispersionNumber);
-    calculateStrokesGained(hexGrid, holePoint, strokesRemainingStart, golfCourseData);
+    addHoleOut(hexGrid, distanceToHole, terrainTypeStart, holePoint);
+    strokesGained(hexGrid, holePoint, strokesRemainingStart, golfCourseData);
 
     let weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
 

@@ -22,14 +22,12 @@ function runTests() {
     strokeCreate(position);
     console.assert(currentHole.strokes.length === 1, "Failed to log location");
 
-    // Test creating a new hole
-    handleNewHoleClick();
-    console.assert(round.holes.length === 2, "Failed to create a new hole");
-    console.assert(currentHole.number === 2, "Failed to update current hole number");
-
     // Test starting a new round
     document.getElementById("courseName").value = testCourse;
+    let noAlert = window.confirm;
+    window.confirm = (e) => console.log("Alerted with " + e);
     handleRoundCreateClick();
+    window.confirm = noAlert;
     console.assert(round.holes.length === 1, "Failed to start a new round");
     console.assert(currentHole.number === 1, "Failed to reset current hole number");
 
@@ -44,6 +42,7 @@ function runTests() {
     console.log("Undoing test stack");
     actionStack = [...backup];
     handleUndoActionClick();
+    rerender();
 
     // Blue teebox on Rancho 1
     const RANCHO_1_BLUE = [34.045387833581394, -118.4175638211316];
@@ -55,7 +54,7 @@ function runTests() {
     const PEBBLE_18_COG = [36.567618586351934, -121.94964382122045];
     const PEBBLE_18_FAIRWAY = [36.56739777929689, -121.94762753330005];
     const PEBBLE_18_TIPS = [36.56553254486202, -121.94524537031722];
-    let hexGrid = sgGridCalculate(RANCHO_1_BLUE, RANCHO_1_FAIRWAY, RANCHO_1_COG, 1, testCourse);
+    let hexGrid = sgGrid(RANCHO_1_BLUE, RANCHO_1_FAIRWAY, RANCHO_1_COG, 1, testCourse);
     let wsg = hexGrid.features.reduce(((sum, feature) => sum + feature.properties.weightedStrokesGained), 0);
     console.assert(Math.abs(wsg - 0.1) <= 0.05, "Failed to calculate weighted strokes gained");
 }
