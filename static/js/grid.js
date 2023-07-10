@@ -381,7 +381,10 @@ function strokesRemaining(distanceToHole, terrainType) {
 
     // Assume that we have an polynomial function defined by STROKES_REMAINING_COEFFS
     let totalStrokes = STROKES_REMAINING_COEFFS[terrainType].reduce((acc, coeff, index) => acc + coeff * Math.pow(distanceToHole, index), 0);
-    return totalStrokes;
+
+    // Clip results from -7 to 7 strokes remaining to catch really extreme outlier predictions
+    let clippedStrokes = Math.min(Math.max(totalStrokes, -7), 7)
+    return clippedStrokes;
 }
 
 /**
