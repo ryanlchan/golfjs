@@ -611,7 +611,8 @@ function clubReadAll() {
         { id: 12, name: "Sw", dispersion: "6" },
         { id: 13, name: "Lw", dispersion: "5" },
         { id: 14, name: "P", dispersion: "-0.15" },
-        { id: 15, name: "Skip", dispersion: "1", class: "secondary" },
+        { id: 15, name: "Penalty", dispersion: "1", class: "danger" },
+        { id: 16, name: "Skip", dispersion: "1", class: "secondary" },
     ]
 }
 
