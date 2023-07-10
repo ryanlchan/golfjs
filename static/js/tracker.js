@@ -240,8 +240,19 @@ function strokeMarkerAimCreate(e) {
         }
     }
     marker = markerCreate("active_aim", activeStroke.aim);
-    marker.bindTooltip((function () { return `${getDistance(activeStroke.start, activeStroke.aim).toFixed(2)}m` }), { permanent: true, direction: "top", offset: [-15, 0] })
+    marker.bindTooltip(strokeMarkerAimTooltip, { permanent: true, direction: "top", offset: [-15, 0] })
     sgGridCreate();
+}
+
+function strokeMarkerAimTooltip() {
+    const aimDistance = getDistance(activeStroke.start, activeStroke.aim).toFixed(2);
+    let text = `${aimDistance}m`;
+    const sggrid = layerRead("active_grid");
+    if (sggrid && sggrid.options.grid) {
+        const wsg = sggrid.options.grid.properties.weightedStrokesGained.toFixed(3);
+        text += `<br> SG Aim ${wsg}`
+    }
+    return text
 }
 
 function strokeMarkerAimUpdate() {
@@ -484,11 +495,9 @@ function pinMarkerCreate(hole) {
     const coordinate = hole.pin;
     const holeNum = hole.number
     const flagIcon = L.icon({
-        iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png", // replace with the path to your flag icon
-        iconSize: [25, 41], // size of the icon
-        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-        shadowSize: [41, 41],
-        iconAnchor: [12, 41]
+        iconUrl: "static/img/flag.png", // replace with the path to your flag icon
+        iconSize: [60, 60], // size of the icon
+        iconAnchor: [30, 60]
     });
     const options = {
         draggable: true,
@@ -1206,6 +1215,7 @@ function rerender(type) {
     if (type == "dragend") {
         sgGridUpdate();
         aimStatsUpdate();
+        strokeMarkerAimUpdate();
     }
 }
 
