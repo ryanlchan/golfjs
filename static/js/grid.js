@@ -250,7 +250,12 @@ function hexGridCreate(feature) {
     const bbox = turf.bbox(feature);
 
     // Get sidelength. turf.area calculates in sq meters, we need to convert back to kilometers
-    const x = Math.sqrt((turf.area(feature)) / (maximum_cells * (3 * Math.sqrt(3) / 2))) / 1000;
+    const _x = Math.sqrt((turf.area(feature)) / (maximum_cells * (3 * Math.sqrt(3) / 2))) / 1000;
+
+    // Clamp to at least 0.16m cells and at most 10m cells
+    const minX = 0.16 / 1000;
+    const maxX = 10 / 1000;
+    const x = Math.min(Math.max(minX, _x), maxX);
 
 
     let options = { units: 'kilometers' };
@@ -419,20 +424,31 @@ function strokesGained(grid, holeCoordinate, strokesRemainingStart, golfCourseDa
 }
 
 function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseName) {
-    let golfCourseData = getGolfCourseData(courseName);
+    // Try to get golf course data/polygons
+    const golfCourseData = getGolfCourseData(courseName);
     if (golfCourseData instanceof Error) {
         // If no data currently available, reraise error to caller
         return golfCourseData;
     }
-    let startPoint = turf.flip(turf.point(startCoordinate));
-    let aimPoint = turf.flip(turf.point(aimCoordinate));
-    let holePoint = turf.flip(turf.point(holeCoordinate));
-    let aimWindow = turf.circle(aimPoint, 3 * dispersionNumber / 1000, { units: "kilometers" })
+
+    // Set up turf geometries
+    const startPoint = turf.flip(turf.point(startCoordinate));
+    const aimPoint = turf.flip(turf.point(aimCoordinate));
+    const holePoint = turf.flip(turf.point(holeCoordinate));
+
+    // Handle specialcase of dispersions which are <0, representing distance fractions
+    if (dispersionNumber < 0) {
+        const distanceToAim = turf.distance(startPoint, aimPoint, { units: "kilometers" }) * 1000
+        dispersionNumber = -dispersionNumber * distanceToAim;
+        dispersionNumber = Math.max(0.5, dispersionNumber);
+    }
+    const aimWindow = turf.circle(aimPoint, 3 * dispersionNumber / 1000, { units: "kilometers" })
 
     // Determine strokes gained at the start
-    let terrainTypeStart = findTerrainType(startPoint, golfCourseData);
-    let distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000
-    let strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
+    const terrainTypeStart = findTerrainType(startPoint, golfCourseData);
+    const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000
+    const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
+
 
     // Create a grid
     let hexGrid = hexGridCreate(aimWindow);
@@ -442,10 +458,10 @@ function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber
     addHoleOut(hexGrid, distanceToHole, terrainTypeStart, holePoint);
     strokesGained(hexGrid, holePoint, strokesRemainingStart, golfCourseData);
 
-    let weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
+    const weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
 
     console.log('Total Weighted Strokes Gained:', weightedStrokesGained);
-    let properties = {
+    const properties = {
         strokesRemainingStart: strokesRemainingStart,
         distanceToHole: distanceToHole,
         weightedStrokesGained: weightedStrokesGained
