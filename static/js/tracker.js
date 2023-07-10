@@ -92,9 +92,9 @@ function strokeMove(holeNumber, strokeIndex, offset) {
     const hole = round.holes[holeNumber - 1]
     const mover = hole.strokes[strokeIndex]
     if (offset < 0) {
-        offset = Math.min(offset, -strokeIndex)
+        offset = Math.max(offset, -strokeIndex)
     } else {
-        offset = Math.max(offset, hole.strokes.length - strokeIndex - 1)
+        offset = Math.min(offset, hole.strokes.length - strokeIndex - 1)
     }
     hole.strokes.splice(strokeIndex, 1)
     hole.strokes.splice(strokeIndex + offset, 0, mover)
@@ -133,6 +133,7 @@ function strokeMarkerCreate(stroke, options) {
     const icon = L.icon({
         iconUrl: "static/img/circle-ypad.png", // replace with the path to your flag icon
         iconSize: [30, 45], // size of the icon
+        iconAnchor: [15, 30]
     });
     let opt = { draggable: true, opacity: .8, icon, strokeIndex: stroke.index }
     if (options !== undefined) {
@@ -143,7 +144,9 @@ function strokeMarkerCreate(stroke, options) {
     }
     let id = strokeMarkerID(stroke)
     let marker = markerCreate(id, coordinate, opt);
-    marker.bindTooltip((function () { return strokeTooltipText(stroke) }), { permanent: true, direction: "top", offset: [0, 10] })
+    marker.bindTooltip(
+        (function () { return strokeTooltipText(stroke) }),
+        { permanent: true, direction: "top", offset: [0, 0] })
     marker.on('click', strokeMarkerActivate(marker));
 }
 
