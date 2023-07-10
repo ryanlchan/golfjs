@@ -13,7 +13,7 @@ let actionStack = [];
 let currentPosition;
 let currentPositionEnabled;
 let holeSelector;
-let activeStrokeMarker;
+let activeStroke;
 
 /**
  * ===========
@@ -134,7 +134,7 @@ function strokeMarkerCreate(stroke, options) {
         iconUrl: "static/img/circle-ypad.png", // replace with the path to your flag icon
         iconSize: [30, 45], // size of the icon
     });
-    let opt = { draggable: true, opacity: .8, icon, stroke }
+    let opt = { draggable: true, opacity: .8, icon, strokeIndex: stroke.index }
     if (options !== undefined) {
         opt = {
             ...opt,
@@ -169,22 +169,22 @@ function strokeMarkerUpdate() {
 /**
  * Return a function that can be used to activate a stroke marker
  * @param {Marker} marker the leaflet map marker 
- * @returns 
+ * @returns {function}
  */
 function strokeMarkerActivate(marker) {
     // callback doesn't need to handle the click event
     return (() => {
         // Deactivate the currently active marker if there is one
-        if (activeStrokeMarker) {
-            strokeMarkerDeactivate()
+        if (activeStroke) {
+            strokeMarkerDeactivate();
         }
 
         // Activate the clicked marker
         marker.getElement().classList.add('active-marker');
-        activeStrokeMarker = marker;
+        activeStroke = currentHole.strokes[marker.options.strokeIndex];
 
         // Show the set Aim button
-        if (marker.options.stroke.aim) {
+        if (activeStroke.aim) {
             strokeMarkerAimCreate();
         } else {
             strokeMarkerAimCreateButton.classList.remove("inactive")
@@ -199,9 +199,10 @@ function strokeMarkerActivate(marker) {
  * Deactivate an aim marker when the user clicks on the map
  */
 function strokeMarkerDeactivate() {
-    if (activeStrokeMarker) {
+    if (activeStroke) {
+        let activeStrokeMarker = layerRead(strokeMarkerID(activeStroke));
         activeStrokeMarker.getElement().classList.remove('active-marker');
-        activeStrokeMarker = null;
+        activeStroke = null;
 
         // Hide the "Set aim" button and remove the aim marker
         strokeMarkerAimCreateButton.classList.add("inactive")
@@ -226,21 +227,20 @@ function strokeMarkerAimCreate(e) {
     // Unbind the map click event handler
     mapView.off('click', strokeMarkerAimCreate);
 
-    if (!activeStrokeMarker) {
-        console.error("Cannot add aim, no active stroke marker")
+    if (!activeStroke) {
+        console.error("Cannot add aim, no active stroke")
         return
     }
-    const stroke = activeStrokeMarker.options.stroke;
 
     if (e) {
-        activeStrokeMarker.options.stroke.aim = {
+        activeStroke.aim = {
             x: e.latlng.lng,
             y: e.latlng.lat,
             crs: "EPSG:4326"
         }
     }
-    marker = markerCreate("active_aim", stroke.aim);
-    marker.bindTooltip((function () { return `${getDistance(stroke.start, stroke.aim).toFixed(2)}m` }), { permanent: true, direction: "top", offset: [-15, 0] })
+    marker = markerCreate("active_aim", activeStroke.aim);
+    marker.bindTooltip((function () { return `${getDistance(activeStroke.start, activeStroke.aim).toFixed(2)}m` }), { permanent: true, direction: "top", offset: [-15, 0] })
     sgGridCreate();
 }
 
@@ -253,7 +253,7 @@ function strokeMarkerAimUpdate() {
 }
 
 function sgGridCreate() {
-    if (!activeStrokeMarker) {
+    if (!activeStroke) {
         console.error("No active stroke, cannot create sg grid");
         return
     } else if (!currentHole.pin) {
@@ -265,10 +265,10 @@ function sgGridCreate() {
     }
 
     let grid = sgGrid(
-        [activeStrokeMarker.options.stroke.start.y, activeStrokeMarker.options.stroke.start.x],
-        [activeStrokeMarker.options.stroke.aim.y, activeStrokeMarker.options.stroke.aim.x],
+        [activeStroke.start.y, activeStroke.start.x],
+        [activeStroke.aim.y, activeStroke.aim.x],
         [currentHole.pin.y, currentHole.pin.x],
-        activeStrokeMarker.options.stroke.dispersion,
+        activeStroke.dispersion,
         round.course);
 
     // Check if any grid returned, for example if the data didn't load or something
@@ -293,7 +293,7 @@ function sgGridCreate() {
         const props = layer.feature.properties;
         const sg = props.strokesGained;
         const prob = (props.probability * 100);
-        const er = erf(props.distanceToAim, 0, activeStrokeMarker.options.stroke.dispersion)
+        const er = erf(props.distanceToAim, 0, activeStroke.dispersion)
         const ptile = (1 - er) * 100;
         return `SG: ${sg.toFixed(3)}
             | ${props.terrainType}
@@ -313,7 +313,7 @@ function sgGridDelete() {
 
 function sgGridUpdate() {
     sgGridDelete();
-    if (activeStrokeMarker && currentHole.pin) {
+    if (activeStroke && currentHole.pin) {
         sgGridCreate();
     }
 }
@@ -1127,7 +1127,7 @@ function aimStatsUpdate() {
     const grid = layer.options.grid;
 
     // Calculate stats
-    const stroke = activeStrokeMarker.options.stroke;
+    const stroke = activeStroke;
     const hole = round.holes[stroke.hole - 1];
     const wsg = grid.properties.weightedStrokesGained;
     const sr = grid.properties.strokesRemainingStart;
