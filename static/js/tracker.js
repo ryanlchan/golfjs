@@ -65,13 +65,6 @@ function strokeDelete(holeNumber, strokeIndex) {
         let stroke = hole.strokes[strokeIndex];
         undoCreate("strokeDelete");
 
-        // Deactivate
-        strokeMarkerDeactivate();
-
-        // Delete Marker
-        let markerID = strokeMarkerID(stroke);
-        layerDelete(markerID);
-
         // Delete from data layer
         hole.strokes.splice(strokeIndex, 1);
 
@@ -82,6 +75,8 @@ function strokeDelete(holeNumber, strokeIndex) {
         currentStrokeIndex = hole.strokes.length;
 
         // Rerender views
+        holeViewDelete()
+        holeViewCreate(hole)
         rerender();
     }
 }
@@ -471,13 +466,7 @@ function holeSelect(holeNum) {
     }
 
     // Delete all hole-specific layers and active states
-    strokeMarkerDeactivate();
-    const allLayers = layerReadAll();
-    for (let id in allLayers) {
-        if (id.includes("hole_") || id.includes("active_")) {
-            layerDelete(id);
-        }
-    }
+    holeViewDelete();
 
     // Add all the layers of this new hole
     holeViewCreate(currentHole);
@@ -1016,7 +1005,7 @@ function mapRecenter(key) {
 
 /**
  * Render the set of markers/layers for a given hole
- * @param {Object} hole 
+ * @param {Object} hole the hole object from round
  */
 function holeViewCreate(hole) {
     console.debug(`Rendering layers for hole ${hole.number}`)
@@ -1027,6 +1016,19 @@ function holeViewCreate(hole) {
         pinMarkerCreate(hole);
     }
     strokelineCreate(hole);
+}
+
+/**
+ * Delete all hole specific view layers
+ */
+function holeViewDelete() {
+    strokeMarkerDeactivate();
+    const allLayers = layerReadAll();
+    for (let id in allLayers) {
+        if (id.includes("hole_") || id.includes("active_")) {
+            layerDelete(id);
+        }
+    }
 }
 
 /**
