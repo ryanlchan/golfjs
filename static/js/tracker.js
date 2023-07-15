@@ -21,12 +21,12 @@ let activeStroke;
  * ===========
  */
 
-/** 
+/**
  * Shows the current position on the map and logs it as a stroke.
  * @param {GeolocationPosition} position - The current geolocation position.
  */
 function strokeCreate(position, options = {}) {
-    // set an undo point 
+    // set an undo point
     undoCreate("strokeCreate");
 
     // Create the stroke object
@@ -55,8 +55,8 @@ function strokeCreate(position, options = {}) {
 
 /**
  * Delete a stroke out of the round
- * @param {Number} holeId 
- * @param {Number} strokeIndex 
+ * @param {Number} holeId
+ * @param {Number} strokeIndex
  */
 function strokeDelete(holeNumber, strokeIndex) {
     console.debug(`Deleting stroke ${strokeIndex} from hole ${holeNumber}`)
@@ -81,6 +81,12 @@ function strokeDelete(holeNumber, strokeIndex) {
     }
 }
 
+/**
+ * Reorders a stroke within a Hole
+ * @param {Number} holeNumber the hole to reorder (1-indexed)
+ * @param {Number} strokeIndex the stroke index to reorder (0-indexed)
+ * @param {Number} offset movment relative to the current strokeIndex
+ */
 function strokeMove(holeNumber, strokeIndex, offset) {
     console.debug(`Moving stroke ${strokeIndex} from hole ${holeNumber} by ${offset}`)
     undoCreate("strokeMove");
@@ -100,7 +106,7 @@ function strokeMove(holeNumber, strokeIndex, offset) {
 
 /**
  * Get the distance from this stroke to the next
- * @param {Object*} stroke 
+ * @param {Object*} stroke
  */
 function strokeDistance(stroke) {
     let distance = 0;
@@ -114,8 +120,6 @@ function strokeDistance(stroke) {
 
     return distance
 }
-
-
 
 /**
  * Adds a stroke marker to the map.
@@ -165,7 +169,7 @@ function strokeMarkerUpdate() {
 
 /**
  * Return a function that can be used to activate a stroke marker
- * @param {Marker} marker the leaflet map marker 
+ * @param {Marker} marker the leaflet map marker
  * @returns {function}
  */
 function strokeMarkerActivate(marker) {
@@ -212,7 +216,7 @@ function strokeMarkerDeactivate() {
 
 /**
  * Create an aim marker where the user has currently clicked
- * @param {Event} e the click event on the map 
+ * @param {Event} e the click event on the map
  */
 function strokeMarkerAimCreate(e) {
     // Unbind the map click event handler
@@ -238,6 +242,10 @@ function strokeMarkerAimCreate(e) {
     gridCreate();
 }
 
+/**
+ * Output the content for a Stroke's Aim marker's tooltip
+ * @returns {String}
+ */
 function strokeMarkerAimTooltip() {
     const aimDistance = getDistance(activeStroke.start, activeStroke.aim).toFixed(1);
     const pinDistance = getDistance(activeStroke.aim, currentHole.pin).toFixed(1);
@@ -251,6 +259,9 @@ function strokeMarkerAimTooltip() {
     return text
 }
 
+/**
+ * Update the tooltip and aim ring for a Stroke's Aim marker
+ */
 function strokeMarkerAimUpdate() {
     try {
         const marker = layerRead("active_aim")
@@ -261,6 +272,9 @@ function strokeMarkerAimUpdate() {
     }
 }
 
+/**
+ * Delete the current active stroke's aim marker, ring, and grid
+ */
 function strokeMarkerAimDelete() {
     // Hide Aim button
     strokeMarkerAimCreateButton.classList.add("inactive")
@@ -351,6 +365,9 @@ function gridUpdate() {
     }
 }
 
+/**
+ * Create a Strokes Gained probability grid around the current aim point
+ */
 function sgGridCreate() {
     if (!activeStroke) {
         console.error("No active stroke, cannot create sg grid");
@@ -415,6 +432,9 @@ function sgGridUpdate() {
 }
 
 
+/**
+ * Create a relative strokes gained grid for aiming at each cell in a grid
+ */
 function targetGridCreate() {
     if (!activeStroke) {
         console.error("No active stroke, cannot create sg grid");
@@ -468,7 +488,7 @@ function targetGridCreate() {
 
 /**
  * Create a stroke line for a given hole
- * @param {Object} hole 
+ * @param {Object} hole
  */
 function strokelineCreate(hole) {
     console.debug("Creating stroke line for hole " + hole.number)
@@ -516,7 +536,7 @@ function strokelineDeleteAll() {
 
 /**
  * Helper function just to generate point arrays for a hole
- * @param {Object} hole 
+ * @param {Object} hole
  * @returns {Array[latLng]}
  */
 function strokelinePoints(hole) {
@@ -535,7 +555,7 @@ function strokelinePoints(hole) {
 
 /**
  * Generate a unique layer primary key for this hole
- * @param {Object} hole 
+ * @param {Object} hole
  * @returns String
  */
 function strokelineID(hole) {
@@ -550,7 +570,7 @@ function strokelineID(hole) {
 
 /**
  * Select a new hole and update pointers/views to match
- * @param {Number} holeNum 
+ * @param {Number} holeNum
  */
 function holeSelect(holeNum) {
     // Update currentHole
@@ -570,6 +590,11 @@ function holeSelect(holeNum) {
     mapRecenter("currentHole")
 }
 
+/**
+ * Returns a unique layer ID for a given Hole
+ * @param {Hole} hole the hole interface object from round
+ * @returns {String}
+ */
 function holePinID(hole) {
     return `pin_hole_${hole.number}`
 }
@@ -628,6 +653,10 @@ function roundCreate(courseParams) {
     fetchGolfCourseData(courseParams).then(roundUpdateWithData);
 }
 
+/**
+ * After downloading polygons, update the Round with relevant data like pins and holes
+ * @param {FeatureCollection} courseData the polygons for this course
+ */
 function roundUpdateWithData(courseData) {
     let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
     for (let line of lines) {
@@ -654,6 +683,10 @@ function roundUpdateWithData(courseData) {
     mapRecenter("course");
 }
 
+/**
+ * Return a default Hole object conforming to the interface
+ * @returns {Hole} a default Hole interface
+ */
 function defaultCurrentHole() {
     return {
         number: 1,
@@ -661,6 +694,10 @@ function defaultCurrentHole() {
     };
 }
 
+/**
+ * Returns a default Round object conforming to the interface
+ * @returns {Round} a default Round interface
+ */
 function defaultRound() {
     return {
         date: new Date().toISOString(),
@@ -686,7 +723,7 @@ function roundCourseParams(round) {
 
 /**
  * Create a new stroke for a given club at current position
- * @param {Object} position 
+ * @param {Object} position
  */
 function clubStrokeCreate(position, club) {
     let options = {
@@ -698,7 +735,7 @@ function clubStrokeCreate(position, club) {
 
 /**
  * Lookup function to get all clubs in the backend, currently static
- * @returns {Array} 
+ * @returns {Array}
  */
 function clubReadAll() {
     return [
@@ -788,7 +825,7 @@ function markerCreate(name, coordinate, options) {
 
 /**
  * Shortcut factory for marker drag callbacks
- * @param {L.marker} marker 
+ * @param {L.marker} marker
  */
 function handleMarkerDrag(marker, coordinate) {
     return (function mdrag(event) {
@@ -814,7 +851,7 @@ function handleUndoActionClick() {
 
 /**
  * Set an undo point that you can return to
- * @param {String} action 
+ * @param {String} action
  */
 function undoCreate(action) {
     actionStack.push({
@@ -852,8 +889,8 @@ function undoRun() {
 
 /**
  * Store a layer in the layerSet
- * @param {String} id 
- * @param {*} object 
+ * @param {String} id
+ * @param {*} object
  */
 function layerCreate(id, object) {
     if (layers[id]) {
@@ -866,7 +903,7 @@ function layerCreate(id, object) {
 
 /**
  * Get a view layer from the Layer Set using an ID
- * @param {String} id 
+ * @param {String} id
  * @returns {*} object from db
  */
 function layerRead(id) {
@@ -875,7 +912,7 @@ function layerRead(id) {
 
 /**
  * Delete a layer with a given ID
- * @param {String} id 
+ * @param {String} id
  */
 function layerDelete(id) {
     if (layers[id]) {
@@ -936,7 +973,7 @@ function getDistance(coord1, coord2) {
 
 /**
  * Call a callback function with location from the browser, or a browser cache
- * @param {Function} callback 
+ * @param {Function} callback
  * @param {*} force set to true to force retrieving a fresh location
  */
 function withLocation(callback, force) {
@@ -1147,7 +1184,7 @@ function holeSelectViewCreate(element) {
 
 /**
  * Update a given select element with current hole options
- * @param {Element} element 
+ * @param {Element} element
  */
 function holeSelectViewUpdate() {
     if (!holeSelector) {
@@ -1277,18 +1314,27 @@ function aimStatsUpdate() {
     el.innerHTML = text;
 }
 
+/**
+ * Show the Aim Stats for a stroke
+ */
 function aimStatsCreate() {
     const el = document.getElementById("aimStats");
     el.classList.remove("inactive");
     aimStatsUpdate();
 }
 
+/**
+ * Hide the Aim stats for a stroke
+ */
 function aimStatsDelete() {
     const el = document.getElementById("aimStats");
     el.classList.add("inactive");
 
 }
 
+/**
+ * Create a select element to choose the type of grid to render for this stroke
+ */
 function gridTypeSelectCreate() {
     // remove old selector if present
     gridTypeSelectDelete();
@@ -1307,6 +1353,9 @@ function gridTypeSelectCreate() {
     container.prepend(selector);
 }
 
+/**
+ * Delete the grid type selector from the page
+ */
 function gridTypeSelectDelete() {
     let old = document.getElementById("gridTypeSelect");
     if (old) {
@@ -1314,6 +1363,9 @@ function gridTypeSelectDelete() {
     }
 }
 
+/**
+ * Handle when a new grid type is selected
+ */
 function handleGridTypeSelection() {
     gridDelete();
     gridCreate(this.value);
@@ -1373,8 +1425,8 @@ function rerender(type) {
 
 /**
  * Render a set of Club buttons into an HTML element based on an array of Club objects
- * @param {Array} clubs 
- * @param {HTMLElement} targetElement 
+ * @param {Array} clubs
+ * @param {HTMLElement} targetElement
  */
 const clubDataFields = ["dispersion"]
 function clubStrokeViewCreate(clubs, targetElement) {
@@ -1409,7 +1461,7 @@ function clubStrokeViewCreate(clubs, targetElement) {
 
 /**
  * Handle a click on a club stroke create button
- * @param {Object} club 
+ * @param {Object} club
  * @returns {Function}
  */
 function clubStrokeCreateCallback(club) {
@@ -1421,6 +1473,9 @@ function clubStrokeCreateCallback(club) {
     });
 }
 
+/**
+ * Show or Hide the Club screen for stroke creation
+ */
 function clubStrokeViewToggle() {
     const el = document.getElementById("clubStrokeCreateContainer")
     el.classList.toggle("inactive");
@@ -1429,7 +1484,10 @@ function clubStrokeViewToggle() {
     }
 }
 
-
+/**
+ * Render the results from a course search via nominatim
+ * @param {Object} results the results from Nominatim search
+ */
 function courseSearchViewUpdate(results) {
     let resultList = document.getElementById("courseSearchResults");
     resultList.innerHTML = "";
@@ -1447,6 +1505,12 @@ function courseSearchViewUpdate(results) {
     });
 }
 
+/**
+ * Return a unique courseID corresponding to an OSM object
+ * @param {String} type the OSM type (way, relation, etc)
+ * @param {Number} id the OSM ID
+ * @returns {String}
+ */
 function osmCourseID(type, id) {
     return `osm-${type}-${id}`
 }
@@ -1506,8 +1570,11 @@ function handleRoundCreateClickCallback(courseParams) {
     });
 }
 
-function handleStrokeMarkerAimCreateClick(e) {
-    // Bind a map click event handler to set the aim
+/**
+ * If the user is not in the current course, allow them to click the screen to
+ * set a new stroke's location
+ */
+function handleStrokeMarkerAimCreateClick() {
     mapView.on("click", strokeMarkerAimCreate);
     mapView.off("click", strokeMarkerDeactivate);
 }
@@ -1527,10 +1594,17 @@ function handleCopyToClipboardClick() {
     navigator.clipboard.writeText(document.getElementById("locationData").textContent);
 }
 
+/**
+ * Recenter the map on the current hole
+ */
 function handleRecenterClick() {
     mapRecenter("currentHole");
 }
 
+/**
+ * Search Nominatim when a user is done typing in the course name box
+ * Debounces to only search after 500ms of inactivity
+ */
 let timeoutId;
 function handleCourseSearchInput() {
     let query = this.value;

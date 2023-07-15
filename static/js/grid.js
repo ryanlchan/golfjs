@@ -8,10 +8,20 @@ const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search?q=";
 
+/**
+ * Utility to have a wait promise
+ * @param {Number} ms
+ * @returns
+ */
 function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Store an item in the localStorage cache under a given key
+ * @param {String} key
+ * @param {Object} json
+ */
 function setCache(key, json) {
     localStorage.setItem(
         key,
@@ -36,6 +46,11 @@ function deleteCache(key) {
     localStorage.removeItem(key);
 }
 
+/**
+ * Generate a cache key given a course interface
+ * @param {Course} courseParams
+ * @returns {string} the cache key
+ */
 function cacheKey(courseParams) {
     return `courseData-${courseParams['name']}-${courseParams['id']}`;
 }
@@ -255,6 +270,11 @@ function scrubOSMData(geojson) {
     return geojson
 }
 
+/**
+ * Presort the polygons from backend by priority
+ * @param {FeatureCollection} collection
+ * @returns {FeatureCollection}
+ */
 function presortTerrain(collection) {
     // Define the priority of terrains
     const terrainPriority = ["green", "tee", "bunker", "fairway", "hazard", "penalty"];
@@ -275,16 +295,21 @@ function presortTerrain(collection) {
     return collection
 }
 
+/**
+ * Return a FeatureCollection of boundary polygons given an input set
+ * @param {FeatureCollection} collection a collection of golf polygons
+ * @returns {FeatureCollection}
+ */
 function findBoundaries(collection) {
     return turf.getCluster(collection, { 'leisure': 'golf_course' });
 }
 
 /**
- *
+ * Returns a terrain type given a point, a feature collection of terrains, and an optional bounds collection
  * @param {Point} point
  * @param {FeatureCollection} collection A prescrubbed collection of Features (sorted, single poly'd, etc)
  * @param {FeatureCollection} bounds A prescrubbed collection of boundaries, optional
- * @returns
+ * @returns {String} the terrain type
  */
 function findTerrainType(point, collection, bounds) {
     if (!bounds) {
@@ -305,6 +330,12 @@ function findTerrainType(point, collection, bounds) {
     // If the point does not overlap with any of these terrain features, it is considered to be in the rough
     return "rough";
 }
+
+/**
+ * =====
+ * Grids
+ * =====
+ */
 
 /**
  * Create a hex grid around a given feature
@@ -334,13 +365,27 @@ function hexGridCreate(feature, options) {
     return turf.hexGrid(bbox, x, grid_options);
 }
 
-function probability(stddev, distance, mean = 0) {
-    // Normal distribution pdf value for the given point distance
+/**
+ * Return the probability of a given number being drawn from a normal distribution
+ * of a given mean and stddev. Estimates a continuous PDF.
+ * @param {Number} stddev the normal's standard deviation
+ * @param {Number} x the number to get probabilities for
+ * @param {Number} mean the mean of the normal distribution, optional (default = 0)
+ * @returns {Number}
+ */
+function probability(stddev, x, mean = 0) {
     const coefficient = 1 / (stddev * Math.sqrt(2 * Math.PI));
-    const exponent = -((distance - mean) ** 2) / (2 * stddev ** 2);
+    const exponent = -((x - mean) ** 2) / (2 * stddev ** 2);
     return coefficient * Math.exp(exponent);
 };
 
+/**
+ * Add probability to a HexGrid, assuming a normal distribution around `aimPoint`
+ * with standard deviation of `dispersionNumber`
+ * @param {FeatureCollection} grid the hexGrid
+ * @param {Point} aimPoint the point to count as the center of aim/normal
+ * @param {Number} dispersionNumber the standard deviation of the normal
+ */
 function probabilityGrid(grid, aimPoint, dispersionNumber) {
     let total = 0.0;
     grid.features.forEach((feature) => {
@@ -466,6 +511,13 @@ function strokesRemainingFrom(feature, holeCoordinate, courseParams) {
     return strokesRemaining(distanceToHole, terrainType);
 }
 
+/**
+ * Calculate strokes gained for each cell in a given grid
+ * @param {FeatureCollection} grid
+ * @param {Array} holeCoordinate
+ * @param {Number} strokesRemainingStart
+ * @param {FeatureCollection} golfCourseData
+ */
 function strokesGained(grid, holeCoordinate, strokesRemainingStart, golfCourseData) {
     let bounds = findBoundaries(golfCourseData);
 
