@@ -1310,16 +1310,13 @@ function courseSearchViewUpdate(results) {
     results.forEach((result) => {
         let listItem = document.createElement("li");
         let link = document.createElement("a");
+        let courseParams = { 'name': null, 'id': osmCourseID(result.osm_type, result.osm_id) }
         link.innerText = result.display_name;
-        link.setAttribute("href", "#")
-        link.addEventListener('click', courseSearchViewRoundCreateCallback(result))
+        link.setAttribute("href", `#${result.osm_id}`)
+        link.addEventListener('click', handleRoundCreateClickCallback(courseParams))
         listItem.appendChild(link);
         resultList.appendChild(listItem);
     });
-}
-
-function courseSearchViewRoundCreateCallback(result) {
-    return () => roundCreate(null, osmCourseID(result.osm_type, result.osm_id))
 }
 
 function osmCourseID(type, id) {
@@ -1355,15 +1352,30 @@ function handleStrokeAddClick() {
 /**
  * Handles the click event for starting a new round.
  */
-function handleRoundCreateClick() {
-    const courseName = document.getElementById("courseName").value
-    if (!courseName) {
-        alert("Course name cannot be blank!");
-    } else if (confirm("Are you sure you want to start a new round? All current data will be lost.")) {
-        roundCreate(courseName);
-        holeSelectViewUpdate();
-        rerender();
-    }
+function handleRoundCreateClickCallback(courseParams) {
+    return (() => {
+
+        let courseName;
+        let courseId;
+
+        if (courseParams) {
+            courseName = courseParams["name"];
+            courseId = courseParams["id"];
+        } else {
+            courseName = document.getElementById("courseName").value;
+        }
+
+        if (!courseName && !courseId) {
+            alert("Course name cannot be blank!");
+            return
+        }
+
+        if (confirm("Are you sure you want to start a new round? All current data will be lost.")) {
+            roundCreate(courseName);
+            holeSelectViewUpdate();
+            rerender();
+        }
+    });
 }
 
 function handleStrokeMarkerAimCreateClick(e) {
@@ -1435,7 +1447,7 @@ let strokeMarkerAimCreateButton = document.getElementById("strokeMarkerAimCreate
 window.onload = handleLoad;
 document.getElementById("strokeAdd").addEventListener("click", handleStrokeAddClick);
 document.getElementById("clubStrokeCreateContainerClose").addEventListener("click", clubStrokeViewToggle);
-document.getElementById("roundCreate").addEventListener("click", handleRoundCreateClick);
+document.getElementById("roundCreate").addEventListener("click", handleRoundCreateClickCallback());
 document.getElementById("toggleRound").addEventListener("click", handleToggleRoundClick);
 document.getElementById("copyToClipboard").addEventListener("click", handleCopyToClipboardClick);
 document.getElementById("undoAction").addEventListener("click", handleUndoActionClick);
