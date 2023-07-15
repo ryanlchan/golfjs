@@ -1454,7 +1454,7 @@ function rerender(type) {
     }
     // Render calls that should happen only after drags finish
     if (type == "dragend") {
-        sgGridUpdate();
+        gridUpdate();
         aimStatsUpdate();
         strokeMarkerAimUpdate();
     }
