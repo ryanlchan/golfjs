@@ -243,8 +243,10 @@ function strokeMarkerAimCreate(e) {
 }
 
 function strokeMarkerAimTooltip() {
-    const aimDistance = getDistance(activeStroke.start, activeStroke.aim).toFixed(2);
-    let text = `${aimDistance}m`;
+    const aimDistance = getDistance(activeStroke.start, activeStroke.aim).toFixed(1);
+    const pinDistance = getDistance(activeStroke.aim, currentHole.pin).toFixed(1);
+    let text = `${aimDistance}m to aim<br> ${pinDistance}m to pin`;
+
     const sggrid = layerRead("active_grid");
     if (sggrid && sggrid.options.grid) {
         const wsg = sggrid.options.grid.properties.weightedStrokesGained.toFixed(3);
