@@ -240,9 +240,9 @@ function strokeMarkerAimCreate(e) {
             crs: "EPSG:4326"
         }
     }
-    marker = markerCreate("active_aim", activeStroke.aim);
+    let marker = markerCreate("active_aim", activeStroke.aim);
     marker.bindTooltip(strokeMarkerAimTooltip, { permanent: true, direction: "top", offset: [-15, 0] })
-    ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
+    let ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
     layerCreate("active_aim_ring", ring);
     sgGridCreate();
 }
@@ -285,7 +285,7 @@ function sgGridCreate() {
         [activeStroke.aim.y, activeStroke.aim.x],
         [currentHole.pin.y, currentHole.pin.x],
         activeStroke.dispersion,
-        round.course);
+        roundCourseParams(round));
 
     // Check if any grid returned, for example if the data didn't load or something
     if (grid instanceof Error) {
@@ -521,26 +521,33 @@ function pinMarkerCreate(hole) {
  * Create a new round and clear away all old data
  * Tries to background fetch course data and will call #roundUpdateWithData after loaded
  */
-function roundCreate() {
+function roundCreate(courseName, courseId) {
     // Set undo point
     undoCreate("roundCreate")
 
-    const courseName = document.getElementById("courseName").value;
+    if (!courseName) {
+        courseName = document.getElementById("courseName").value;
+    }
 
     // Reset all major data
     localStorage.removeItem("golfData");
     round = { ...defaultRound(), course: courseName };
+    courseData = { 'name': courseName }
+    if (courseId) {
+        round.courseId = courseId
+        courseData.id = courseId
+    }
     currentHole = round.holes.at(0)
     currentStrokeIndex = 0;
     layerDeleteAll();
-    fetchGolfCourseData(courseName).then(roundUpdateWithData);
+    fetchGolfCourseData(courseData).then(roundUpdateWithData);
 }
 
 function roundUpdateWithData(courseData) {
     let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
     for (let line of lines) {
         const number = parseInt(line.properties.ref);
-        const green = getGolfHoleGreen(round.course, number);
+        const green = getGolfHoleGreen(roundCourseParams(round), number);
         const cog = turf.center(green).geometry.coordinates;
         const pin = {
             x: cog[0],
@@ -578,6 +585,15 @@ function defaultRound() {
 }
 
 /**
+ * Return a course interface given a round interface
+ * @param {Round} round the round object
+ * @returns {Course} the course parameters
+ */
+function roundCourseParams(round) {
+    return { 'name': round.course, 'id': round.courseId }
+}
+
+/**
  * =====
  * Clubs
  * =====
@@ -601,22 +617,22 @@ function clubStrokeCreate(position, club) {
  */
 function clubReadAll() {
     return [
-        { id: 1, name: "D", dispersion: "39" },
-        { id: 2, name: "3w", dispersion: "35" },
-        { id: 3, name: "3h", dispersion: "28" },
-        { id: 4, name: "4i", dispersion: "23" },
-        { id: 5, name: "5i", dispersion: "21.5" },
-        { id: 6, name: "6i", dispersion: "17" },
-        { id: 7, name: "7i", dispersion: "16" },
-        { id: 8, name: "8i", dispersion: "13.5" },
-        { id: 9, name: "9i", dispersion: "11.5" },
-        { id: 10, name: "Pw", dispersion: "10" },
-        { id: 11, name: "Aw", dispersion: "7.5" },
-        { id: 12, name: "Sw", dispersion: "6" },
-        { id: 13, name: "Lw", dispersion: "5" },
-        { id: 14, name: "P", dispersion: "-0.15" },
-        { id: 15, name: "Penalty", dispersion: "1", class: "danger" },
-        { id: 16, name: "Skip", dispersion: "1", class: "secondary" },
+        { id: 1, name: "D", dispersion: 39 },
+        { id: 2, name: "3w", dispersion: 35 },
+        { id: 3, name: "3h", dispersion: 28 },
+        { id: 4, name: "4i", dispersion: 23 },
+        { id: 5, name: "5i", dispersion: 21.5 },
+        { id: 6, name: "6i", dispersion: 17 },
+        { id: 7, name: "7i", dispersion: 16 },
+        { id: 8, name: "8i", dispersion: 13.5 },
+        { id: 9, name: "9i", dispersion: 11.5 },
+        { id: 10, name: "Pw", dispersion: 10 },
+        { id: 11, name: "Aw", dispersion: 7.5 },
+        { id: 12, name: "Sw", dispersion: 6 },
+        { id: 13, name: "Lw", dispersion: 5 },
+        { id: 14, name: "P", dispersion: -0.15 },
+        { id: 15, name: "Penalty", dispersion: 1, class: "danger" },
+        { id: 16, name: "Skip", dispersion: 1, class: "secondary" },
     ]
 }
 
@@ -974,7 +990,7 @@ function mapRecenter(key) {
         duration: 0.33
     }
     if (key == "course") {
-        let course = getGolfCourseData(round.course);
+        let course = getGolfCourseData(roundCourseParams(round));
         if (course instanceof Error) {
             return
         } else {
@@ -982,7 +998,7 @@ function mapRecenter(key) {
             mapView.flyToBounds(turfbbToleafbb(turf.bbox(course)), flyoptions)
         }
     } else if (key == "currentHole") {
-        let line = getGolfHoleLine(round.course, currentHole.number);
+        let line = getGolfHoleLine(roundCourseParams(round), currentHole.number);
         if (line) {
             console.debug("Recentering on current hole")
             mapView.flyToBounds(turfbbToleafbb(turf.bbox(line)), flyoptions)
@@ -1043,6 +1059,10 @@ function holeSelectViewUpdate() {
         holeSelector.removeChild(holeSelector.firstChild);
     }
     for (let hole of round.holes) {
+        if (!hole) {
+            // Sometimes polys return extra holes for whatever reason, skip them
+            break;
+        }
         let option = document.createElement('option');
         option.value = hole.number;
         option.text = `Hole ${hole.number}`;
@@ -1150,7 +1170,7 @@ function aimStatsUpdate() {
         let nextStart = currentHole.strokes[stroke.index + 1].start;
         let startPoint = turf.point([nextStart.x, nextStart.y]);
         let pinCoord = [hole.pin.x, hole.pin.y];
-        srn = strokesRemainingFrom(startPoint, pinCoord, round.course);
+        srn = strokesRemainingFrom(startPoint, pinCoord, roundCourseParams(round));
     }
     const sga = sr - srn - 1;
 
@@ -1281,6 +1301,31 @@ function clubStrokeViewToggle() {
     }
 }
 
+
+function courseSearchViewUpdate(results) {
+    let resultList = document.getElementById("courseSearchResults");
+    resultList.innerHTML = "";
+
+    // Iterate over the results and display each match
+    results.forEach((result) => {
+        let listItem = document.createElement("li");
+        let link = document.createElement("a");
+        link.innerText = result.display_name;
+        link.setAttribute("href", "#")
+        link.addEventListener('click', courseSearchViewRoundCreateCallback(result))
+        listItem.appendChild(link);
+        resultList.appendChild(listItem);
+    });
+}
+
+function courseSearchViewRoundCreateCallback(result) {
+    return () => roundCreate(null, osmCourseID(result.osm_type, result.osm_id))
+}
+
+function osmCourseID(type, id) {
+    return `osm-${type}-${id}`
+}
+
 /**
  * =========================
  * Handlers for click events
@@ -1294,7 +1339,8 @@ function handleLoad() {
     mapViewCreate("mapid");
     clubStrokeViewCreate(clubReadAll(), document.getElementById("clubStrokeCreateContainer"));
     loadData();
-    fetchGolfCourseData(round.course).then(() => mapRecenter("currentHole"));
+    let courseData = { 'name': round.course, 'id': round.courseId }
+    fetchGolfCourseData(courseData).then(() => mapRecenter("currentHole"));
     holeSelectViewCreate(document.getElementById('holeSelector'));
 }
 
@@ -1314,7 +1360,7 @@ function handleRoundCreateClick() {
     if (!courseName) {
         alert("Course name cannot be blank!");
     } else if (confirm("Are you sure you want to start a new round? All current data will be lost.")) {
-        roundCreate();
+        roundCreate(courseName);
         holeSelectViewUpdate();
         rerender();
     }
@@ -1345,6 +1391,20 @@ function handleRecenterClick() {
     mapRecenter("currentHole");
 }
 
+let timeoutId;
+function handleCourseSearchInput() {
+    let query = this.value;
+
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+        if (query.length >= 3) {
+            return courseSearch(query).then(courseSearchViewUpdate);
+        } else {
+            document.getElementById("courseSearchResults").innerHTML = "";
+        }
+    }, 500);
+}
+
 /**
  * Shows an error message based on the geolocation error code.
  * @param {PositionError} error - The geolocation error object.
@@ -1363,6 +1423,9 @@ function showError(error) {
         case error.UNKNOWN_ERROR:
             document.getElementById("error").innerText = "An unknown error occurred.";
             break;
+        default:
+            document.getElementById("error").innerText = error.text;
+            break;
     }
 }
 
@@ -1378,3 +1441,4 @@ document.getElementById("copyToClipboard").addEventListener("click", handleCopyT
 document.getElementById("undoAction").addEventListener("click", handleUndoActionClick);
 document.getElementById("recenter").addEventListener("click", handleRecenterClick);
 strokeMarkerAimCreateButton.addEventListener('click', handleStrokeMarkerAimCreateClick);
+document.getElementById("courseName").addEventListener("input", handleCourseSearchInput);

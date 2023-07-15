@@ -16,11 +16,32 @@ function readCache(key) {
     return JSON.parse(localStorage.getItem(key));
 }
 
+function cacheKey(courseParams) {
+    return `courseData-${courseParams['name']}-${courseParams['id']}`;
+}
+
+// Search nominatim for a given query
+function courseSearch(query) {
+    return fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json`)
+        .then(function (response) {
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+            return response.json();
+        })
+        .then((response) => {
+            return response.filter((el) => el.type == "golf_course")
+        })
+        .catch(function (error) {
+            console.error("Error:", error);
+        });
+}
+
 /**
  * Fetch some data from OSM, process it, then cache it in localStorage
- * @param {String} url 
- * @param {String} storageKey 
- * @param {Function} callback 
+ * @param {String} url
+ * @param {String} storageKey
+ * @param {Function} callback
  * @returns {Promise}
  */
 function fetchOSMData(query, storageKey) {
@@ -51,47 +72,68 @@ function fetchOSMData(query, storageKey) {
             } else {
                 return Promise.reject(new Error('No polygons returned'));
             }
-        });
+        }).catch((error) => showError(error));;
 }
 
 /**
  * Async pull course polys using a promise
- * @param {String} courseName 
+ * @param {Course} courseParams
  * @param {Boolean} force set to true to force a rewrite of cached polys
  * @param {Function} callback
  * @returns {Promise}
  */
-function fetchGolfCourseData(courseName, force) {
-    if (!courseName) {
-        console.error("Refused to fetch from OSM with no courseName")
-        return Error("Must provide a courseName");
+function fetchGolfCourseData(courseParams, force) {
+    if (!courseParams) {
+        console.error("Cannot fetch from OSM with no course")
+        return Error("Must provide a courseParams");
+    } else if (!(courseParams['name'] || courseParams["courseId"])) {
+        console.error("Cannot fetch from OSM with no course identifiers")
+        return Error("Must provide either name or courseId");
     }
-    let storageKey = `courseData-${courseName}`;
+    let courseName = courseParams['name']
+    let courseId = courseParams['id']
+    let storageKey = cacheKey(courseParams);
     let cache = readCache(storageKey);
-    if (force || !cache) {
-        let query = `[out:json];
-area[name="${courseName}"][leisure=golf_course]->.golf_area;
-(
-    way(area.golf_area)[golf];
-    relation(area.golf_area)[golf];
-    way[name="${courseName}"][leisure=golf_course];
-    relation[name="${courseName}"][leisure=golf_course];
-);
-out geom;`
-        return fetchOSMData(query, storageKey);
-    } else {
+    if (!force && cache) {
         return Promise.resolve(cache);
     }
+    let query = ""
+    if (courseId) {
+        let components = courseId.split("-");
+        let type = components[1]
+        let id = components[2]
+        query = `[out:json];
+        (${type}(${id});)-> .bound;
+        (.bound;map_to_area;)->.golf_area;
+        (way(area.golf_area)[golf];
+        relation(area.golf_area)[golf];
+        way(area.golf_area)[leisure=golf_course];
+        relation(area.golf_area)[leisure=golf_course];
+        .bound;
+        );
+        out geom;`
+        return fetchOSMData(query, storageKey);
+    } else if (courseName) {
+        query = `[out:json];
+        area[name="${courseName}"][leisure=golf_course]->.golf_area;
+        (way(area.golf_area)[golf];
+        relation(area.golf_area)[golf];
+        way[name="${courseName}"][leisure=golf_course];
+        relation[name="${courseName}"][leisure=golf_course];
+        );
+        out geom;`
+    }
+    return fetchOSMData(query, storageKey);
 }
 
 /**
  * Synchronously pull course data
- * @param {String} courseName
+ * @param {Course} courseParams
  * @returns
  */
-function getGolfCourseData(courseName) {
+function getGolfCourseData(courseParams) {
     // Check if the cache has it first
-    let storageKey = `courseData-${courseName}`;
+    let storageKey = cacheKey(courseParams);
     let polys = readCache(storageKey);
     if (polys) {
         // Cache hit, just return the callback asap
@@ -104,12 +146,12 @@ function getGolfCourseData(courseName) {
 
 /**
  * Get the reference playing line for a hole at a course
- * @param {String} courseName 
- * @param {Number} holeNumber 
+ * @param {Course} courseParams
+ * @param {Number} holeNumber
  * @returns {Feature} a single line feature
  */
-function getGolfHoleLine(courseName, holeNumber) {
-    let data = getGolfCourseData(courseName);
+function getGolfHoleLine(courseParams, holeNumber) {
+    let data = getGolfCourseData(courseParams);
     if (data instanceof Error) {
         // Data not ready, just reraise the error
         return data;
@@ -124,19 +166,20 @@ function getGolfHoleLine(courseName, holeNumber) {
 
 /**
  * Get all polys that intersect with the reference playing line
- * @param {String} courseName 
- * @param {Number} holeNumber 
- * @returns {FeatureCollection} 
+ * @param {Course} courseParams
+ * @param {Number} holeNumber
+ * @returns {FeatureCollection}
  */
-function getGolfHolePolys(courseName, holeNumber) {
-    let data = getGolfCourseData(courseName);
+function getGolfHolePolys(courseParams, holeNumber) {
+    let data = getGolfCourseData(courseParams);
     if (data instanceof Error) {
         // Data not ready, just reraise the error
         return data
     }
 
     // Get the reference line
-    let line = getGolfHoleLine(courseName, holeNumber);
+    let line = getGolfHoleLine(courseParams, holeNumber);
+    let courseName = courseParams["name"]
     if (!line) {
         let msg = `No hole line found for course ${courseName} hole ${holeNumber}`
         console.warn(msg)
@@ -154,12 +197,12 @@ function getGolfHolePolys(courseName, holeNumber) {
 
 /**
  * Get greens that intersect a single hole's reference playing line
- * @param {String} courseName 
- * @param {Number} holeNumber 
+ * @param {Course} courseParams
+ * @param {Number} holeNumber
  * @returns {FeatureCollection}
  */
-function getGolfHoleGreen(courseName, holeNumber) {
-    let data = getGolfHolePolys(courseName, holeNumber);
+function getGolfHoleGreen(courseParams, holeNumber) {
+    let data = getGolfHolePolys(courseParams, holeNumber);
     if (data instanceof Error) {
         // Data not ready, just reraise the error
         return data
@@ -218,11 +261,11 @@ function findBoundaries(collection) {
 }
 
 /**
- * 
- * @param {Point} point 
+ *
+ * @param {Point} point
  * @param {FeatureCollection} collection A prescrubbed collection of Features (sorted, single poly'd, etc)
  * @param {FeatureCollection} bounds A prescrubbed collection of boundaries, optional
- * @returns 
+ * @returns
  */
 function findTerrainType(point, collection, bounds) {
     if (!bounds) {
@@ -391,11 +434,11 @@ function strokesRemaining(distanceToHole, terrainType) {
  * Given a geographic feature, calculate strokes remaining from its center
  * @param {Feature} feature the geographic feature to calculate from
  * @param {Array} holeCoordinate an array containing [lat, long] coordinates in WGS84
- * @param {string} courseName the course name to get polygons for
+ * @param {Course} courseParams the course name to get polygons for
  * @returns {Number} estimated strokes remaining
  */
-function strokesRemainingFrom(feature, holeCoordinate, courseName) {
-    let golfCourseData = getGolfCourseData(courseName);
+function strokesRemainingFrom(feature, holeCoordinate, courseParams) {
+    let golfCourseData = getGolfCourseData(courseParams);
     if (golfCourseData instanceof Error) {
         // If no data currently available, reraise error to caller
         return golfCourseData;
@@ -426,9 +469,9 @@ function strokesGained(grid, holeCoordinate, strokesRemainingStart, golfCourseDa
     });
 }
 
-function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseName) {
+function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
     // Try to get golf course data/polygons
-    const golfCourseData = getGolfCourseData(courseName);
+    const golfCourseData = getGolfCourseData(courseParams);
     if (golfCourseData instanceof Error) {
         // If no data currently available, reraise error to caller
         return golfCourseData;
@@ -494,9 +537,9 @@ function erf(x, mean, standardDeviation) {
 
 /**
  * Calculates the cumulative distribution function for a normal
- * @param {Number} x 
- * @param {Number} mean 
- * @param {Number} standardDeviation 
+ * @param {Number} x
+ * @param {Number} mean
+ * @param {Number} standardDeviation
  * @returns {Number}
  */
 function cdf(x, mean, standardDeviation) {
