@@ -230,18 +230,25 @@ function getGolfHoleGreen(courseParams, holeNumber) {
     return turf.getCluster(data, { 'terrainType': "green" });
 }
 
+/**
+ * Scrub incoming geojson to conform to internal expectations
+ * @param {FeatureCollection} geojson
+ * @returns {FeatureCollection}
+ */
 function scrubOSMData(geojson) {
     for (let feature of geojson.features) {
-        if (feature.properties.golf) {
-            feature.properties["terrainType"] = feature.properties.golf
+        let props = feature.properties;
+        if (props.golf) {
+            props["terrainType"] = props.golf
         }
-        let featureType = turf.getType(feature);
-        if (featureType === 'MultiPolygon') {
-            // If it's a MultiPolygon, split into polygons
-            for (let polygon of feature.geometry.coordinates) {
-                let polygonFeature = turf.polygon(polygon);
-                polygonFeature.properties = feature.properties;
-            }
+        if (typeof (props.par) === 'string') {
+            props.par = Number(props.par);
+        }
+        if (typeof (props.ref) === 'string') {
+            props.ref = Number(props.ref);
+        }
+        if (typeof (props.handicap) === 'string') {
+            props.handicap = Number(props.handicap);
         }
     }
     presortTerrain(geojson);
