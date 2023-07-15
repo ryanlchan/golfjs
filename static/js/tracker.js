@@ -664,9 +664,11 @@ function roundUpdateWithData(courseData) {
         }
         round.holes[hole.number - 1] = { ...hole, ...round.holes[hole.number - 1] }
     }
-    roundViewUpdate();
-    saveData();
     holeSelectViewUpdate();
+    rerender();
+    for (let hole of round.holes) {
+        holeViewCreate(hole)
+    }
     mapRecenter("course");
 }
 
@@ -1108,7 +1110,9 @@ function mapRecenter(key) {
         }
     } else if (key == "currentHole") {
         let line = getGolfHoleLine(roundCourseParams(round), currentHole.number);
-        if (line) {
+        if (line instanceof Error) {
+            return
+        } else if (line) {
             console.debug("Recentering on current hole")
             mapView.flyToBounds(turfbbToleafbb(turf.bbox(line)), flyoptions)
         } else if (currentHole.pin) {
