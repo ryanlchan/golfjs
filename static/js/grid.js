@@ -156,12 +156,7 @@ function getGolfHoleLine(courseParams, holeNumber) {
         // Data not ready, just reraise the error
         return data;
     }
-    return data
-        .features.map((feature) => {
-            const props = feature.properties;
-            if ((props.golf && props.golf == "hole") &&
-                (props.ref && props.ref == holeNumber)) return feature
-        }).filter((el) => el !== undefined)[0];
+    return turf.getCluster(data, { 'golf': "hole", 'ref': holeNumber }).features[0];
 }
 
 /**
@@ -187,12 +182,7 @@ function getGolfHolePolys(courseParams, holeNumber) {
     }
 
     // Filter for poly's that intersect this line
-    return turf.featureCollection(
-        data.features.reduce((acc, feature) => {
-            if (turf.booleanIntersects(line, feature)) acc.push(feature);
-            return acc
-        }, [])
-    );
+    return featureIntersect(data, line);
 }
 
 /**
@@ -207,9 +197,7 @@ function getGolfHoleGreen(courseParams, holeNumber) {
         // Data not ready, just reraise the error
         return data
     }
-    return turf.featureCollection(
-        data.features.filter((feature) => feature.properties.terrainType == "green")
-    )
+    return turf.getCluster(data, { 'terrainType': "green" });
 }
 
 function scrubOSMData(geojson) {
@@ -251,13 +239,7 @@ function presortTerrain(collection) {
 }
 
 function findBoundaries(collection) {
-    return turf.featureCollection(collection.features.reduce((acc, feature) => {
-        if (feature.properties.leisure == "golf_course") {
-            return acc.concat(feature);
-        } else {
-            return acc;
-        }
-    }, []));
+    return turf.getCluster(collection, { 'leisure': 'golf_course' });
 }
 
 /**
@@ -287,9 +269,19 @@ function findTerrainType(point, collection, bounds) {
     return "rough";
 }
 
-function hexGridCreate(feature) {
+/**
+ * Create a hex grid around a given feature
+ * @param {FeatureCollection} feature the feature or feature collection to bound
+ * @param {Object} options options to provide
+ * @param {Number} maximum_cells the maximum number of cells to create
+ * @returns {FeatureCollection} a grid of hex cells over the feature
+ */
+function hexGridCreate(feature, options) {
     // Calculate the hexagon sidelength according to a max cell count
-    const maximum_cells = 2000;
+    let maximum_cells = 2000;
+    if (options && options.maximum_cells) {
+        maximum_cells = options.maximum_cells;
+    }
     const bbox = turf.bbox(feature);
 
     // Get sidelength. turf.area calculates in sq meters, we need to convert back to kilometers
@@ -301,20 +293,8 @@ function hexGridCreate(feature) {
     const x = Math.min(Math.max(minX, _x), maxX);
 
 
-    let options = { units: 'kilometers' };
-    let grid = turf.hexGrid(bbox, x, options);
-    // Create an empty feature collection to store the filtered features
-    const filteredGrid = turf.featureCollection([]);
-
-    // Iterate over each cell in geojson1
-    turf.featureEach(grid, (cell) => {
-        // Check if the cell exists within the aim feature
-        if (turf.booleanContains(feature, cell)) {
-            // Add the cell to the filtered collection
-            filteredGrid.features.push(cell);
-        }
-    });
-    return filteredGrid;
+    let grid_options = { units: 'kilometers', mask: feature };
+    return turf.hexGrid(bbox, x, grid_options);
 }
 
 function probability(stddev, distance, mean = 0) {
@@ -465,6 +445,17 @@ function strokesGained(grid, holeCoordinate, strokesRemainingStart, golfCourseDa
 
         // Calculate strokes gained
         props.strokesGained = strokesRemainingStart - props.strokesRemaining - 1;
+    });
+}
+
+/**
+ * Calculate the weighted strokes gained for a gri
+ * @param {FeatureCollection} grid a grid with strokes gained and probabilities added
+ * Does not return values, modifies in place
+ */
+function weightStrokesGained(grid) {
+    turf.featureEach(grid, (feature) => {
+        let props = feature.properties;
         props.weightedStrokesGained = props.strokesGained * props.probability;
     });
 }
@@ -503,6 +494,7 @@ function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber
     probabilityGrid(hexGrid, aimPoint, dispersionNumber);
     addHoleOut(hexGrid, distanceToHole, terrainTypeStart, holePoint);
     strokesGained(hexGrid, holePoint, strokesRemainingStart, golfCourseData);
+    weightStrokesGained(hexGrid);
 
     const weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
 
@@ -515,6 +507,114 @@ function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber
     hexGrid.properties = properties
 
     return hexGrid;
+}
+
+function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
+    // Try to get golf course data/polygons
+    const golfCourseData = getGolfCourseData(courseParams);
+    if (golfCourseData instanceof Error) {
+        // If no data currently available, reraise error to caller
+        return golfCourseData;
+    }
+
+    // Set up turf geometries
+    const startPoint = turf.flip(turf.point(startCoordinate));
+    const aimPoint = turf.flip(turf.point(aimCoordinate));
+    const holePoint = turf.flip(turf.point(holeCoordinate));
+
+    // Handle specialcase of dispersions which are <0, representing distance fractions
+    if (dispersionNumber < 0) {
+        const distanceToAim = turf.distance(startPoint, aimPoint, { units: "kilometers" }) * 1000;
+        dispersionNumber = -dispersionNumber * distanceToAim;
+        dispersionNumber = Math.max(0.5, dispersionNumber);
+    }
+
+    // Determine strokes gained at the start
+    const terrainTypeStart = findTerrainType(startPoint, golfCourseData);
+    const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000;
+    const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
+
+
+    // Create a supergrid 3x the subgrid window size
+    const outcomeWindow = turf.circle(aimPoint, 2 * 3 * dispersionNumber / 1000, { units: "kilometers" });
+    let outcomeGrid = hexGridCreate(outcomeWindow, { 'maximum_cells': 8000 });
+
+    // Add SG info to supergrid
+    strokesGained(outcomeGrid, holePoint, strokesRemainingStart, golfCourseData);
+
+    // Get each grid cell within the aim window, and use it as the aim point
+    const aimWindow = turf.circle(aimPoint, dispersionNumber / 1000, { units: "kilometers" });
+    const aimGrid = turf.clone(featureWithin(outcomeGrid, aimWindow));
+    aimGrid.features.forEach((feature) => feature.properties = {});
+    console.log(`Iterating through aim grid of ${aimGrid.features.length} cells`);
+    ix = 0;
+    for (let cell of aimGrid.features) {
+        const subAimPoint = turf.center(cell);
+        const subWindow = turf.circle(subAimPoint, 3 * dispersionNumber / 1000, { units: "kilometers" })
+        const subGrid = featureWithin(outcomeGrid, subWindow);
+        probabilityGrid(subGrid, subAimPoint, dispersionNumber);
+        addHoleOut(subGrid, distanceToHole, terrainTypeStart, holePoint);
+        weightStrokesGained(subGrid);
+        const weightedStrokesGained = subGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
+        cell.properties.weightedStrokesGained = weightedStrokesGained;
+        console.log(`Processed cell ${ix}, wsg = ${weightedStrokesGained}`);
+        ix++;
+    }
+
+    // baseline against middle aim point
+    const aimCells = aimGrid.features.filter((feature) => turf.booleanContains(feature, aimPoint));
+    const baseSg = aimCells.reduce(((acc, cell) => acc + cell.properties.weightedStrokesGained), 0) / aimCells.length;
+    turf.featureEach(aimGrid, (feature) => {
+        let props = feature.properties;
+        props.relativeStrokesGained = props.weightedStrokesGained - baseSg;
+    });
+
+    // Prep output stats and return
+    const properties = {
+        strokesRemainingStart: strokesRemainingStart,
+        distanceToHole: distanceToHole,
+        weightedStrokesGained: baseSg,
+    }
+    aimGrid.properties = properties
+
+    return aimGrid;
+}
+
+/**
+ * Filter a feature collection, like Array.prototype.filter
+ * @param {FeatureCollection} collection the collection to filter
+ * @param {Function} filter a function that accepts the feature as argument
+ * @returns {FeatureCollection} a collection of all features where `filter` is true
+ */
+function featureFilter(collection, filter) {
+    const _featureFilterReduce = (acc, feature) => {
+        if (filter(feature)) acc.push(feature);
+        return acc;
+    }
+    return turf.featureCollection(
+        turf.featureReduce(collection, _featureFilterReduce, [])
+    );
+}
+
+/**
+ * Filter a feature collection for intersects with another feature
+ * @param {FeatureCollection} collection the collection to filter
+ * @param {Feature} intersects another feature that collection must intersect with
+ * @returns {FeatureCollection} a collection of all features that intersect `intersects`
+ */
+function featureIntersect(collection, intersects) {
+    return featureFilter(collection, (feature) => turf.booleanIntersects(intersects, feature))
+}
+
+/**
+ * Filter a feature collection for such that it is contained by another feature
+ * For whatever reason, this is _much_ faster than intersects
+ * @param {FeatureCollection} collection the collection to filter
+ * @param {Feature} container another feature that collection must be within
+ * @returns {FeatureCollection} a collection of all features that intersect `intersects`
+ */
+function featureWithin(collection, container) {
+    return featureFilter(collection, (feature) => turf.booleanWithin(feature, container))
 }
 
 /**
