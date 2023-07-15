@@ -1300,7 +1300,9 @@ function aimStatsUpdate() {
     }
     const sga = sr - srn - 1;
 
-    let text = `SG Aim ${wsg.toFixed(3)} | SGa ${sga.toFixed(3)} | SRe ${sr.toFixed(3)}`;
+    let text = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
+
+    // Add divider
     text += "<hr/>";
     el.innerHTML = text;
 }
