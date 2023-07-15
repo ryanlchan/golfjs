@@ -606,26 +606,26 @@ function pinMarkerCreate(hole) {
  * Create a new round and clear away all old data
  * Tries to background fetch course data and will call #roundUpdateWithData after loaded
  */
-function roundCreate(courseName, courseId) {
+function roundCreate(courseParams) {
     // Set undo point
     undoCreate("roundCreate")
-
-    if (!courseName) {
-        courseName = document.getElementById("courseName").value;
+    let inputVal = document.getElementById("courseName").value;
+    if (!courseParams && !inputVal) {
+        console.error("Cannot create a round without any inputs");
+        return
+    } else if (!courseParams) {
+        courseParams = { courseName: document.getElementById("courseName").value }
     }
+    let courseName = courseParams["name"];
+    let courseId = courseParams["id"];
 
     // Reset all major data
     localStorage.removeItem("golfData");
-    round = { ...defaultRound(), course: courseName };
-    courseData = { 'name': courseName }
-    if (courseId) {
-        round.courseId = courseId
-        courseData.id = courseId
-    }
+    round = { ...defaultRound(), course: courseName, courseId: courseId };
     currentHole = round.holes.at(0)
     currentStrokeIndex = 0;
     layerDeleteAll();
-    fetchGolfCourseData(courseData).then(roundUpdateWithData);
+    fetchGolfCourseData(courseParams).then(roundUpdateWithData);
 }
 
 function roundUpdateWithData(courseData) {
@@ -1438,7 +1438,7 @@ function courseSearchViewUpdate(results) {
     results.forEach((result) => {
         let listItem = document.createElement("li");
         let link = document.createElement("a");
-        let courseParams = { 'name': null, 'id': osmCourseID(result.osm_type, result.osm_id) }
+        let courseParams = { 'name': result.namedetails.name, 'id': osmCourseID(result.osm_type, result.osm_id) }
         link.innerText = result.display_name;
         link.setAttribute("href", `#${result.osm_id}`)
         link.addEventListener('click', handleRoundCreateClickCallback(courseParams))
@@ -1499,7 +1499,7 @@ function handleRoundCreateClickCallback(courseParams) {
         }
 
         if (confirm("Are you sure you want to start a new round? All current data will be lost.")) {
-            roundCreate(courseName);
+            roundCreate(courseParams);
             holeSelectViewUpdate();
             rerender();
         }

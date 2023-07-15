@@ -19,17 +19,34 @@ function setCache(key, json) {
     );
 }
 
+/**
+ * Read an item from cache under a given key
+ * @param {String} key
+ * @returns {Object}
+ */
 function readCache(key) {
     return JSON.parse(localStorage.getItem(key));
+}
+
+/**
+ * Remove an item from cache
+ * @param {String} key
+ */
+function deleteCache(key) {
+    localStorage.removeItem(key);
 }
 
 function cacheKey(courseParams) {
     return `courseData-${courseParams['name']}-${courseParams['id']}`;
 }
 
-// Search nominatim for a given query
+/**
+ * Search nominatim for a given query
+ * @param {String} query
+ * @returns {Promise} a promise that will resolve with a list of Nominatim results
+ */
 function courseSearch(query) {
-    return fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json`)
+    return fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&namedetails=1`)
         .then(function (response) {
             if (!response.ok) {
                 throw new Error("Network response was not ok");
