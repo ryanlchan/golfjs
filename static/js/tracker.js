@@ -359,7 +359,7 @@ function gridDelete() {
  * Update the currently active grid type
  */
 function gridUpdate() {
-    sgGridDelete();
+    gridDelete();
     if (activeStroke && currentHole.pin) {
         gridCreate();
     }
@@ -418,19 +418,6 @@ function sgGridCreate() {
     layerCreate("active_grid", gridLayer);
     aimStatsCreate();
 }
-
-function sgGridDelete() {
-    aimStatsDelete();
-    layerDelete("active_grid");
-}
-
-function sgGridUpdate() {
-    sgGridDelete();
-    if (activeStroke && currentHole.pin) {
-        sgGridCreate();
-    }
-}
-
 
 /**
  * Create a relative strokes gained grid for aiming at each cell in a grid
