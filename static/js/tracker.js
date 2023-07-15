@@ -609,6 +609,49 @@ function pinMarkerCreate(hole) {
 }
 
 /**
+ * Draw a hole line showing the intended playing line
+ * @param {Hole} hole the Hole interface object
+ */
+function holeLineCreate(hole) {
+    let line = getGolfHoleLine(roundCourseParams(round), hole.number)
+    let layer = L.geoJSON(line, {
+        style: () => {
+            return {
+                stroke: true,
+                color: '#fff',
+                weight: 2,
+                opacity: 0.5
+            }
+        }
+    });
+    layerCreate(holeLineId(hole), layer);
+}
+
+/**
+ * Delete a hole's line, or all hole lines
+ * @param {Hole} hole the Hole interface object, optional. If not given, delete
+ * all hole lines
+ */
+function holeLineDelete(hole) {
+    if (hole) {
+        layerDelete(holeLineId(hole));
+    } else {
+        for (let hole of round.holes) {
+            layerDelete(holeLineID(hole));
+        }
+    }
+}
+
+/**
+ * Return a unique ID for a hole line layer
+ * @param {Hole} hole the Hole interface object
+ * @returns {String} a unique ID
+ */
+function holeLineId(hole) {
+    return `hole_${hole.number}_line`
+}
+
+/**
  * ======
  * Rounds
  * ======
@@ -1140,6 +1183,7 @@ function holeViewCreate(hole) {
         pinMarkerCreate(hole);
     }
     strokelineCreate(hole);
+    holeLineCreate(hole);
 }
 
 /**
