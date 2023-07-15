@@ -1,3 +1,10 @@
+const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
+
+/**
+ * =========
+ * Polygons
+ * =========
+ */
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search?q=";
 
@@ -85,10 +92,10 @@ function fetchOSMData(query, storageKey) {
 function fetchGolfCourseData(courseParams, force) {
     if (!courseParams) {
         console.error("Cannot fetch from OSM with no course")
-        return Error("Must provide a courseParams");
-    } else if (!(courseParams['name'] || courseParams["courseId"])) {
+        throw new Error("Must provide a courseParams");
+    } else if (!(courseParams['name'] || courseParams["id"])) {
         console.error("Cannot fetch from OSM with no course identifiers")
-        return Error("Must provide either name or courseId");
+        throw new Error("Must provide either name or id");
     }
     let courseName = courseParams['name']
     let courseId = courseParams['id']
@@ -174,11 +181,17 @@ function getGolfHolePolys(courseParams, holeNumber) {
 
     // Get the reference line
     let line = getGolfHoleLine(courseParams, holeNumber);
-    let courseName = courseParams["name"]
+    if (line instanceof Error) {
+        msg = "Bad data set from OSM";
+        console.error(msg);
+        deleteCache(cacheKey(courseParams));
+        throw new Error(msg);
+    }
     if (!line) {
+        let courseName = courseParams["name"]
         let msg = `No hole line found for course ${courseName} hole ${holeNumber}`
         console.warn(msg)
-        return Error(msg);
+        throw new Error(msg);
     }
 
     // Filter for poly's that intersect this line
@@ -460,6 +473,15 @@ function weightStrokesGained(grid) {
     });
 }
 
+/**
+ * Calculate a Strokes Gained probability-weighted grid
+ * @param {Array} startCoordinate Coordiante in WGS84 LatLong
+ * @param {Array} aimCoordinate Coordiante in WGS84 LatLong
+ * @param {Array} holeCoordinate Coordiante in WGS84 LatLong
+ * @param {Number} dispersionNumber
+ * @param {Course} courseParams
+ * @returns {FeatureCollection}
+ */
 function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
     // Try to get golf course data/polygons
     const golfCourseData = getGolfCourseData(courseParams);
@@ -500,6 +522,7 @@ function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber
 
     console.log('Total Weighted Strokes Gained:', weightedStrokesGained);
     const properties = {
+        type: gridTypes.STROKES_GAINED,
         strokesRemainingStart: strokesRemainingStart,
         distanceToHole: distanceToHole,
         weightedStrokesGained: weightedStrokesGained
@@ -509,6 +532,15 @@ function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber
     return hexGrid;
 }
 
+/**
+ * Calculate the relative strokes gained by aiming at each cell in a grid
+ * @param {Array} startCoordinate Coordiante in WGS84 LatLong
+ * @param {Array} aimCoordinate Coordiante in WGS84 LatLong
+ * @param {Array} holeCoordinate Coordiante in WGS84 LatLong
+ * @param {Number} dispersionNumber
+ * @param {Course} courseParams
+ * @returns {FeatureCollection}
+ */
 function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
     // Try to get golf course data/polygons
     const golfCourseData = getGolfCourseData(courseParams);
@@ -571,6 +603,7 @@ function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNu
 
     // Prep output stats and return
     const properties = {
+        type: gridTypes.TARGET,
         strokesRemainingStart: strokesRemainingStart,
         distanceToHole: distanceToHole,
         weightedStrokesGained: baseSg,

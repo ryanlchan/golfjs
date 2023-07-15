@@ -202,12 +202,7 @@ function strokeMarkerDeactivate() {
         activeStroke = null;
 
         // Hide the "Set aim" button and remove the aim marker
-        strokeMarkerAimCreateButton.classList.add("inactive")
-        layerDelete("active_aim");
-        layerDelete("active_aim_ring");
-
-        // Hide sg grid
-        sgGridDelete();
+        strokeMarkerAimDelete();
 
         // Delete deactivation clicks
         mapView.removeEventListener("click", strokeMarkerDeactivate);
@@ -239,7 +234,8 @@ function strokeMarkerAimCreate(e) {
     marker.bindTooltip(strokeMarkerAimTooltip, { permanent: true, direction: "top", offset: [-15, 0] })
     let ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
     layerCreate("active_aim_ring", ring);
-    sgGridCreate();
+    gridTypeSelectCreate();
+    gridCreate();
 }
 
 function strokeMarkerAimTooltip() {
@@ -265,6 +261,96 @@ function strokeMarkerAimUpdate() {
     }
 }
 
+function strokeMarkerAimDelete() {
+    // Hide Aim button
+    strokeMarkerAimCreateButton.classList.add("inactive")
+
+    // Hide aim layers
+    layerDelete("active_aim");
+    layerDelete("active_aim_ring");
+
+    // Hide any grid
+    gridDelete();
+
+    // Hide grid controls
+    gridTypeSelectDelete();
+}
+
+/**
+ * Create a unique ID for a Stroke
+ * @param {Object} stroke
+ * @returns {String}
+ */
+function strokeMarkerID(stroke) {
+    return `stroke_marker_${stroke.index}_hole_${stroke.hole}`
+}
+
+/**
+ * Create a unique ID for a Stroke AIm marker
+ * @param {Object} stroke
+ * @returns {String}
+ */
+function strokeMarkerAimID(stroke) {
+    return `stroke_marker_aim_${stroke.index}_hole_${stroke.hole}`
+}
+
+/**
+ * Create a unique ID for a Stroke SG grid
+ * @param {Object} stroke
+ * @returns {String}
+ */
+function strokeSgGridID(stroke) {
+    return `stroke_${stroke.index}_hole_${stroke.hole}_sg_grid`
+}
+
+/**
+ * Return the tooltip text for a stroke marker
+ * @param {Object} stroke
+ */
+function strokeTooltipText(stroke) {
+    const club = stroke.club;
+    const distance = strokeDistance(stroke).toFixed(1)
+    return `${club} (${distance}m)`
+}
+
+
+/**
+ * =====
+ * Grids
+ * =====
+ */
+
+/**
+ * Create the currently active grid type
+ */
+function gridCreate(type) {
+    if (type == gridTypes.STROKES_GAINED) {
+        sgGridCreate();
+    } else if (type == gridTypes.TARGET) {
+        targetGridCreate();
+    } else {
+        sgGridCreate();
+    }
+}
+
+/**
+ * Delete the currently active grid type
+ */
+function gridDelete() {
+    aimStatsDelete();
+    layerDelete("active_grid");
+}
+
+/**
+ * Update the currently active grid type
+ */
+function gridUpdate() {
+    sgGridDelete();
+    if (activeStroke && currentHole.pin) {
+        gridCreate();
+    }
+}
+
 function sgGridCreate() {
     if (!activeStroke) {
         console.error("No active stroke, cannot create sg grid");
@@ -286,8 +372,7 @@ function sgGridCreate() {
 
     // Check if any grid returned, for example if the data didn't load or something
     if (grid instanceof Error) {
-        // if failed, retry every 1s until you get the data
-        setTimeout(sgGridCreate, 1000);
+        return
     }
     // Create alpha/colorscale
     let colorscale = chroma.scale('RdYlGn').domain([-.25, .15]);
@@ -329,41 +414,50 @@ function sgGridUpdate() {
     }
 }
 
-/**
- * Create a unique ID for a Stroke
- * @param {Object} stroke 
- * @returns {String}
- */
-function strokeMarkerID(stroke) {
-    return `stroke_marker_${stroke.index}_hole_${stroke.hole}`
-}
 
-/**
- * Create a unique ID for a Stroke AIm marker
- * @param {Object} stroke
- * @returns {String}
- */
-function strokeMarkerAimID(stroke) {
-    return `stroke_marker_aim_${stroke.index}_hole_${stroke.hole}`
-}
+function targetGridCreate() {
+    if (!activeStroke) {
+        console.error("No active stroke, cannot create sg grid");
+        return
+    } else if (!currentHole.pin) {
+        console.error("Pin not set, cannot create sg grid");
+        return
+    } else if (layerRead("active_grid")) {
+        console.warn("Grid already exists, recreating");
+        layerDelete("active_grid");
+    }
 
-/**
- * Create a unique ID for a Stroke SG grid
- * @param {Object} stroke
- * @returns {String}
- */
-function strokeSgGridID(stroke) {
-    return `stroke_${stroke.index}_hole_${stroke.hole}_sg_grid`
-}
+    let grid = targetGrid(
+        [activeStroke.start.y, activeStroke.start.x],
+        [activeStroke.aim.y, activeStroke.aim.x],
+        [currentHole.pin.y, currentHole.pin.x],
+        activeStroke.dispersion,
+        roundCourseParams(round));
 
-/**
- * Return the tooltip text for a stroke marker
- * @param {Object} stroke 
- */
-function strokeTooltipText(stroke) {
-    const club = stroke.club;
-    const distance = strokeDistance(stroke).toFixed(1)
-    return `${club} (${distance}m)`
+    // Check if any grid returned, for example if the data didn't load or something
+    if (grid instanceof Error) {
+        return
+    }
+    // Create alpha/colorscale
+    let colorscale = chroma.scale('RdYlGn').domain([-.25, .25]);
+    let gridLayer = L.geoJSON(grid, {
+        style: function (feature) {
+            return {
+                stroke: false,
+                fillColor: colorscale(feature.properties.relativeStrokesGained).hex(),
+                fillOpacity: 0.5
+            }
+        },
+        grid: grid
+    }).bindPopup(function (layer) {
+        const props = layer.feature.properties;
+        const wsg = props.weightedStrokesGained;
+        const rwsg = props.relativeStrokesGained;
+        return `SG: ${wsg.toFixed(3)}
+            | vs Aim: ${rwsg.toFixed(3)}`
+    });
+    layerCreate("active_grid", gridLayer);
+    aimStatsCreate();
 }
 
 /**
@@ -1195,9 +1289,39 @@ function aimStatsDelete() {
 
 }
 
+function gridTypeSelectCreate() {
+    // remove old selector if present
+    gridTypeSelectDelete();
+
+    // Create new selector
+    let selector = document.createElement('select');
+    selector.id = "gridTypeSelect";
+    for (let type in gridTypes) {
+        let opt = document.createElement('option');
+        opt.value = gridTypes[type];
+        opt.innerText = gridTypes[type];
+        selector.appendChild(opt);
+    }
+    selector.addEventListener('change', handleGridTypeSelection);
+    const container = document.getElementById("activeStrokeControls");
+    container.prepend(selector);
+}
+
+function gridTypeSelectDelete() {
+    let old = document.getElementById("gridTypeSelect");
+    if (old) {
+        old.remove();
+    }
+}
+
+function handleGridTypeSelection() {
+    gridDelete();
+    gridCreate(this.value);
+}
+
 /**
  * Create a link that deletes this stroke
- * @param {Object} stroke 
+ * @param {Object} stroke
  * @returns {link}
  */
 function strokeDeleteViewCreate(stroke) {
