@@ -199,7 +199,13 @@ function strokeMarkerActivate(marker) {
 /**
  * Deactivate an aim marker when the user clicks on the map
  */
-function strokeMarkerDeactivate() {
+function strokeMarkerDeactivate(e) {
+
+    // Ignore clicks that originate from tooltips
+    if (e && e.originalEvent.target.classList.contains("leaflet-pane")) {
+        return
+    }
+
     if (activeStroke) {
         let activeStrokeMarker = layerRead(strokeMarkerID(activeStroke));
         activeStrokeMarker.getElement().classList.remove('active-marker');
@@ -499,7 +505,11 @@ function strokelineCreate(hole) {
     }
 
     // Add Line to map
-    let strokeline = L.polyline(points, { color: 'white', weight: 2 });
+    let strokeline = L.polyline(points, {
+        color: 'white',
+        weight: 2,
+        interactive: false
+    });
     let id = strokelineID(hole);
     layerCreate(id, strokeline);
     return strokeline
@@ -634,7 +644,8 @@ function holeLineCreate(hole) {
                 weight: 2,
                 opacity: 0.5
             }
-        }
+        },
+        interactive: false
     });
     layerCreate(holeLineId(hole), layer);
 }
