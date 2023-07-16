@@ -1157,6 +1157,16 @@ function turfbbToleafbb(turfbb) {
  * Initialize the leaflet map and satellite baselayer
  */
 function mapViewCreate(mapid) {
+    var mapContainer = document.getElementById(mapid);
+
+    // Calculate 80% of the available vertical space
+    var availableHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+    var mapHeight = 0.8 * availableHeight;
+
+    // Set the height of the container element
+    mapContainer.style.height = mapHeight + 'px';
+
+    // Initialize the Leaflet map
     mapView = L.map(mapid).setView([36.567383, -121.947729], 18);
     L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
         attribution:

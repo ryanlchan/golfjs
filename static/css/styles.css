@@ -55,7 +55,7 @@ body {
 
 #mapid {
     margin-bottom: 10px;
-    height: 500px;
+    height: 80vh;
     width: 100%;
 }
 
@@ -80,20 +80,22 @@ body {
 
 #clubStrokeCreateContainer button {
     margin: 15px;
-    width: 100px;
-    height: 100px;
+    width: 75px;
+    height: 75px;
     font-weight: bold;
     font-size: 18pt;
 }
 
 #clubStrokeCreateContainerCloseContainer {
     width: 100%;
-    margin: 15px auto 30px auto;
+    margin: 15px auto 0px auto;
 }
 
 #clubStrokeCreateContainerCloseContainer button {
-    width: 80%;
-    height: 50px;
+    width: 70%;
+    padding: 3px;
+    height: 30px;
+    font-size: 16px;
 }
 
 /* Map styles */
