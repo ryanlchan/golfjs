@@ -357,11 +357,23 @@ function gridDelete() {
 
 /**
  * Update the currently active grid type
+ * @returns {Promise} a promise for when the grid is done refreshing
  */
-function gridUpdate() {
+function gridUpdate(type) {
+    // Get current layer type
+    if (!type) {
+        let layer = layerRead("active_grid");
+        if (layer) {
+            type = layer.options.grid.properties.type;
+        }
+    }
     gridDelete();
+
+    // Create new grid given type (default to SG)
     if (activeStroke && currentHole.pin) {
-        gridCreate();
+        return Promise.resolve(gridCreate(type));
+    } else {
+        return Promise.reject(new Error("No grid to update"));
     }
 }
 
@@ -1373,21 +1385,25 @@ function aimStatsDelete() {
  * Create a select element to choose the type of grid to render for this stroke
  */
 function gridTypeSelectCreate() {
-    // remove old selector if present
-    gridTypeSelectDelete();
-
     // Create new selector
-    let selector = document.createElement('select');
-    selector.id = "gridTypeSelect";
+    let selector = document.getElementById('gridTypeSelect');
+    while (selector.firstChild) {
+        selector.removeChild(selector.firstChild);
+    }
     for (let type in gridTypes) {
         let opt = document.createElement('option');
         opt.value = gridTypes[type];
         opt.innerText = gridTypes[type];
         selector.appendChild(opt);
     }
+    let activeGrid = layerRead('active_grid');
+    if (activeGrid) {
+        let type = activeGrid.options.grid.properties.type;
+        selector.value = type;
+    }
     selector.addEventListener('change', handleGridTypeSelection);
-    const container = document.getElementById("activeStrokeControls");
-    container.prepend(selector);
+    selector.classList.remove("inactive");
+    document.getElementById("activeStrokeControls").classList.remove('inactive');
 }
 
 /**
@@ -1395,9 +1411,7 @@ function gridTypeSelectCreate() {
  */
 function gridTypeSelectDelete() {
     let old = document.getElementById("gridTypeSelect");
-    if (old) {
-        old.remove();
-    }
+    old.classList.add("inactive");
 }
 
 /**
@@ -1405,7 +1419,7 @@ function gridTypeSelectDelete() {
  */
 function handleGridTypeSelection() {
     gridDelete();
-    gridCreate(this.value);
+    wait(10).then(() => gridCreate(this.value));
 }
 
 /**
@@ -1453,10 +1467,11 @@ function rerender(type) {
         saveData();
     }
     // Render calls that should happen only after drags finish
-    if (type == "dragend") {
-        gridUpdate();
-        aimStatsUpdate();
-        strokeMarkerAimUpdate();
+    if (type == "dragend" && activeStroke) {
+        gridUpdate().then(() => {
+            aimStatsUpdate();
+            strokeMarkerAimUpdate();
+        }, (error) => console.error(error));
     }
 }
 
