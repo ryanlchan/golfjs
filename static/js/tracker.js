@@ -636,6 +636,9 @@ function pinMarkerCreate(hole) {
  */
 function holeLineCreate(hole) {
     let line = getGolfHoleLine(roundCourseParams(round), hole.number)
+    if (line instanceof Error) {
+        return
+    }
     let layer = L.geoJSON(line, {
         style: () => {
             return {
@@ -1110,6 +1113,18 @@ function getLocationIf(condition) {
                     resolve(clickPosition);
                 })
             }
+        }, () => {
+            document.getElementById("error").innerText = "No geolocation enabled, click the map to set location";
+            mapView.on('click', (e) => {
+                const clickPosition = {
+                    coords: {
+                        latitude: e.latlng.lat,
+                        longitude: e.latlng.lng,
+                    }
+                }
+                document.getElementById("error").innerText = ""
+                resolve(clickPosition);
+            })
         }).catch(reject);
     });
 }
