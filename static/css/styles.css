@@ -57,6 +57,17 @@ body {
     margin-bottom: 10px;
     height: 80vh;
     width: 100%;
+    /* disable selection/Copy of UIWebView */
+    -webkit-user-select: none;
+    /* disable the IOS popup when long-press on a link */
+    -webkit-touch-callout: none;
+}
+
+.leaflet-interactive {
+    /* disable selection/Copy of UIWebView */
+    -webkit-user-select: none;
+    /* disable the IOS popup when long-press on a link */
+    -webkit-touch-callout: none;
 }
 
 #roundInfo {
