@@ -1030,15 +1030,6 @@ function getDistance(coord1, coord2) {
 }
 
 /**
- * Call a callback function with location from the browser, or a browser cache
- * @param {Function} callback
- * @param {*} force set to true to force retrieving a fresh location
- */
-function withLocation(callback, force) {
-    getLocation().then(callback, showError)
-    navigator.geolocation.getCurrentPosition(callback, showError);
-}
-/**
  * Get the user's location from browser or cache
  * @returns {Promise} resolves with a GeolocationPosition
  */
@@ -1065,6 +1056,44 @@ function getLocation(force) {
 }
 
 /**
+ * Get the user's location and compare against a condition
+ * The condition function will be called with the GeolocationPosition, should
+ * return True to accept the geolocation or False to reject the promise
+ * @param {Function} condition
+ * @returns {Promise} resolves with a GeolocationPosition-ish
+ */
+function getLocationIf(condition) {
+    return getLocation().then((position) => {
+        if (condition(position)) {
+            return position;
+        } else {
+            throw new Error("Failed conditional test");
+        }
+    });
+}
+
+/**
+ * Ask the user to click the map to set a location
+ * For example, if the user is way out of bounds
+ * @returns {coordinate} the click location
+ */
+function getClickLocation() {
+    return new Promise((resolve) => {
+        document.getElementById("error").innerText = "Click the map to set location";
+        mapView.on('click', (e) => {
+            const clickPosition = {
+                coords: {
+                    latitude: e.latlng.lat,
+                    longitude: e.latlng.lng,
+                }
+            }
+            document.getElementById("error").innerText = ""
+            resolve(clickPosition);
+        });
+    });
+}
+
+/**
  * Get either the user's location in a given bound or ask them to click
  * @param {FeatureCollection} bound
  * @returns {Promise} resolves with a GeolocationPosition-ish
@@ -1073,7 +1102,7 @@ function getLocationWithin(bound) {
     return getLocationIf((position) => {
         const point = turf.point([position.coords.longitude, position.coords.latitude])
         return turf.booleanWithin(point, bound)
-    });
+    }).catch(getClickLocation);
 }
 
 /**
@@ -1085,48 +1114,7 @@ function getLocationOnMap() {
     return getLocationIf((position) => {
         const userLatLng = L.latLng(position.coords.latitude, position.coords.longitude);
         return mapView.getBounds().contains(userLatLng)
-    });
-}
-
-/**
- * Get either the user's location within some condition or ask them to click
- * The condition function will be called with the GeolocationPosition, should
- * return True to accept the geolocation or False to ask for a click.
- * @param {Function} condition
- * @returns {Promise} resolves with a GeolocationPosition-ish
- */
-function getLocationIf(condition) {
-    return new Promise((resolve, reject) => {
-        getLocation().then((position) => {
-            if (condition(position)) {
-                resolve(location);
-            } else {
-                document.getElementById("error").innerText = "You are too far away, click the map to set location";
-                mapView.on('click', (e) => {
-                    const clickPosition = {
-                        coords: {
-                            latitude: e.latlng.lat,
-                            longitude: e.latlng.lng,
-                        }
-                    }
-                    document.getElementById("error").innerText = ""
-                    resolve(clickPosition);
-                })
-            }
-        }, () => {
-            document.getElementById("error").innerText = "No geolocation enabled, click the map to set location";
-            mapView.on('click', (e) => {
-                const clickPosition = {
-                    coords: {
-                        latitude: e.latlng.lat,
-                        longitude: e.latlng.lng,
-                    }
-                }
-                document.getElementById("error").innerText = ""
-                resolve(clickPosition);
-            })
-        }).catch(reject);
-    });
+    }).catch(getClickLocation);
 }
 
 /**
@@ -1294,29 +1282,27 @@ function holeSelectViewUpdate() {
  */
 function currentPositionUpdate() {
     currentPositionEnabled = true;
-    withLocation(() => {
-        navigator.geolocation.watchPosition(function (position) {
-            const markerID = "currentPosition";
-            currentPosition = position;
-            let latlong = [position.coords.latitude, position.coords.longitude];
-            let currentPositionMarker = layerRead(markerID)
-            if (currentPositionMarker) {
-                // If the marker already exists, just update its position
-                currentPositionMarker.setLatLng(latlong);
-            } else {
-                // Create a new marker and add it to the map
-                currentPositionMarker = L.circleMarker(
-                    latlong,
-                    { radius: 10, fillColor: "#4A89F3", color: "#FFF", weight: 1, opacity: 0.8, fillOpacity: 0.8 }
-                );
-                layerCreate(markerID, currentPositionMarker);
-            }
-        }, showError, {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 1000
-        });
-    }, true);
+    navigator.geolocation.watchPosition((position) => {
+        const markerID = "currentPosition";
+        currentPosition = position;
+        let latlong = [position.coords.latitude, position.coords.longitude];
+        let currentPositionMarker = layerRead(markerID)
+        if (currentPositionMarker) {
+            // If the marker already exists, just update its position
+            currentPositionMarker.setLatLng(latlong);
+        } else {
+            // Create a new marker and add it to the map
+            currentPositionMarker = L.circleMarker(
+                latlong,
+                { radius: 10, fillColor: "#4A89F3", color: "#FFF", weight: 1, opacity: 0.8, fillOpacity: 0.8 }
+            );
+            layerCreate(markerID, currentPositionMarker);
+        }
+    }, showError, {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 1000
+    });
 }
 
 /**
