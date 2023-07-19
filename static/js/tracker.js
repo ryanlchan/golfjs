@@ -146,7 +146,7 @@ function strokeMarkerCreate(stroke, options) {
     marker.bindTooltip(
         (function () { return strokeTooltipText(stroke) }),
         { permanent: true, direction: "top", offset: [0, 0] })
-    marker.on('click', strokeMarkerActivate(marker));
+    marker.on('click', strokeMarkerActivateCallback(marker));
 }
 
 /**
@@ -172,28 +172,34 @@ function strokeMarkerUpdate() {
  * @param {Marker} marker the leaflet map marker
  * @returns {function}
  */
-function strokeMarkerActivate(marker) {
+function strokeMarkerActivateCallback(marker) {
     // callback doesn't need to handle the click event
-    return (() => {
-        // Deactivate the currently active marker if there is one
-        if (activeStroke) {
-            strokeMarkerDeactivate();
-        }
+    return (() => strokeMarkerActivate(marker));
+}
 
-        // Activate the clicked marker
-        marker.getElement().classList.add('active-marker');
-        activeStroke = currentHole.strokes[marker.options.strokeIndex];
+/**
+ * Activate a stroke marker
+ * @param {Marker} marker the leaflet map marker
+ */
+function strokeMarkerActivate(marker) {
+    // Deactivate the currently active marker if there is one
+    if (activeStroke) {
+        strokeMarkerDeactivate();
+    }
 
-        // Show the set Aim button
-        if (activeStroke.aim) {
-            strokeMarkerAimCreate();
-        } else {
-            strokeMarkerAimCreateButton.classList.remove("inactive")
-        }
+    // Activate the clicked marker
+    marker.getElement().classList.add('active-marker');
+    activeStroke = currentHole.strokes[marker.options.strokeIndex];
 
-        // Register deactivation clicks
-        mapView.addEventListener("click", strokeMarkerDeactivate)
-    });
+    // Show the set Aim button
+    if (activeStroke.aim) {
+        strokeMarkerAimCreate();
+    } else {
+        strokeMarkerAimCreateButton.classList.remove("inactive")
+    }
+
+    // Register deactivation clicks
+    mapView.addEventListener("click", strokeMarkerDeactivate)
 }
 
 /**
@@ -1333,23 +1339,60 @@ function holeStatsUpdate() {
         }
         holeElement.innerText = text
         strokeElement.innerHTML = "";
-        currentHole.strokes.forEach(function (stroke, index) {
-            let distance = 0;
-            if (currentHole.strokes[index + 1]) {
-                distance = getDistance(stroke.start, currentHole.strokes[index + 1].start);
-            } else if (currentHole.pin) {
-                distance = getDistance(stroke.start, currentHole.pin);
-            }
-            const listItem = document.createElement("li");
-            listItem.innerHTML = `${index + 1}. ${stroke.club} (${Math.round(distance)}m) | `;
-            let actions = [strokeDeleteViewCreate(stroke), " | ", strokeMoveViewCreate(stroke, -1), " | ", strokeMoveViewCreate(stroke, 1)];
-            listItem.append(...actions);
-            strokeElement.appendChild(listItem);
+        currentHole.strokes.forEach(function (stroke) {
+            strokeElement.appendChild(strokeStatsListItem(stroke));
         });
     } else {
         holeElement.innerText = "";
         strokeElement.innerHTML = "";
     }
+}
+
+/**
+ * Create a list item for the Stroke Stats list
+ * @param {Stroke} stroke 
+ * @returns {element} the li element for the list
+ */
+function strokeStatsListItem(stroke) {
+    let distance = 0;
+    if (currentHole.strokes[stroke.index + 1]) {
+        distance = getDistance(stroke.start, currentHole.strokes[stroke.index + 1].start);
+    } else if (currentHole.pin) {
+        distance = getDistance(stroke.start, currentHole.pin);
+    }
+    const listItem = document.createElement("li");
+    const container = document.createElement("div");
+    container.classList.add("strokeStatContainer");
+
+    const text = document.createElement("div");
+    const dispersionLink = document.createElement("a");
+    text.classList.add("strokeDetails");
+    text.innerHTML = `${stroke.club} (${Math.round(distance)}m) | Dispersion `;
+    dispersionLink.setAttribute("href", `#stroke_${stroke.index}_dispersion`);
+    dispersionLink.innerText = `${stroke.dispersion}m`;
+    dispersionLink.addEventListener("click", () => {
+        let disp = prompt("Enter a dispersion:");
+        if (disp != null) {
+            stroke.dispersion = disp;
+            rerender("full");
+        }
+        // Force a rerender of the grid
+    });
+    text.appendChild(dispersionLink);
+
+    const buttons = document.createElement("div");
+    buttons.classList.add("strokeControls");
+    buttons.append(
+        strokeSelectViewCreate(stroke),
+        strokeMoveViewCreate(stroke, -1),
+        strokeMoveViewCreate(stroke, 1),
+        strokeDeleteViewCreate(stroke)
+    );
+
+    container.append(text);
+    container.append(buttons);
+    listItem.append(container);
+    return listItem;
 }
 
 /**
@@ -1459,10 +1502,48 @@ function handleGridTypeSelection() {
  */
 function strokeDeleteViewCreate(stroke) {
     let link = document.createElement("button");
-    link.innerHTML = "delete";
+    link.innerHTML = "&#215;";
     link.id = `stroke_${stroke.index}_delete`
+    link.classList.add("danger");
     link.addEventListener("click", (() => {
         strokeDelete(stroke.hole, stroke.index);
+    }));
+    return link
+}
+
+/**
+ * Create a link that selects this stroke
+ * @param {Object} stroke
+ * @returns {link}
+ */
+function strokeSelectViewCreate(stroke) {
+    let link = document.createElement("button");
+    let icon;
+    let state;
+    let cls;
+    let func;
+    let arg;
+
+    if (stroke == activeStroke) {
+        icon = "&#x26AC;";
+        state = "deactivate";
+        cls = "secondary"
+        func = strokeMarkerDeactivate;
+        arg = null;
+    } else {
+        icon = "&#x2609;";
+        state = "activate";
+        cls = "success";
+        func = strokeMarkerActivate;
+        arg = layerRead(strokeMarkerID(stroke));
+    }
+
+    link.innerHTML = icon
+    link.id = `stroke_${stroke.index}_${state}`;
+    link.classList.add(cls);
+    link.addEventListener("click", (() => {
+        func(arg);
+        rerender();
     }));
     return link
 }
@@ -1475,7 +1556,8 @@ function strokeDeleteViewCreate(stroke) {
  */
 function strokeMoveViewCreate(stroke, offset) {
     let link = document.createElement("button");
-    link.innerHTML = `Move ${offset}`;
+    let icon = (offset > 0 ? "&#8595;" : "&#8593;")
+    link.innerHTML = icon;
     link.id = `stroke_${stroke.index}_move_${offset}`
     link.addEventListener("click", (() => {
         strokeMove(stroke.hole, stroke.index, offset);
@@ -1488,7 +1570,7 @@ function strokeMoveViewCreate(stroke, offset) {
  */
 function rerender(type) {
     // Render calls that can occur any time, high perf
-    if (!type) {
+    if (!type || type == "full") {
         roundViewUpdate();
         strokelineUpdate();
         strokeMarkerUpdate();
@@ -1496,12 +1578,19 @@ function rerender(type) {
         holeStatsUpdate();
         saveData();
     }
+
     // Render calls that should happen only after drags finish
-    if (type == "dragend" && activeStroke) {
+    if ((type == "dragend" || type == "full") && activeStroke) {
         gridUpdate().then(() => {
             aimStatsUpdate();
             strokeMarkerAimUpdate();
         }, (error) => console.error(error));
+    }
+
+    // Rerender everything
+    if (type == "full") {
+        strokeMarkerAimDelete();
+        strokeMarkerAimCreate();
     }
 }
 
