@@ -244,8 +244,8 @@ function strokeMarkerAimCreate(e) {
     marker.bindTooltip(strokeMarkerAimTooltip, { permanent: true, direction: "top", offset: [-15, 0] })
     let ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
     layerCreate("active_aim_ring", ring);
-    gridTypeSelectCreate();
     gridCreate();
+    activeStrokeStatsCreate();
 }
 
 /**
@@ -292,8 +292,8 @@ function strokeMarkerAimDelete() {
     // Hide any grid
     gridDelete();
 
-    // Hide grid controls
-    gridTypeSelectDelete();
+    // Hide active stats
+    activeStrokeStatsDelete();
 }
 
 /**
@@ -1386,6 +1386,24 @@ function aimStatsUpdate() {
 }
 
 /**
+ * Show the Stats for a stroke
+ */
+function activeStrokeStatsCreate() {
+    const el = document.getElementById("activeStrokeControls");
+    el.classList.remove("inactive");
+    aimStatsUpdate();
+}
+
+/**
+ * Hide the Aim stats for a stroke
+ */
+function activeStrokeStatsDelete() {
+    const el = document.getElementById("activeStrokeControls");
+    el.classList.add("inactive");
+
+}
+
+/**
  * Show the Aim Stats for a stroke
  */
 function aimStatsCreate() {
@@ -1424,16 +1442,6 @@ function gridTypeSelectCreate() {
         selector.value = type;
     }
     selector.addEventListener('change', handleGridTypeSelection);
-    selector.classList.remove("inactive");
-    document.getElementById("activeStrokeControls").classList.remove('inactive');
-}
-
-/**
- * Delete the grid type selector from the page
- */
-function gridTypeSelectDelete() {
-    let old = document.getElementById("gridTypeSelect");
-    old.classList.add("inactive");
 }
 
 /**
@@ -1605,6 +1613,7 @@ function handleLoad() {
     let courseData = { 'name': round.course, 'id': round.courseId }
     fetchGolfCourseData(courseData).then(() => mapRecenter("currentHole"));
     holeSelectViewCreate(document.getElementById('holeSelector'));
+    gridTypeSelectCreate();
 }
 
 /**
