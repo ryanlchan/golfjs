@@ -145,7 +145,7 @@ function strokeMarkerCreate(stroke, options) {
     let marker = markerCreate(id, coordinate, opt);
     marker.bindTooltip(
         (function () { return strokeTooltipText(stroke) }),
-        { permanent: true, direction: "top", offset: [0, 0] })
+        { permanent: true, direction: "top", offset: [0, -10] })
     marker.on('click', strokeMarkerActivateCallback(marker));
 }
 
@@ -1367,7 +1367,7 @@ function strokeStatsListItem(stroke) {
     const text = document.createElement("div");
     const dispersionLink = document.createElement("a");
     text.classList.add("strokeDetails");
-    text.innerHTML = `${stroke.club} (${Math.round(distance)}m) | Dispersion `;
+    text.innerHTML = `${stroke.club} (${Math.round(distance)}m) | &#xb1;`;
     dispersionLink.setAttribute("href", `#stroke_${stroke.index}_dispersion`);
     dispersionLink.innerText = `${stroke.dispersion}m`;
     dispersionLink.addEventListener("click", () => {
