@@ -914,7 +914,7 @@ function handleUndoActionClick() {
 function undoCreate(action) {
     actionStack.push({
         action,
-        round: { ...round },
+        round: structuredClone(round),
         currentHoleNum: currentHole.number,
         currentStrokeIndex,
     });
@@ -930,7 +930,7 @@ function undoRun() {
         round = previousAction.round;
         currentHole = round.holes[previousAction.currentHoleNum - 1];
         currentStrokeIndex = previousAction.currentStrokeIndex;
-        roundViewUpdate();
+        holeSelect(previousAction.currentHoleNum);
         saveData();
     } else {
         document.getElementById("error").innerText = "No action to undo.";
