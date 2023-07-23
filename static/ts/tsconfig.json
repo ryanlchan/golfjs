@@ -1,0 +1,14 @@
+{
+    "include": [
+        "*.ts",
+        "*.js"
+    ],
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ES2022",
+        "moduleResolution": "Bundler",
+        "sourceMap": true,
+        "outDir": "dist/js",
+        "allowJs": true
+    }
+}

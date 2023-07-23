@@ -1,4 +1,8 @@
-const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
+import osmtogeojson from "osmtogeojson";
+import * as turf from "@turf/turf";
+import { HOLE_OUT_COEFFS, STROKES_REMAINING_COEFFS } from "./coeffs20230705";
+
+export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 
 /**
  * =========
@@ -10,19 +14,19 @@ const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search?q=";
 
 /**
  * Utility to have a wait promise
- * @param {Number} ms
- * @returns
+ * @param ms - The number of milliseconds to wait
+ * @returns Promise that resolves after a delay
  */
-function wait(ms) {
+export function wait(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
  * Store an item in the localStorage cache under a given key
- * @param {String} key
- * @param {Object} json
+ * @param key - The key under which to store the value
+ * @param json - The value to be stored
  */
-function setCache(key, json) {
+function setCache(key: string, json: object): void {
     localStorage.setItem(
         key,
         JSON.stringify({ ...json })
@@ -31,37 +35,38 @@ function setCache(key, json) {
 
 /**
  * Read an item from cache under a given key
- * @param {String} key
- * @returns {Object}
+ * @param key - The key for which to retrieve the value
+ * @returns The value retrieved from the cache
  */
-function readCache(key) {
-    return JSON.parse(localStorage.getItem(key));
+function readCache(key: string): object | null {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
 }
 
 /**
  * Remove an item from cache
- * @param {String} key
+ * @param key - The key for the item to remove
  */
-function deleteCache(key) {
+function deleteCache(key: string): void {
     localStorage.removeItem(key);
 }
 
 /**
  * Generate a cache key given a course interface
- * @param {Course} courseParams
- * @returns {string} the cache key
+ * @param courseParams - The course parameters for which to generate a key
+ * @returns The cache key
  */
-function cacheKey(courseParams) {
-    return `courseData-${courseParams['name']}-${courseParams['id']}`;
+function cacheKey(courseParams: Course): string {
+    return `courseData-${courseParams.name}-${courseParams.id}`;
 }
 
 /**
  * Search nominatim for a given query
- * @param {String} query
- * @returns {Promise} a promise that will resolve with a list of Nominatim results
+ * @param query - The query string
+ * @returns A promise that will resolve with a list of Nominatim results
  */
-function courseSearch(query) {
-    return fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&namedetails=1`)
+export function courseSearch(query: string): Promise<any> {
+    return fetch(`${NOMINATIM_URL}${encodeURIComponent(query)}&format=json&namedetails=1`)
         .then(function (response) {
             if (!response.ok) {
                 throw new Error("Network response was not ok");
@@ -69,12 +74,13 @@ function courseSearch(query) {
             return response.json();
         })
         .then((response) => {
-            return response.filter((el) => el.type == "golf_course")
+            return response.filter((el: any) => el.type == "golf_course")
         })
         .catch(function (error) {
             console.error("Error:", error);
         });
 }
+
 
 /**
  * Fetch some data from OSM, process it, then cache it in localStorage
@@ -84,7 +90,7 @@ function courseSearch(query) {
  * @returns {Promise}
  */
 function fetchOSMData(query, storageKey) {
-    let opt = {
+    let opt: object = {
         method: "POST",
         mode: "cors",
         redirect: "follow",
@@ -111,17 +117,17 @@ function fetchOSMData(query, storageKey) {
             } else {
                 return Promise.reject(new Error('No polygons returned'));
             }
-        }).catch((error) => showError(error));;
+        }).catch((error) => console.error(error));
 }
 
 /**
  * Async pull course polys using a promise
  * @param {Course} courseParams
- * @param {Boolean} force set to true to force a rewrite of cached polys
+ * @param {boolean} [force] set to true to force a rewrite of cached polys
  * @param {Function} callback
  * @returns {Promise}
  */
-function fetchGolfCourseData(courseParams, force) {
+export function fetchGolfCourseData(courseParams, force?) {
     if (!courseParams) {
         console.error("Cannot fetch from OSM with no course")
         throw new Error("Must provide a courseParams");
@@ -189,7 +195,7 @@ function getGolfCourseData(courseParams) {
  * @param {Number} holeNumber
  * @returns {Feature} a single line feature
  */
-function getGolfHoleLine(courseParams, holeNumber) {
+export function getGolfHoleLine(courseParams, holeNumber) {
     let data = getGolfCourseData(courseParams);
     if (data instanceof Error) {
         // Data not ready, just reraise the error
@@ -214,7 +220,7 @@ function getGolfHolePolys(courseParams, holeNumber) {
     // Get the reference line
     let line = getGolfHoleLine(courseParams, holeNumber);
     if (line instanceof Error) {
-        msg = "Bad data set from OSM";
+        let msg = "Bad data set from OSM";
         console.error(msg);
         deleteCache(cacheKey(courseParams));
         throw new Error(msg);
@@ -243,6 +249,17 @@ function getGolfHoleGreen(courseParams, holeNumber) {
         return data
     }
     return turf.getCluster(data, { 'terrainType': "green" });
+}
+
+/**
+ * Get a coordinate object that represents the center of a green
+ * @param {Course} courseParams the course
+ * @param {number} holeNumber the hole number
+ * @returns {turf.coordinates} the center of the green as coordinates
+ */
+export function getGolfHoleGreenCenter(courseParams, holeNumber) {
+    const green = getGolfHoleGreen(courseParams, holeNumber);
+    return turf.center(green).geometry.coordinates;
 }
 
 /**
@@ -305,13 +322,53 @@ function findBoundaries(collection) {
 }
 
 /**
+ * Dumb function to translate from 4 coord bbox to 2x2 latlong bbox
+ * @param {number[]} turfbb the bounding box from Turf.js
+ * @returns {number[number[]]} a 2x2 latlong bounding box
+ */
+function turfbbToleafbb(turfbb) {
+    let bb = [...turfbb] // copy it so we're not destructive...
+    bb.reverse();
+    return [bb.slice(0, 2), bb.slice(2)];
+}
+
+/**
+ * Get a 2x2 bounding box for a golf course
+ * @param {Course} courseParams 
+ * @returns {number[number[]]} a 2x2 bbox
+ */
+export function getGolfCourseBbox(courseParams) {
+    let course = getGolfCourseData(courseParams);
+    if (course instanceof Error) {
+        return
+    } else {
+        return turfbbToleafbb(turf.bbox(course))
+    }
+}
+
+/**
+ * Get a 2x2 bounding box for a single golf hold
+ * @param {Course} courseParams 
+ * @param {number} holeNumber 
+ * @returns {number[number[]]} a 2x2 bbox
+ */
+export function getGolfHoleBbox(courseParams, holeNumber) {
+    let line = getGolfHoleLine(courseParams, holeNumber);
+    if (line instanceof Error) {
+        return
+    } else if (line) {
+        return turfbbToleafbb(turf.bbox(line))
+    }
+}
+
+/**
  * Returns a terrain type given a point, a feature collection of terrains, and an optional bounds collection
  * @param {Point} point
  * @param {FeatureCollection} collection A prescrubbed collection of Features (sorted, single poly'd, etc)
- * @param {FeatureCollection} bounds A prescrubbed collection of boundaries, optional
+ * @param {FeatureCollection} [bounds] A prescrubbed collection of boundaries, optional
  * @returns {String} the terrain type
  */
-function findTerrainType(point, collection, bounds) {
+function findTerrainType(point, collection, bounds?) {
     if (!bounds) {
         bounds = findBoundaries(collection);
     }
@@ -340,11 +397,11 @@ function findTerrainType(point, collection, bounds) {
 /**
  * Create a hex grid around a given feature
  * @param {FeatureCollection} feature the feature or feature collection to bound
- * @param {Object} options options to provide
- * @param {Number} maximum_cells the maximum number of cells to create
+ * @param {Object} [options] options to provide
+ * @param {Number} options.maximum_cells the maximum number of cells to create
  * @returns {FeatureCollection} a grid of hex cells over the feature
  */
-function hexGridCreate(feature, options) {
+function hexGridCreate(feature, options?) {
     // Calculate the hexagon sidelength according to a max cell count
     let maximum_cells = 2000;
     if (options && options.maximum_cells) {
@@ -370,7 +427,7 @@ function hexGridCreate(feature, options) {
  * of a given mean and stddev. Estimates a continuous PDF.
  * @param {Number} stddev the normal's standard deviation
  * @param {Number} x the number to get probabilities for
- * @param {Number} mean the mean of the normal distribution, optional (default = 0)
+ * @param {Number} [mean=0] the mean of the normal distribution, optional (default = 0)
  * @returns {Number}
  */
 function probability(stddev, x, mean = 0) {
@@ -499,11 +556,11 @@ function strokesRemaining(distanceToHole, terrainType) {
  * @param {Course} courseParams the course name to get polygons for
  * @returns {Number} estimated strokes remaining
  */
-function strokesRemainingFrom(feature, holeCoordinate, courseParams) {
+export function strokesRemainingFrom(feature, holeCoordinate, courseParams) {
     let golfCourseData = getGolfCourseData(courseParams);
     if (golfCourseData instanceof Error) {
         // If no data currently available, reraise error to caller
-        return golfCourseData;
+        return;
     }
     const center = turf.center(feature);
     const distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
@@ -558,7 +615,7 @@ function weightStrokesGained(grid) {
  * @param {Course} courseParams
  * @returns {FeatureCollection}
  */
-function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
+export function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
     // Try to get golf course data/polygons
     const golfCourseData = getGolfCourseData(courseParams);
     if (golfCourseData instanceof Error) {
@@ -617,7 +674,7 @@ function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber
  * @param {Course} courseParams
  * @returns {FeatureCollection}
  */
-function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
+export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
     // Try to get golf course data/polygons
     const golfCourseData = getGolfCourseData(courseParams);
     if (golfCourseData instanceof Error) {
@@ -655,7 +712,7 @@ function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNu
     const aimGrid = turf.clone(featureWithin(outcomeGrid, aimWindow));
     aimGrid.features.forEach((feature) => feature.properties = {});
     console.log(`Iterating through aim grid of ${aimGrid.features.length} cells`);
-    ix = 0;
+    let ix = 0;
     for (let cell of aimGrid.features) {
         const subAimPoint = turf.center(cell);
         const subWindow = turf.circle(subAimPoint, 3 * dispersionNumber / 1000, { units: "kilometers" })
@@ -733,7 +790,7 @@ function featureWithin(collection, container) {
  * @param {Number} standardDeviation
  * @returns {Number}
  */
-function erf(x, mean, standardDeviation) {
+export function erf(x, mean, standardDeviation) {
     const z = (x - mean) / (standardDeviation * Math.sqrt(2));
     const t = 1 / (1 + 0.3275911 * Math.abs(z));
     const a1 = 0.254829592;
@@ -751,9 +808,9 @@ function erf(x, mean, standardDeviation) {
  * @param {Number} standardDeviation
  * @returns {Number}
  */
-function cdf(x, mean, standardDeviation) {
-    const erf = erf(x, mean, standardDeviation);
+export function cdf(x, mean, standardDeviation) {
+    const e = erf(x, mean, standardDeviation);
     const z = (x - mean) / (standardDeviation * Math.sqrt(2));
-    const cdf = 0.5 * (1 + Math.sign(z) * erf);
+    const cdf = 0.5 * (1 + Math.sign(z) * e);
     return cdf;
 }
