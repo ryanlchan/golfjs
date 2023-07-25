@@ -257,6 +257,7 @@ function strokeMarkerAimCreate(e?) {
     let ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
     layerCreate("active_aim_ring", ring);
     gridCreate();
+    strokeMarkerAimUpdate();
     activeStrokeStatsCreate();
 }
 
@@ -398,7 +399,9 @@ function gridUpdate(type?) {
 
     // Create new grid given type (default to SG)
     if (activeStroke && currentHole.pin) {
-        return Promise.resolve(gridCreate(type));
+        gridCreate(type);
+        strokeMarkerAimUpdate();
+        return Promise.resolve(true);
     } else {
         return Promise.reject(new Error("No grid to update"));
     }
@@ -1510,7 +1513,10 @@ function gridTypeSelectCreate() {
  */
 function handleGridTypeSelection() {
     gridDelete();
-    wait(10).then(() => gridCreate(this.value));
+    wait(10).then(() => {
+        gridCreate(this.value);
+        strokeMarkerAimUpdate();
+    });
 }
 
 /**
