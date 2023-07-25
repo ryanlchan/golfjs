@@ -1,7 +1,8 @@
 {
     "include": [
         "*.ts",
-        "*.js"
+        "*.js",
+        "tracker.mts"
     ],
     "compilerOptions": {
         "target": "ES2022",

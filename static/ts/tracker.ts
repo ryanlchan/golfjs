@@ -2,7 +2,6 @@
  * Golf App
  * A JavaScript program for tracking golf rounds and locations.
  */
-
 import * as L from "leaflet";
 import type { GeoJSONOptions } from "leaflet";
 import * as turf from "@turf/turf";
@@ -1322,7 +1321,7 @@ function currentPositionUpdate() {
         }
     }, showError, {
         enableHighAccuracy: true,
-        timeout: 5000,
+        timeout: 10000,
         maximumAge: 1000
     });
 }
