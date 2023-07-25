@@ -35,6 +35,11 @@ button {
     display: none;
 }
 
+.insideLabel {
+    margin-left: -1.3em;
+    color: rgb(80, 80, 80);
+}
+
 /* Specific styles */
 
 body {
@@ -143,6 +148,10 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+#dispersionInput {
+    width: 3em;
 }
 
 /* Map styles */

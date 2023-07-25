@@ -23,7 +23,7 @@ let activeStroke: Stroke;
 
 /**
  * ===========
- * Stroke CRUD
+ * Strokes
  * ===========
  */
 
@@ -125,6 +125,24 @@ function strokeDistance(stroke) {
     }
 
     return distance
+}
+
+/**
+ * Get or set the dispersion for a stroke
+ * @param {Stroke} stroke the stroke
+ * @param {number | string} [val] the value to set the dispersion to
+ * @returns {number} the dispersion of this stroke
+ */
+function strokeDispersion(stroke: Stroke, val?: number | string) {
+    if (!val) {
+        return stroke.dispersion;
+    } else if (typeof (val) == "string") {
+        return stroke.dispersion = parseFloat(val);
+    } else if (typeof (val) == "number") {
+        return stroke.dispersion = val;
+    } else {
+        throw new Error("Dispersion must be set to a number or string");
+    }
 }
 
 /**
@@ -1431,6 +1449,7 @@ function aimStatsUpdate() {
     const grid = layer.options.grid;
 
     // Calculate stats
+    const stats = document.createElement("div");
     const stroke = activeStroke;
     const hole = round.holes[stroke.hole - 1];
     const wsg = grid.properties.weightedStrokesGained;
@@ -1444,12 +1463,14 @@ function aimStatsUpdate() {
         srn = grids.strokesRemainingFrom(startPoint, pinCoord, roundCourseParams(round));
     }
     const sga = sr - srn - 1;
+    stats.innerText = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
 
-    let text = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
+    // Update dispersion
+    const disp = <HTMLInputElement>document.getElementById("dispersionInput");
+    disp.value = stroke.dispersion.toString();
 
-    // Add divider
-    text += "<hr/>";
-    el.innerHTML = text;
+    // Add Content
+    el.replaceChildren(stats);
 }
 
 /**
@@ -1827,6 +1848,18 @@ function handleCourseSearchInput() {
     }, 500);
 }
 
+function handleDispersionInput() {
+    const val = this.value;
+    try {
+        strokeDispersion(activeStroke, val);
+
+        rerender("full");
+    } catch (e) {
+        // Dispersion is probably invalid
+        console.debug(e.message);
+    }
+}
+
 /**
  * Shows an error message based on the geolocation error code.
  * @param {PositionError} error - The geolocation error object.
@@ -1864,3 +1897,4 @@ document.getElementById("undoAction").addEventListener("click", handleUndoAction
 document.getElementById("recenter").addEventListener("click", handleRecenterClick);
 strokeMarkerAimCreateButton.addEventListener('click', handleStrokeMarkerAimCreateClick);
 document.getElementById("courseName").addEventListener("input", handleCourseSearchInput);
+document.getElementById("dispersionInput").addEventListener("change", handleDispersionInput);
