@@ -206,6 +206,9 @@ function strokeMarkerActivate(marker) {
 
     // Register deactivation clicks
     mapView.addEventListener("click", strokeMarkerDeactivate)
+
+    // Rerender stroke list
+    holeStatsUpdate();
 }
 
 /**
@@ -228,6 +231,9 @@ function strokeMarkerDeactivate(e?) {
 
         // Delete deactivation clicks
         mapView.removeEventListener("click", strokeMarkerDeactivate);
+
+        // Update stroke list
+        holeStatsUpdate();
     }
 }
 
