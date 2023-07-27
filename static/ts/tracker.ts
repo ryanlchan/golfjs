@@ -2,12 +2,20 @@
  * Golf App
  * A JavaScript program for tracking golf rounds and locations.
  */
+// Dependencies
 import * as L from "leaflet";
 import type { GeoJSONOptions } from "leaflet";
 import * as turf from "@turf/turf";
+import chroma from "chroma-js";
+
+// Modules
 import * as grids from "./grids";
 import { wait } from "./grids";
-import chroma from "chroma-js";
+
+// Static images
+import circleMarkerImg from "../img/circle-ypad.png";
+import circleMarkerSelectedImg from "../img/circle-ypad-selected.png";
+import flagImg from "../img/flag.png";
 
 // Variables
 let mapView: any;
@@ -154,7 +162,7 @@ function strokeMarkerCreate(stroke, options?) {
     console.debug(`Creating stroke markers for stroke ${stroke.index}`);
     const coordinate = stroke.start;
     const icon = L.icon({
-        iconUrl: "static/img/circle-ypad.png", // replace with the path to your flag icon
+        iconUrl: circleMarkerImg, // replace with the path to your flag icon
         iconSize: [30, 45], // size of the icon
         iconAnchor: [15, 30]
     });
@@ -667,7 +675,7 @@ function pinMarkerCreate(hole) {
     const coordinate = hole.pin;
     const holeNum = hole.number
     const flagIcon = L.icon({
-        iconUrl: "static/img/flag.png", // replace with the path to your flag icon
+        iconUrl: flagImg, // replace with the path to your flag icon
         iconSize: [60, 60], // size of the icon
         iconAnchor: [30, 60]
     });

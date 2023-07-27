@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Golf.js</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script type="module" crossorigin src="/golfjs/assets/index-50846f78.js"></script>
+  <link rel="stylesheet" href="/golfjs/assets/index-ff3255f0.css">
+</head>
+
+<body>
+    <div id="mapid"></div>
+    <div class="bodyContainer">
+        <div id="clubStrokeCreateContainer" class="inactive">
+            <div id="clubStrokeCreateContainerCloseContainer">
+                <button id="clubStrokeCreateContainerClose" class="dark">Close and go back</button>
+            </div>
+        </div>
+        <div class="buttonRow">
+            <button id="strokeAdd" class="success">Log New Stroke</button>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <button id="strokeMarkerAimCreate" class="inactive">Set Aim</button>
+            <button id="undoAction">Undo</button>
+            <button id="recenter">Recenter map</button>
+        </div>
+        <hr>
+        <div id="activeStrokeControls" class="inactive buttonRow">
+            <div id="gridTypeSelectContainer" class="buttonRow">
+                <label for="gridTypeSelect">Grid type:</label>
+                <select id="gridTypeSelect"></select>
+            </div>
+            <div id="dispersionContainer" class="buttonRow">
+                <label for="dispersionInput">Dispersion:</label>
+                <input type="text" id="dispersionInput" placeholder="10">
+                <span class="insideLabel">m</span>
+            </div>
+            <div id="aimStats" class="inactive buttonRow"></div>
+            <hr />
+        </div>
+        <div id="stats" class="buttonRow">
+            <select id="holeSelector"></select>
+            <div id="holeStats"></div>
+            <ol id="strokeStats">
+                </ul>
+        </div>
+        <hr>
+        <div class="buttonRow">
+            <button id="toggleRound">Edit Round Info</button>
+        </div>
+        <div id="roundInfo" class="inactive">
+            <input type="text" id="courseName" placeholder="Course Name">
+            <button id="roundCreate">New Round</button>
+            <button id="copyToClipboard">Copy to Clipboard</button>
+            <ul id="courseSearchResults"></ul>
+            <pre id="locationData"></pre>
+        </div>
+        <hr>
+
+        <div id="error"></div>
+    </div>
+    
+</body>
+
+</html>
