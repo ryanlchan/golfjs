@@ -465,7 +465,7 @@ function probabilityGrid(grid, aimPoint, dispersionNumber) {
  */
 function holeOutRate(distanceToHole, terrainType) {
     if (!(terrainType in HOLE_OUT_COEFFS)) {
-        console.warn("No polynomial for terrainType" + terrainType);
+        console.warn("No polynomial for terrainType " + terrainType);
         return 0;
     }
     const polys = HOLE_OUT_COEFFS[terrainType];

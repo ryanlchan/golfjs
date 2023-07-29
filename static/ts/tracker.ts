@@ -637,24 +637,38 @@ function strokelineID(hole: Hole) {
 
 /**
  * Select a new hole and update pointers/views to match
- * @param {Number} holeNum
+ * @param {number} holeNum
  */
 function holeSelect(holeNum: number) {
-    // Update currentHole
-    if (round.holes[holeNum - 1]) {
+    if (holeNum == -1) {
+        holeViewDelete();
+
+        round.holes.forEach(function (hole) {
+            holeViewCreate(hole);
+        });
+
+        const lastHole = round.holes.reduce((acc, hole) => {
+            return hole.strokes.length > 0 ? hole.number : acc;
+        }, 1);
+        currentHole = round.holes[lastHole - 1];
+        currentStrokeIndex = currentHole.strokes.length;
+        mapRecenter("course");
+    } else if (!(round.holes[holeNum - 1])) {
+        console.error(`Attempted to select hole ${holeNum} but does not exist!`);
+        return
+    } else {
         currentHole = round.holes[holeNum - 1];
         currentStrokeIndex = currentHole.strokes.length;
-    } else {
-        console.error(`Attempted to select hole ${holeNum} but does not exist!`);
+
+        // Delete all hole-specific layers and active states
+        holeViewDelete();
+
+        // Add all the layers of this new hole
+        holeViewCreate(currentHole);
+        mapRecenter("currentHole");
     }
-
-    // Delete all hole-specific layers and active states
-    holeViewDelete();
-
-    // Add all the layers of this new hole
-    holeViewCreate(currentHole);
     rerender();
-    mapRecenter("currentHole")
+
 }
 
 /**
@@ -801,11 +815,7 @@ function roundUpdateWithData(courseData: turf.FeatureCollection) {
         round.holes[hole.number - 1] = { ...hole, ...round.holes[hole.number - 1] }
     }
     holeSelectViewUpdate();
-    rerender();
-    for (let hole of round.holes) {
-        holeViewCreate(hole)
-    }
-    mapRecenter("course");
+    holeSelect(-1);
 }
 
 /**
@@ -912,20 +922,7 @@ function loadData(): object | undefined {
     if (loadedData) {
         round = loadedData;
         console.log("Rehydrating round from localStorage")
-        round.holes.forEach(function (hole) {
-            holeViewCreate(hole);
-        });
-
-        const lastHole = round.holes.reduce((acc, hole) => {
-            if (hole.strokes.length > 0) {
-                return hole.number;
-            } else {
-                return acc;
-            }
-        }, 1);
-        currentHole = round.holes[lastHole - 1];
-        currentStrokeIndex = currentHole.strokes.length;
-        rerender();
+        holeSelect(-1);
         return round;
     }
     return undefined;
@@ -1321,9 +1318,10 @@ function holeSelectViewUpdate() {
     if (!(holeSelector instanceof HTMLSelectElement)) {
         return
     }
-    while (holeSelector.firstChild) {
-        holeSelector.removeChild(holeSelector.firstChild);
-    }
+    let overview = document.createElement('option');
+    overview.value = "-1";
+    overview.text = "Overview";
+    let options = [overview];
     for (let hole of round.holes) {
         if (!hole) {
             // Sometimes polys return extra holes for whatever reason, skip them
@@ -1332,8 +1330,9 @@ function holeSelectViewUpdate() {
         let option = document.createElement('option');
         option.value = hole.number.toString();
         option.text = `Hole ${hole.number}`;
-        holeSelector.appendChild(option);
+        options.push(option)
     }
+    holeSelector.replaceChildren(...options);
     holeSelector.value = currentHole.number.toString();
 }
 
@@ -1769,7 +1768,7 @@ function handleLoad() {
         if (!loaded) {
             roundUpdateWithData(data)
         }
-        mapRecenter("currentHole")
+        holeSelect(currentHole.number);
     });
     holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
 }
