@@ -3,3 +3,4 @@
 .jsbeautifyrc
 
 ref/
+node_modules/

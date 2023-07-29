@@ -17,12 +17,12 @@
   },
   "homepage": "https://github.com/ryanlchan/golfjs#readme",
   "dependencies": {
-    "osmtogeojson": "^3.0.0-beta.5",
-    "turf": "^6.5.0",
-    "leaflet": "^1.9.4",
-    "chroma-js": "^2.4.2"
+    "leaflet": "^1.9.4"
   },
   "devDependencies": {
-    "vite": "^4.4.7"
+    "vite": "^4.4.7",
+    "osmtogeojson": "^3.0.0-beta.5",
+    "@turf/turf": "^6.5.0",
+    "chroma-js": "^2.4.2"
   }
 }
