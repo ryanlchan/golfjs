@@ -1,0 +1,28 @@
+{
+  "name": "golfjs",
+  "version": "1.0.0",
+  "description": "A Golf Stats tracking app",
+  "main": "vite.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryanlchan/golfjs.git"
+  },
+  "author": "Ryan Chan",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ryanlchan/golfjs/issues"
+  },
+  "homepage": "https://github.com/ryanlchan/golfjs#readme",
+  "dependencies": {
+    "osmtogeojson": "^3.0.0-beta.5",
+    "turf": "^6.5.0",
+    "leaflet": "^1.9.4",
+    "chroma-js": "^2.4.2"
+  },
+  "devDependencies": {
+    "vite": "^4.4.7"
+  }
+}

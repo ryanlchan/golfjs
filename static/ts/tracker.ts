@@ -14,7 +14,6 @@ import { wait } from "./grids";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
-import circleMarkerSelectedImg from "../img/circle-ypad-selected.png";
 import flagImg from "../img/flag.png";
 
 // Variables

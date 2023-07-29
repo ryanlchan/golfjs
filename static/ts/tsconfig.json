@@ -2,7 +2,6 @@
     "include": [
         "*.ts",
         "*.js",
-        "tracker.mts"
     ],
     "compilerOptions": {
         "target": "ES2022",
