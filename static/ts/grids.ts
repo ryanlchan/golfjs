@@ -404,7 +404,7 @@ function findTerrainType(point, collection, bounds?) {
 function hexGridCreate(feature, options?) {
     // Calculate the hexagon sidelength according to a max cell count
     let maximum_cells = 2000;
-    if (options && options.maximum_cells) {
+    if (options?.maximum_cells) {
         maximum_cells = options.maximum_cells;
     }
     const bbox = turf.bbox(feature);

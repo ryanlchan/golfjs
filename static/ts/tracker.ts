@@ -23,7 +23,7 @@ let currentHole: Hole = round.holes.at(-1);
 let currentStrokeIndex: number = currentHole.strokes.length;
 let layers: object = {};
 let actionStack: Action[] = [];
-let currentPosition: GeolocationPosition;
+let currentPosition: GeolocationPositionIsh;
 let currentPositionEnabled: boolean;
 let holeSelector: HTMLElement;
 let activeStroke: Stroke;
@@ -36,10 +36,10 @@ let activeStroke: Stroke;
 
 /**
  * Shows the current position on the map and logs it as a stroke.
- * @param {GeolocationPosition} position - The current geolocation position.
+ * @param {GeolocationPositionIsh} position - The current geolocation position.
  * @param {object} options - any additional options to set on Stroke
  */
-function strokeCreate(position: GeolocationPosition, options: object = {}) {
+function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
     // set an undo point
     undoCreate("strokeCreate");
 
@@ -72,7 +72,7 @@ function strokeCreate(position: GeolocationPosition, options: object = {}) {
  * @param {Number} holeId
  * @param {Number} strokeIndex
  */
-function strokeDelete(holeNumber, strokeIndex) {
+function strokeDelete(holeNumber, strokeIndex: number) {
     console.debug(`Deleting stroke ${strokeIndex} from hole ${holeNumber}`)
     let hole = round.holes.find(h => h.number === holeNumber);
     if (hole) {
@@ -100,7 +100,7 @@ function strokeDelete(holeNumber, strokeIndex) {
  * @param {Number} strokeIndex the stroke index to reorder (0-indexed)
  * @param {Number} offset movment relative to the current strokeIndex
  */
-function strokeMove(holeNumber, strokeIndex, offset) {
+function strokeMove(holeNumber: number, strokeIndex: number, offset: number) {
     console.debug(`Moving stroke ${strokeIndex} from hole ${holeNumber} by ${offset}`)
     undoCreate("strokeMove");
     const hole = round.holes[holeNumber - 1]
@@ -140,7 +140,7 @@ function strokeDistance(stroke) {
  * @param {number | string} [val] the value to set the dispersion to
  * @returns {number} the dispersion of this stroke
  */
-function strokeDispersion(stroke: Stroke, val?: number | string) {
+function strokeDispersion(stroke: Stroke, val?: number | string): number {
     if (!val) {
         return stroke.dispersion;
     } else if (typeof (val) == "string") {
@@ -154,10 +154,10 @@ function strokeDispersion(stroke: Stroke, val?: number | string) {
 
 /**
  * Adds a stroke marker to the map.
- * @param {Object} stroke - the stroke to add a marker for
+ * @param {Stroke} stroke - the stroke to add a marker for
  * @param {Object} options - Marker options.
  */
-function strokeMarkerCreate(stroke, options?) {
+function strokeMarkerCreate(stroke: Stroke, options?: object) {
     console.debug(`Creating stroke markers for stroke ${stroke.index}`);
     const coordinate = stroke.start;
     const icon = L.icon({
@@ -200,19 +200,19 @@ function strokeMarkerUpdate() {
 
 /**
  * Return a function that can be used to activate a stroke marker
- * @param {Marker} marker the leaflet map marker
+ * @param {L.Marker} marker the leaflet map marker
  * @returns {function}
  */
-function strokeMarkerActivateCallback(marker) {
+function strokeMarkerActivateCallback(marker: L.Marker): () => void {
     // callback doesn't need to handle the click event
     return (() => strokeMarkerActivate(marker));
 }
 
 /**
  * Activate a stroke marker
- * @param {Marker} marker the leaflet map marker
+ * @param {L.Marker} marker the leaflet map marker
  */
-function strokeMarkerActivate(marker) {
+function strokeMarkerActivate(marker: L.Marker) {
     // Deactivate the currently active marker if there is one
     if (activeStroke) {
         strokeMarkerDeactivate();
@@ -220,7 +220,8 @@ function strokeMarkerActivate(marker) {
 
     // Activate the clicked marker
     marker.getElement().classList.add('active-marker');
-    activeStroke = currentHole.strokes[marker.options.strokeIndex];
+    let opt = <any>marker.options
+    activeStroke = currentHole.strokes[opt.strokeIndex];
 
     // Show the set Aim button
     if (activeStroke.aim) {
@@ -265,9 +266,9 @@ function strokeMarkerDeactivate(e?) {
 
 /**
  * Create an aim marker where the user has currently clicked
- * @param {Event} e the click event on the map
+ * @param {L.LeafletMouseEvent} e the click event on the map
  */
-function strokeMarkerAimCreate(e?) {
+function strokeMarkerAimCreate(e?: L.LeafletMouseEvent) {
     // Unbind the map click event handler
     mapView.off('click', strokeMarkerAimCreate);
 
@@ -296,7 +297,7 @@ function strokeMarkerAimCreate(e?) {
  * Output the content for a Stroke's Aim marker's tooltip
  * @returns {String}
  */
-function strokeMarkerAimTooltip() {
+function strokeMarkerAimTooltip(): string {
     const aimDistance = getDistance(activeStroke.start, activeStroke.aim).toFixed(1);
     const pinDistance = getDistance(activeStroke.aim, currentHole.pin).toFixed(1);
     let text = `${aimDistance}m to aim<br> ${pinDistance}m to pin`;
@@ -342,36 +343,36 @@ function strokeMarkerAimDelete() {
 
 /**
  * Create a unique ID for a Stroke
- * @param {Object} stroke
+ * @param {Stroke} stroke
  * @returns {String}
  */
-function strokeMarkerID(stroke) {
+function strokeMarkerID(stroke: Stroke): string {
     return `stroke_marker_${stroke.index}_hole_${stroke.hole}`
 }
 
 /**
  * Create a unique ID for a Stroke AIm marker
- * @param {Object} stroke
+ * @param {Stroke} stroke
  * @returns {String}
  */
-function strokeMarkerAimID(stroke) {
+function strokeMarkerAimID(stroke: Stroke): string {
     return `stroke_marker_aim_${stroke.index}_hole_${stroke.hole}`
 }
 
 /**
  * Create a unique ID for a Stroke SG grid
- * @param {Object} stroke
+ * @param {Stroke} stroke
  * @returns {String}
  */
-function strokeSgGridID(stroke) {
+function strokeSgGridID(stroke: Stroke): string {
     return `stroke_${stroke.index}_hole_${stroke.hole}_sg_grid`
 }
 
 /**
  * Return the tooltip text for a stroke marker
- * @param {Object} stroke
+ * @param {Stroke} stroke
  */
-function strokeTooltipText(stroke) {
+function strokeTooltipText(stroke: Stroke) {
     const club = stroke.club;
     const distance = strokeDistance(stroke).toFixed(1)
     return `${club} (${distance}m)`
@@ -418,7 +419,7 @@ function gridDelete() {
  * @param {string} [type] the type of grid to update to
  * @returns {Promise} a promise for when the grid is done refreshing
  */
-function gridUpdate(type?) {
+function gridUpdate(type?: string): Promise<any> {
     // Get current layer type
     if (!type) {
         let layer = layerRead("active_grid");
@@ -550,9 +551,9 @@ function targetGridCreate() {
 
 /**
  * Create a stroke line for a given hole
- * @param {Object} hole
+ * @param {Hole} hole
  */
-function strokelineCreate(hole) {
+function strokelineCreate(hole: Hole) {
     console.debug("Creating stroke line for hole " + hole.number)
     let points = strokelinePoints(hole);
 
@@ -602,10 +603,10 @@ function strokelineDeleteAll() {
 
 /**
  * Helper function just to generate point arrays for a hole
- * @param {Object} hole
- * @returns {Array[latLng]}
+ * @param {Hole} hole
+ * @returns {L.LatLng[]}
  */
-function strokelinePoints(hole) {
+function strokelinePoints(hole: Hole): L.LatLng[] {
     let points = []
     // Sort strokes by index and convert to LatLng objects
     hole.strokes.sort((a, b) => a.index - b.index).forEach(stroke => {
@@ -621,10 +622,10 @@ function strokelinePoints(hole) {
 
 /**
  * Generate a unique layer primary key for this hole
- * @param {Object} hole
+ * @param {Hole} hole
  * @returns String
  */
-function strokelineID(hole) {
+function strokelineID(hole: Hole) {
     return `strokeline_hole_${hole.number}`
 }
 
@@ -638,7 +639,7 @@ function strokelineID(hole) {
  * Select a new hole and update pointers/views to match
  * @param {Number} holeNum
  */
-function holeSelect(holeNum) {
+function holeSelect(holeNum: number) {
     // Update currentHole
     if (round.holes[holeNum - 1]) {
         currentHole = round.holes[holeNum - 1];
@@ -661,15 +662,15 @@ function holeSelect(holeNum) {
  * @param {Hole} hole the hole interface object from round
  * @returns {String}
  */
-function holePinID(hole) {
+function holePinID(hole: Hole): string {
     return `pin_hole_${hole.number}`
 }
 
 /**
  * Adds a pin marker to the map.
- * @param {Object} hole - The hole to add a pin for
+ * @param {Hole} hole - The hole to add a pin for
  */
-function pinMarkerCreate(hole) {
+function pinMarkerCreate(hole: Hole) {
     console.debug("Creating pin marker for hole " + hole.number)
     const coordinate = hole.pin;
     const holeNum = hole.number
@@ -691,7 +692,7 @@ function pinMarkerCreate(hole) {
  * Draw a hole line showing the intended playing line
  * @param {Hole} hole the Hole interface object
  */
-function holeLineCreate(hole) {
+function holeLineCreate(hole: Hole) {
     let line = grids.getGolfHoleLine(roundCourseParams(round), hole.number)
     if (line instanceof Error) {
         return
@@ -715,7 +716,7 @@ function holeLineCreate(hole) {
  * @param {Hole} hole the Hole interface object, optional. If not given, delete
  * all hole lines
  */
-function holeLineDelete(hole) {
+function holeLineDelete(hole: Hole) {
     if (hole) {
         layerDelete(holeLineId(hole));
     } else {
@@ -730,7 +731,7 @@ function holeLineDelete(hole) {
  * @param {Hole} hole the Hole interface object
  * @returns {String} a unique ID
  */
-function holeLineId(hole) {
+function holeLineId(hole: Hole): string {
     return `hole_${hole.number}_line`
 }
 
@@ -745,7 +746,7 @@ function holeLineId(hole) {
  * Tries to background fetch course data and will call #roundUpdateWithData after loaded
  * @param {Course} courseParams the course
  */
-function roundCreate(courseParams) {
+function roundCreate(courseParams: Course) {
     // Set undo point
     undoCreate("roundCreate")
     let el = document.getElementById("courseName");
@@ -762,7 +763,7 @@ function roundCreate(courseParams) {
             return
         }
         let inputVal: string = el.value;
-        courseParams = { courseName: inputVal }
+        courseParams = { name: inputVal }
     }
     let courseName = courseParams["name"];
     let courseId = courseParams["id"];
@@ -778,9 +779,9 @@ function roundCreate(courseParams) {
 
 /**
  * After downloading polygons, update the Round with relevant data like pins and holes
- * @param {FeatureCollection} courseData the polygons for this course
+ * @param {turf.FeatureCollection} courseData the polygons for this course
  */
-function roundUpdateWithData(courseData) {
+function roundUpdateWithData(courseData: turf.FeatureCollection) {
     let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
     for (let line of lines) {
         const number = parseInt(line.properties.ref);
@@ -835,7 +836,7 @@ function defaultRound(): Round {
  * @param {Round} round the round object
  * @returns {Course} the course parameters
  */
-function roundCourseParams(round) {
+function roundCourseParams(round: Round): Course {
     return { 'name': round.course, 'id': round.courseId }
 }
 
@@ -847,9 +848,10 @@ function roundCourseParams(round) {
 
 /**
  * Create a new stroke for a given club at current position
- * @param {Object} position
+ * @param {GeolocationPositionIsh} position the locaation to create a stroke at
+ * @param {Club} club the club to create a stroke with
  */
-function clubStrokeCreate(position, club) {
+function clubStrokeCreate(position: GeolocationPositionIsh, club: Club) {
     let options = {
         club: club.name,
         dispersion: club.dispersion,
@@ -861,7 +863,7 @@ function clubStrokeCreate(position, club) {
  * Lookup function to get all clubs in the backend, currently static
  * @returns {Array}
  */
-function clubReadAll() {
+function clubReadAll(): Array<any> {
     return [
         { id: 1, name: "D", dispersion: 39 },
         { id: 2, name: "3w", dispersion: 35 },
@@ -903,8 +905,9 @@ function saveData() {
 
 /**
  * Loads the data from localStorage and initializes the map.
+ * @returns {object | undefined} the loaded round or undefined
  */
-function loadData() {
+function loadData(): object | undefined {
     const loadedData = JSON.parse(localStorage.getItem("golfData"));
     if (loadedData) {
         round = loadedData;
@@ -935,11 +938,11 @@ function loadData() {
 /**
  * Adds a marker to the map.
  * @param {string} name - the name of the marker
- * @param {Object} coordinate - The coordinate object { x, y, crs }.
+ * @param {Coordinate} coordinate - The coordinate object { x, y, crs }.
  * @param {Object} options - Marker options.
- * @returns {Marker} a leaflet marker
+ * @returns {L.Marker} a leaflet marker
  */
-function markerCreate(name, coordinate, options?) {
+function markerCreate(name: string, coordinate: Coordinate, options?: object): L.Marker {
     options = { draggable: true, ...options }
     const marker = L.marker([coordinate.y, coordinate.x], options);
     marker.on("drag", handleMarkerDrag(marker, coordinate));
@@ -951,9 +954,9 @@ function markerCreate(name, coordinate, options?) {
 
 /**
  * Shortcut factory for marker drag callbacks
- * @param {L.marker} marker
+ * @param {L.Marker} marker
  */
-function handleMarkerDrag(marker, coordinate) {
+function handleMarkerDrag(marker: L.Marker, coordinate) {
     return (function mdrag(event) {
         const position = marker.getLatLng();
         coordinate.x = position.lng;
@@ -979,7 +982,7 @@ function handleUndoActionClick() {
  * Set an undo point that you can return to
  * @param {String} action
  */
-function undoCreate(action) {
+function undoCreate(action: string) {
     actionStack.push({
         action,
         round: structuredClone(round),
@@ -1018,7 +1021,7 @@ function undoRun() {
  * @param {String} id
  * @param {*} object
  */
-function layerCreate(id, object) {
+function layerCreate(id: string, object: any) {
     if (layers[id]) {
         console.error(`Layer Error: ID ${id} already exists!`)
         return
@@ -1032,7 +1035,7 @@ function layerCreate(id, object) {
  * @param {String} id
  * @returns {*} object from db
  */
-function layerRead(id) {
+function layerRead(id: string): any {
     return layers[id]
 }
 
@@ -1040,7 +1043,7 @@ function layerRead(id) {
  * Delete a layer with a given ID
  * @param {String} id
  */
-function layerDelete(id) {
+function layerDelete(id: string) {
     if (layers[id]) {
         mapView.removeLayer(layers[id])
         delete layers[id]
@@ -1061,7 +1064,7 @@ function layerDeleteAll() {
  * Return an object of id to layers
  * @returns {Object}
  */
-function layerReadAll() {
+function layerReadAll(): object {
     return layers
 }
 
@@ -1073,11 +1076,11 @@ function layerReadAll() {
 
 /**
  * Calculates the distance between two coordinates in meters.
- * @param {Object} coord1 - The first coordinate object { x, y }.
- * @param {Object} coord2 - The second coordinate object { x, y }.
+ * @param {Coordinate} coord1 - The first coordinate object { x, y }.
+ * @param {Coordinate} coord2 - The second coordinate object { x, y }.
  * @returns {number} The distance between the coordinates in meters.
  */
-function getDistance(coord1, coord2) {
+function getDistance(coord1: Coordinate, coord2: Coordinate): number {
     const lat1 = coord1.y;
     const lon1 = coord1.x;
     const lat2 = coord2.y;
@@ -1100,9 +1103,9 @@ function getDistance(coord1, coord2) {
 /**
  * Get the user's location from browser or cache
  * @param {boolean} force set to true to skip location cache
- * @returns {Promise} resolves with a GeolocationPosition
+ * @returns {Promise} resolves with a GeolocationPositionIsh
  */
-function getLocation(force?) {
+function getLocation(force?: boolean): Promise<any> {
     // If location is not yet tracked, turn on BG tracking + force refresh
     if (!(currentPositionEnabled)) {
         currentPositionUpdate();
@@ -1114,7 +1117,7 @@ function getLocation(force?) {
             resolve(position);
         } else if (!navigator.geolocation) {
             // Create a custom position error
-            let e = new NoGeolocationError("Geolocation is not supported by this browser.", 2);
+            let e = new PositionError("Geolocation is not supported by this browser.", 2);
             reject(e);
         } else {
             navigator.geolocation.getCurrentPosition(resolve, reject);
@@ -1124,12 +1127,12 @@ function getLocation(force?) {
 
 /**
  * Get the user's location and compare against a condition
- * The condition function will be called with the GeolocationPosition, should
+ * The condition function will be called with the GeolocationPositionIsh, should
  * return True to accept the geolocation or False to reject the promise
  * @param {Function} condition
- * @returns {Promise} resolves with a GeolocationPosition-ish
+ * @returns {Promise} resolves with a GeolocationPositionIsh-ish
  */
-function getLocationIf(condition) {
+function getLocationIf(condition: Function): Promise<any> {
     return getLocation().then((position) => {
         if (condition(position)) {
             return position;
@@ -1142,9 +1145,9 @@ function getLocationIf(condition) {
 /**
  * Ask the user to click the map to set a location
  * For example, if the user is way out of bounds
- * @returns {coordinate} the click location
+ * @returns {Promise<GeolocationPositionIsh>} the click location as a promise
  */
-function getClickLocation() {
+function getClickLocation(): Promise<GeolocationPositionIsh> {
     return new Promise((resolve) => {
         document.getElementById("error").innerText = "Click the map to set location";
         mapView.on('click', (e) => {
@@ -1162,10 +1165,10 @@ function getClickLocation() {
 
 /**
  * Get either the user's location in a given bound or ask them to click
- * @param {FeatureCollection} bound
- * @returns {Promise} resolves with a GeolocationPosition-ish
+ * @param {turf.FeatureCollection} bound
+ * @returns {Promise} resolves with a GeolocationPositionIsh-ish
  */
-function getLocationWithin(bound) {
+function getLocationWithin(bound: turf.FeatureCollection): Promise<GeolocationPositionIsh> {
     return getLocationIf((position) => {
         const point = turf.point([position.coords.longitude, position.coords.latitude])
         return turf.booleanWithin(point, bound)
@@ -1175,9 +1178,9 @@ function getLocationWithin(bound) {
 /**
  * Get either the user's location in the map or ask them to click
  * Only useful because polygonizing the map for turf is a pain
- * @returns {Promise} resolves with a GeolocationPosition-ish
+ * @returns {Promise} resolves with a GeolocationPositionIsh-ish
  */
-function getLocationOnMap() {
+function getLocationOnMap(): Promise<GeolocationPositionIsh> {
     return getLocationIf((position) => {
         const userLatLng = L.latLng(position.coords.latitude, position.coords.longitude);
         return mapView.getBounds().contains(userLatLng)
@@ -1186,9 +1189,9 @@ function getLocationOnMap() {
 
 /**
  * Shortcut to get current position from cache
- * @returns {GeolocationPosition}
+ * @returns {GeolocationPositionIsh}
  */
-function currentPositionRead() {
+function currentPositionRead(): GeolocationPositionIsh {
     return currentPosition;
 }
 
@@ -1231,7 +1234,7 @@ function mapViewCreate(mapid) {
  * Options for key include "currentPosition", "currentHole", "course". Default to currentPosition.
  * @param {String} key
  */
-function mapRecenter(key) {
+function mapRecenter(key: string) {
     let flyoptions = {
         animate: true,
         duration: 0.33
@@ -1261,9 +1264,9 @@ function mapRecenter(key) {
 
 /**
  * Render the set of markers/layers for a given hole
- * @param {Object} hole the hole object from round
+ * @param {Hole} hole the hole object from round
  */
-function holeViewCreate(hole) {
+function holeViewCreate(hole: Hole) {
     console.debug(`Rendering layers for hole ${hole.number}`)
     hole.strokes.forEach(function (stroke) {
         strokeMarkerCreate(stroke);
@@ -1292,7 +1295,7 @@ function holeViewDelete() {
  * Create a hole selector given a select element
  * @param {HTMLSelectElement} element a select element that we will populate with options
  */
-function holeSelectViewCreate(element) {
+function holeSelectViewCreate(element: HTMLSelectElement) {
     //Register this element as the current hole selector
     holeSelector = element;
 
@@ -1400,9 +1403,9 @@ function holeStatsUpdate() {
 /**
  * Create a list item for the Stroke Stats list
  * @param {Stroke} stroke 
- * @returns {element} the li element for the list
+ * @returns {HTMLElement} the li element for the list
  */
-function strokeStatsListItem(stroke) {
+function strokeStatsListItem(stroke: Stroke): HTMLElement {
     let distance = 0;
     if (currentHole.strokes[stroke.index + 1]) {
         distance = getDistance(stroke.start, currentHole.strokes[stroke.index + 1].start);
@@ -1422,7 +1425,7 @@ function strokeStatsListItem(stroke) {
     dispersionLink.addEventListener("click", () => {
         let disp = prompt("Enter a dispersion:");
         if (disp != null) {
-            stroke.dispersion = disp;
+            stroke.dispersion = parseFloat(disp);
             rerender("full");
         }
         // Force a rerender of the grid
@@ -1555,10 +1558,10 @@ function handleGridTypeSelection() {
 
 /**
  * Create a link that deletes this stroke
- * @param {Object} stroke
- * @returns {link}
+ * @param {Stroke} stroke
+ * @returns {HTMLElement}
  */
-function strokeDeleteViewCreate(stroke) {
+function strokeDeleteViewCreate(stroke: Stroke): HTMLElement {
     let link = document.createElement("button");
     link.innerHTML = "&#215;";
     link.id = `stroke_${stroke.index}_delete`
@@ -1571,10 +1574,10 @@ function strokeDeleteViewCreate(stroke) {
 
 /**
  * Create a link that selects this stroke
- * @param {Object} stroke
- * @returns {link}
+ * @param {Stroke} stroke
+ * @returns {HTMLElement}
  */
-function strokeSelectViewCreate(stroke) {
+function strokeSelectViewCreate(stroke: Stroke): HTMLElement {
     let link = document.createElement("button");
     let icon;
     let state;
@@ -1608,11 +1611,11 @@ function strokeSelectViewCreate(stroke) {
 
 /**
  * Create a link that moves this stroke
- * @param {Object} stroke the stroke to move
+ * @param {Stroke} stroke the stroke to move
  * @param {Number} offset the offset for the stroke index
- * @returns {link}
+ * @returns {HTMLElement}
  */
-function strokeMoveViewCreate(stroke, offset) {
+function strokeMoveViewCreate(stroke: Stroke, offset: number): HTMLElement {
     let link = document.createElement("button");
     let icon = (offset > 0 ? "&#8595;" : "&#8593;")
     link.innerHTML = icon;
@@ -1691,10 +1694,10 @@ function clubStrokeViewCreate(clubs, targetElement) {
 
 /**
  * Handle a click on a club stroke create button
- * @param {Object} club
- * @returns {Function}
+ * @param {Club} club
+ * @returns {function}
  */
-function clubStrokeCreateCallback(club) {
+function clubStrokeCreateCallback(club: Club): () => void {
     return (() => {
         clubStrokeViewToggle();
         getLocationOnMap().then((position) => {
@@ -1716,9 +1719,9 @@ function clubStrokeViewToggle() {
 
 /**
  * Render the results from a course search via nominatim
- * @param {Object} results the results from Nominatim search
+ * @param {any[]} results the results from Nominatim search
  */
-function courseSearchViewUpdate(results) {
+function courseSearchViewUpdate(results: any[]) {
     let resultList = document.getElementById("courseSearchResults");
     resultList.innerHTML = "";
 
@@ -1741,7 +1744,7 @@ function courseSearchViewUpdate(results) {
  * @param {Number} id the OSM ID
  * @returns {String}
  */
-function osmCourseID(type, id) {
+function osmCourseID(type: string, id: number): string {
     return `osm-${type}-${id}`
 }
 
@@ -1758,9 +1761,11 @@ function handleLoad() {
     mapViewCreate("mapid");
     clubStrokeViewCreate(clubReadAll(), document.getElementById("clubStrokeCreateContainer"));
     loadData();
+    roundUpdateWithData
     let courseData = { 'name': round.course, 'id': round.courseId }
     grids.fetchGolfCourseData(courseData).then(() => mapRecenter("currentHole"));
-    holeSelectViewCreate(document.getElementById('holeSelector'));
+
+    holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
     gridTypeSelectCreate();
 }
 
@@ -1776,7 +1781,7 @@ function handleStrokeAddClick() {
  * Handles the click event for starting a new round.
  * @param {Course} [courseParams] the course to create for. If not provided, then infers from input box.
  */
-function handleRoundCreateClickCallback(courseParams?) {
+function handleRoundCreateClickCallback(courseParams?: Course) {
     return (() => {
 
         let courseName;
@@ -1871,7 +1876,7 @@ function handleDispersionInput() {
  * Shows an error message based on the geolocation error code.
  * @param {PositionError} error - The geolocation error object.
  */
-function showError(error) {
+function showError(error: PositionError) {
     switch (error.code) {
         case error.PERMISSION_DENIED:
             document.getElementById("error").innerText = "User denied the request for Geolocation.";
@@ -1886,7 +1891,7 @@ function showError(error) {
             document.getElementById("error").innerText = "An unknown error occurred.";
             break;
         default:
-            document.getElementById("error").innerText = error.text;
+            document.getElementById("error").innerText = error.message;
             break;
     }
 }

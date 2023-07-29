@@ -1,3 +1,4 @@
+// Actual models
 interface Coordinate {
     x: number,
     y: number,
@@ -30,7 +31,7 @@ interface Stroke {
 
 interface Course {
     name: string,
-    id: string
+    id?: string
 }
 
 interface Action {
@@ -40,10 +41,27 @@ interface Action {
     currentStrokeIndex: number
 }
 
-class NoGeolocationError extends Error {
+interface Club {
+    name: string,
+    dispersion: number
+}
+
+
+// Helpful types
+interface GeolocationPositionIsh {
+    coords: {
+        latitude: any,
+        longitude: any
+    }
+}
+
+// Errors
+class PositionError extends Error {
     code: number;
-    POSITION_DENIED: 1
+    PERMISSION_DENIED: 1
     POSITION_UNAVAILABLE: 2
+    TIMEOUT: 3
+    UNKNOWN_ERROR: 4
 
     constructor(msg: string, code: number) {
         super(msg);
