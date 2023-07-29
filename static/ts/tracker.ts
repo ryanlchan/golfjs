@@ -925,8 +925,10 @@ function loadData(): object | undefined {
         }, 1);
         currentHole = round.holes[lastHole - 1];
         currentStrokeIndex = currentHole.strokes.length;
+        rerender();
+        return round;
     }
-    rerender();
+    return undefined;
 }
 
 /**
@@ -1760,13 +1762,16 @@ function osmCourseID(type: string, id: number): string {
 function handleLoad() {
     mapViewCreate("mapid");
     clubStrokeViewCreate(clubReadAll(), document.getElementById("clubStrokeCreateContainer"));
-    loadData();
-    roundUpdateWithData
-    let courseData = { 'name': round.course, 'id': round.courseId }
-    grids.fetchGolfCourseData(courseData).then(() => mapRecenter("currentHole"));
-
-    holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
     gridTypeSelectCreate();
+    const loaded = loadData();
+    let course = { 'name': round.course, 'id': round.courseId }
+    grids.fetchGolfCourseData(course).then((data) => {
+        if (!loaded) {
+            roundUpdateWithData(data)
+        }
+        mapRecenter("currentHole")
+    });
+    holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
 }
 
 /**
