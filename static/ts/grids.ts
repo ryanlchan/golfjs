@@ -1,6 +1,6 @@
 import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
-import { HOLE_OUT_COEFFS, STROKES_REMAINING_COEFFS } from "./coeffs20230705";
+import { HOLE_OUT_COEFFS, OSM_GOLF_TO_TERRAIN, STROKES_REMAINING_COEFFS } from "./coeffs20230705";
 
 export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 
@@ -270,8 +270,10 @@ export function getGolfHoleGreenCenter(courseParams, holeNumber) {
 function scrubOSMData(geojson) {
     for (let feature of geojson.features) {
         let props = feature.properties;
-        if (props.golf) {
-            props["terrainType"] = props.golf
+        if (props.golf && props.golf in OSM_GOLF_TO_TERRAIN) {
+            props["terrainType"] = OSM_GOLF_TO_TERRAIN[props.golf];
+        } else if (props.golf) {
+            props["terrainType"] = props.golf in STROKES_REMAINING_COEFFS ? props.golf : "rough"
         }
         if (typeof (props.par) === 'string') {
             props.par = Number(props.par);
@@ -465,7 +467,7 @@ function probabilityGrid(grid, aimPoint, dispersionNumber) {
  */
 function holeOutRate(distanceToHole, terrainType) {
     if (!(terrainType in HOLE_OUT_COEFFS)) {
-        console.warn("No polynomial for terrainType " + terrainType);
+        console.debug("Skip: No holeout polynomial for terrainType " + terrainType);
         return 0;
     }
     const polys = HOLE_OUT_COEFFS[terrainType];
@@ -537,8 +539,8 @@ function addHoleOut(hexGrid, distanceToHole, terrainType, holePoint) {
  */
 function strokesRemaining(distanceToHole, terrainType) {
     if (!(terrainType in STROKES_REMAINING_COEFFS)) {
-        console.error("No polynomial for terrainType" + terrainType);
-        return
+        console.error("No strokes remaining polynomial for terrainType" + terrainType + ", defaulting to rough");
+        terrainType = "rough"
     }
 
     // Assume that we have an polynomial function defined by STROKES_REMAINING_COEFFS
@@ -613,9 +615,10 @@ function weightStrokesGained(grid) {
  * @param {Array} holeCoordinate Coordiante in WGS84 LatLong
  * @param {Number} dispersionNumber
  * @param {Course} courseParams
+ * @param {String} [startTerrain] optional
  * @returns {FeatureCollection}
  */
-export function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
+export function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams, startTerrain?) {
     // Try to get golf course data/polygons
     const golfCourseData = getGolfCourseData(courseParams);
     if (golfCourseData instanceof Error) {
@@ -637,7 +640,7 @@ export function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersio
     const aimWindow = turf.circle(aimPoint, 3 * dispersionNumber / 1000, { units: "kilometers" })
 
     // Determine strokes gained at the start
-    const terrainTypeStart = findTerrainType(startPoint, golfCourseData);
+    const terrainTypeStart = startTerrain ? startTerrain : findTerrainType(startPoint, golfCourseData);
     const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000
     const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
 
@@ -672,9 +675,10 @@ export function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersio
  * @param {Array} holeCoordinate Coordiante in WGS84 LatLong
  * @param {Number} dispersionNumber
  * @param {Course} courseParams
+ * @param {String} [startTerrain] optional
  * @returns {FeatureCollection}
  */
-export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams) {
+export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersionNumber, courseParams, startTerrain?) {
     // Try to get golf course data/polygons
     const golfCourseData = getGolfCourseData(courseParams);
     if (golfCourseData instanceof Error) {
@@ -695,7 +699,7 @@ export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispe
     }
 
     // Determine strokes gained at the start
-    const terrainTypeStart = findTerrainType(startPoint, golfCourseData);
+    const terrainTypeStart = startTerrain ? startTerrain : findTerrainType(startPoint, golfCourseData);
     const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000;
     const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
 

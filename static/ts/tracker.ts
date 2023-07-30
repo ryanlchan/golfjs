@@ -15,6 +15,7 @@ import { wait } from "./grids";
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
 import flagImg from "../img/flag.png";
+import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
 
 // Variables
 let mapView: any;
@@ -475,7 +476,8 @@ function sgGridCreate() {
         [activeStroke.aim.y, activeStroke.aim.x],
         [currentHole.pin.y, currentHole.pin.x],
         activeStroke.dispersion,
-        roundCourseParams(round));
+        roundCourseParams(round),
+        activeStroke.terrain);
 
     // Check if any grid returned, for example if the data didn't load or something
     if (grid instanceof Error) {
@@ -530,7 +532,8 @@ function targetGridCreate() {
         [activeStroke.aim.y, activeStroke.aim.x],
         [currentHole.pin.y, currentHole.pin.x],
         activeStroke.dispersion,
-        roundCourseParams(round));
+        roundCourseParams(round),
+        activeStroke.terrain);
 
     // Check if any grid returned, for example if the data didn't load or something
     if (grid instanceof Error) {
@@ -1581,6 +1584,38 @@ function handleGridTypeSelection() {
 }
 
 /**
+ * Create the stroke terrain input options
+ */
+function strokeTerrainSelectCreate() {
+    const el = document.getElementById("terrainInput");
+    let types = [];
+    let op = document.createElement("option");
+    op.value = "";
+    op.text = "Default";
+    types.push(op)
+    for (let type in STROKES_REMAINING_COEFFS) {
+        let op = document.createElement("option");
+        op.value = type;
+        op.text = type;
+        types.push(op)
+    }
+    el.replaceChildren(...types);
+}
+
+/**
+ * Update the stroke terrain selector with the current stroke's terrain
+ */
+function strokeTerrainSelectUpdate() {
+    const el = <HTMLSelectElement>document.getElementById("terrainInput");
+    const currentTerrain = activeStroke.terrain;
+    if (currentTerrain === undefined) {
+        el.value = "";
+    } else {
+        el.value = currentTerrain;
+    }
+}
+
+/**
  * Create a link that deletes this stroke
  * @param {Stroke} stroke
  * @returns {HTMLElement}
@@ -1677,6 +1712,7 @@ function rerender(type?: string) {
     if (activeStroke && type == "full") {
         strokeMarkerAimDelete();
         strokeMarkerAimCreate();
+        strokeTerrainSelectUpdate();
     }
 
     // Rerender everything
@@ -1913,6 +1949,7 @@ function handleLoad() {
     mapViewCreate("mapid");
     clubStrokeViewCreate(clubReadAll(), document.getElementById("clubStrokeCreateContainer"));
     gridTypeSelectCreate();
+    strokeTerrainSelectCreate();
     const loaded = loadData();
     let course = { 'name': round.course, 'id': round.courseId }
     grids.fetchGolfCourseData(course).then((data) => {
@@ -2026,6 +2063,17 @@ function handleDispersionInput() {
     }
 }
 
+function handleTerrainInput() {
+    const val = this.value;
+    if (val == "" || val in STROKES_REMAINING_COEFFS) {
+        activeStroke.terrain = val;
+    } else {
+        showError(new PositionError("Terrain type not recognized", 4));
+        console.error(`Terrain type not recognized, got ${val}`);
+    }
+    rerender("dragend");
+}
+
 /**
  * Shows an error message based on the geolocation error code.
  * @param {PositionError} error - The geolocation error object.
@@ -2064,3 +2112,4 @@ document.getElementById("recenter").addEventListener("click", handleRecenterClic
 strokeMarkerAimCreateButton.addEventListener('click', handleStrokeMarkerAimCreateClick);
 document.getElementById("courseName").addEventListener("input", handleCourseSearchInput);
 document.getElementById("dispersionInput").addEventListener("change", handleDispersionInput);
+document.getElementById("terrainInput").addEventListener("change", handleTerrainInput);

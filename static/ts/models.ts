@@ -27,6 +27,7 @@ interface Stroke {
     aim?: Coordinate,
     club?: string,
     dispersion?: number,
+    terrain?: string
 }
 
 interface Course {
