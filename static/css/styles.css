@@ -155,6 +155,10 @@ body {
 }
 
 /* Scorecard styles */
+.scorecard {
+    text-align: center;
+}
+
 .scorecard thead {
     background-color: #f2f2f2;
 }

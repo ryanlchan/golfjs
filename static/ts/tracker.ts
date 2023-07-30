@@ -1842,8 +1842,16 @@ function scorecardViewElement(round: Round): HTMLElement {
 
     // Create the header cells for Hole Numbers
     const holeNumbersHeader = document.createElement('th');
-    holeNumbersHeader.textContent = '#';
+    holeNumbersHeader.textContent = 'Hole';
     headerRow.appendChild(holeNumbersHeader);
+
+    // Optional: Calculate handicaps
+    const enableHandicap = !!round.holes[0].handicap
+    if (enableHandicap) {
+        const handicapHeader = document.createElement('th');
+        handicapHeader.textContent = 'Hcp';
+        headerRow.appendChild(handicapHeader);
+    }
 
     // Create the header cells for Par
     const parHeader = document.createElement('th');
@@ -1875,6 +1883,14 @@ function scorecardViewElement(round: Round): HTMLElement {
         holeNumberCell.textContent = hole.number.toString();
         row.appendChild(holeNumberCell);
 
+        // Create cells for Handicap, if enabled
+        if (enableHandicap) {
+            const handicapCell = document.createElement('td');
+            const handicap = hole.handicap
+            handicapCell.textContent = handicap ? handicap.toString() : "";
+            row.appendChild(handicapCell);
+        }
+
         // Create cells for Par
         const parCell = document.createElement('td');
         const par = hole.par
@@ -1902,6 +1918,13 @@ function scorecardViewElement(round: Round): HTMLElement {
     const holeNumberCell = document.createElement('td');
     holeNumberCell.textContent = "Total"
     row.appendChild(holeNumberCell);
+
+    // Spacer for handicap, if enabled
+    if (enableHandicap) {
+        const handicapCell = document.createElement('td');
+        handicapCell.textContent = ""
+        row.appendChild(handicapCell);
+    }
 
     // Create cells for Par
     const parCell = document.createElement('td');
