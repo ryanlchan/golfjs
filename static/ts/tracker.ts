@@ -160,6 +160,16 @@ function strokeDispersion(stroke: Stroke, val?: number | string): number {
     }
 }
 
+function strokeAimReset(stroke: Stroke): Stroke {
+    const hole = getStrokeHole(stroke);
+    stroke.aim = { ...hole.pin };
+    return stroke;
+}
+
+function getStrokeHole(stroke: Stroke): Hole {
+    return round.holes[stroke.hole - 1];
+}
+
 /**
  * Adds a stroke marker to the map.
  * @param {Stroke} stroke - the stroke to add a marker for
@@ -239,11 +249,9 @@ function strokeMarkerActivate(marker: L.Marker) {
     marker.getElement().classList.add('active-marker');
     activeStroke = currentHole.strokes[opt.strokeIndex];
 
-    // Show the set Aim button
+    // Show the aim marker
     if (activeStroke.aim) {
         strokeMarkerAimCreate();
-    } else {
-        strokeMarkerAimCreateButton.classList.remove("inactive")
     }
 
     // Register deactivation clicks
@@ -282,24 +290,16 @@ function strokeMarkerDeactivate(e?) {
 
 /**
  * Create an aim marker where the user has currently clicked
- * @param {L.LeafletMouseEvent} e the click event on the map
  */
-function strokeMarkerAimCreate(e?: L.LeafletMouseEvent) {
-    // Unbind the map click event handler
-    mapView.off('click', strokeMarkerAimCreate);
+function strokeMarkerAimCreate() {
+    // Show the set Aim button
+    strokeMarkerAimCreateButton.classList.remove("inactive")
 
     if (!activeStroke) {
         console.error("Cannot add aim, no active stroke")
         return
     }
 
-    if (e) {
-        activeStroke.aim = {
-            x: e.latlng.lng,
-            y: e.latlng.lat,
-            crs: "EPSG:4326"
-        }
-    }
     let marker = markerCreate("active_aim", activeStroke.aim);
     marker.bindTooltip(strokeMarkerAimTooltip, { permanent: true, direction: "top", offset: [-15, 0] })
     let ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
@@ -1673,12 +1673,16 @@ function rerender(type?: string) {
         }, (error) => console.error(error));
     }
 
+    // Rerender calls that should happen on full rerenders with active strokes
+    if (activeStroke && type == "full") {
+        strokeMarkerAimDelete();
+        strokeMarkerAimCreate();
+    }
+
     // Rerender everything
     if (type == "full") {
         scorecardViewUpdate();
         holeSelectViewUpdate();
-        strokeMarkerAimDelete();
-        strokeMarkerAimCreate();
     }
 }
 
@@ -1966,8 +1970,8 @@ function handleRoundCreateClickCallback(courseParams?: Course) {
  * set a new stroke's location
  */
 function handleStrokeMarkerAimCreateClick() {
-    mapView.on("click", strokeMarkerAimCreate);
-    mapView.off("click", strokeMarkerDeactivate);
+    strokeAimReset(activeStroke);
+    rerender("full");
 }
 
 /**
