@@ -154,6 +154,67 @@ body {
     width: 3em;
 }
 
+/* Scorecard styles */
+.scorecard thead {
+    background-color: #f2f2f2;
+}
+
+.scorecard th {
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd;
+}
+
+/* Style the table body rows */
+.scorecard tbody tr {
+    background-color: #fff;
+}
+
+.scorecard td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Alternate row background color for better readability */
+.scorecard tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+/* Alternate row background color for better readability */
+.scorecard tbody tr:last-child {
+    font-weight: 700;
+}
+
+/* Add some hover effect to the rows */
+.scorecard tbody tr:hover {
+    background-color: #e5e5e5;
+}
+
+.scorecard td.albatross {
+    color: red;
+}
+
+.scorecard td.eagle {
+    color: red;
+}
+
+.scorecard td.birdie {
+    color: red;
+}
+
+.scorecard td.par {
+    color: green;
+}
+
+.scorecard td.bogey {
+    background-color: lightcoral;
+}
+
+.scorecard td.double_bogey {
+    background-color: coral;
+}
+
 /* Map styles */
 
 .active-marker {

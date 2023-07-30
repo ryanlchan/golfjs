@@ -43,6 +43,14 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
     // set an undo point
     undoCreate("strokeCreate");
 
+    // handle no current hole
+    if (!currentHole || !currentStrokeIndex) {
+        currentHole = round.holes.reduce((latest, hole) => {
+            return hole.number > latest.number && hole.strokes.length > 0 ? hole : latest
+        })
+        holeSelect(currentHole.number);
+    }
+
     // Create the stroke object
     const stroke: Stroke = {
         index: currentStrokeIndex,
@@ -165,7 +173,7 @@ function strokeMarkerCreate(stroke: Stroke, options?: object) {
         iconSize: [30, 45], // size of the icon
         iconAnchor: [15, 30]
     });
-    let opt = { draggable: true, opacity: .8, icon, strokeIndex: stroke.index }
+    let opt = { draggable: true, opacity: .8, icon, hole: stroke.hole, strokeIndex: stroke.index }
     if (options !== undefined) {
         opt = {
             ...opt,
@@ -213,6 +221,15 @@ function strokeMarkerActivateCallback(marker: L.Marker): () => void {
  * @param {L.Marker} marker the leaflet map marker
  */
 function strokeMarkerActivate(marker: L.Marker) {
+    let opt = <any>marker.options
+
+    // Set current hole to this one if missing
+    if (!currentHole || !currentStrokeIndex) {
+        let stroke = round.holes[opt["hole"] - 1].strokes[opt["strokeIndex"]];
+        holeSelect(opt["hole"]);
+        marker = layerRead(strokeMarkerID(stroke));
+    }
+
     // Deactivate the currently active marker if there is one
     if (activeStroke) {
         strokeMarkerDeactivate();
@@ -220,7 +237,6 @@ function strokeMarkerActivate(marker: L.Marker) {
 
     // Activate the clicked marker
     marker.getElement().classList.add('active-marker');
-    let opt = <any>marker.options
     activeStroke = currentHole.strokes[opt.strokeIndex];
 
     // Show the set Aim button
@@ -647,11 +663,8 @@ function holeSelect(holeNum: number) {
             holeViewCreate(hole);
         });
 
-        const lastHole = round.holes.reduce((acc, hole) => {
-            return hole.strokes.length > 0 ? hole.number : acc;
-        }, 1);
-        currentHole = round.holes[lastHole - 1];
-        currentStrokeIndex = currentHole.strokes.length;
+        currentHole = undefined;
+        currentStrokeIndex = undefined;
         mapRecenter("course");
     } else if (!(round.holes[holeNum - 1])) {
         console.error(`Attempted to select hole ${holeNum} but does not exist!`);
@@ -667,7 +680,7 @@ function holeSelect(holeNum: number) {
         holeViewCreate(currentHole);
         mapRecenter("currentHole");
     }
-    rerender();
+    rerender("full");
 
 }
 
@@ -985,7 +998,7 @@ function undoCreate(action: string) {
     actionStack.push({
         action,
         round: structuredClone(round),
-        currentHoleNum: currentHole.number,
+        currentHoleNum: currentHole ? currentHole.number : undefined,
         currentStrokeIndex,
     });
     console.debug(`Created a new undo point for action#${action}`)
@@ -998,7 +1011,11 @@ function undoRun() {
     if (actionStack.length > 0) {
         const previousAction = actionStack.pop();
         round = previousAction.round;
-        currentHole = round.holes[previousAction.currentHoleNum - 1];
+        if (previousAction.currentHoleNum) {
+            currentHole = round.holes[previousAction.currentHoleNum - 1];
+        } else {
+            currentHole = undefined;
+        }
         currentStrokeIndex = previousAction.currentStrokeIndex;
         holeSelect(previousAction.currentHoleNum);
         saveData();
@@ -1333,7 +1350,7 @@ function holeSelectViewUpdate() {
         options.push(option)
     }
     holeSelector.replaceChildren(...options);
-    holeSelector.value = currentHole.number.toString();
+    holeSelector.value = currentHole ? currentHole.number.toString() : "-1";
 }
 
 /**
@@ -1396,8 +1413,9 @@ function holeStatsUpdate() {
             strokeElement.appendChild(strokeStatsListItem(stroke));
         });
     } else {
-        holeElement.innerText = "";
+        // No current hole, assume overview
         strokeElement.innerHTML = "";
+        holeElement.innerHTML = "";
     }
 }
 
@@ -1652,6 +1670,8 @@ function rerender(type?: string) {
 
     // Rerender everything
     if (type == "full") {
+        scorecardViewUpdate();
+        holeSelectViewUpdate();
         strokeMarkerAimDelete();
         strokeMarkerAimCreate();
     }
@@ -1749,6 +1769,128 @@ function osmCourseID(type: string, id: number): string {
     return `osm-${type}-${id}`
 }
 
+function scorecardViewElement(round: Round): HTMLElement {
+    // Create the table element
+    const table = document.createElement('table');
+    table.classList.add("scorecard")
+
+    // Create the table header row
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    thead.appendChild(headerRow);
+
+    // Create the header cells for Hole Numbers
+    const holeNumbersHeader = document.createElement('th');
+    holeNumbersHeader.textContent = '#';
+    headerRow.appendChild(holeNumbersHeader);
+
+    // Create the header cells for Par
+    const parHeader = document.createElement('th');
+    parHeader.textContent = 'Par';
+    headerRow.appendChild(parHeader);
+
+    // Create the header cells for Score
+    const scoreHeader = document.createElement('th');
+    scoreHeader.textContent = 'Score';
+    headerRow.appendChild(scoreHeader);
+
+    // Append the header row to the table
+    table.appendChild(thead);
+
+    // Create body
+    const tbody = document.createElement('tbody');
+    table.appendChild(tbody);
+
+    // Initialize total counts
+    let totalStrokes = 0;
+    let totalPar = 0;
+
+    // Create rows for each hole
+    for (const hole of round.holes) {
+        const row = document.createElement('tr');
+
+        // Create cells for Hole Number
+        const holeNumberCell = document.createElement('td');
+        holeNumberCell.textContent = hole.number.toString();
+        row.appendChild(holeNumberCell);
+
+        // Create cells for Par
+        const parCell = document.createElement('td');
+        const par = hole.par
+        parCell.textContent = par.toString();
+        totalPar += par;
+        row.appendChild(parCell);
+
+        // Create cells for Score
+        const scoreCell = document.createElement('td');
+        const strokes = hole.strokes.length;
+        const relative = strokes - par;
+        totalStrokes += strokes;
+        scoreCell.textContent = `${strokes} (${relative >= 0 ? "+" : ""}${relative})`;
+        scoreCell.classList.add(scoreClass(relative));
+        row.appendChild(scoreCell);
+
+        // Append the row to the table
+        tbody.appendChild(row);
+    }
+
+    // Create totals row
+    const row = document.createElement('tr');
+
+    // Create cells for Hole Number
+    const holeNumberCell = document.createElement('td');
+    holeNumberCell.textContent = "Total"
+    row.appendChild(holeNumberCell);
+
+    // Create cells for Par
+    const parCell = document.createElement('td');
+    parCell.textContent = totalPar.toString();
+    row.appendChild(parCell);
+
+    // Create cells for Score
+    const scoreCell = document.createElement('td');
+    const relative = totalStrokes - totalPar;
+    scoreCell.textContent = `${totalStrokes} (${relative >= 0 ? "+" : ""}${relative})`;;
+    scoreCell.classList.add(scoreClass(relative));
+    row.appendChild(scoreCell);
+
+    // Append the row to the table
+    tbody.appendChild(row);
+
+    return table;
+}
+
+function scorecardViewUpdate(): void {
+    const scorecard = document.getElementById("overviewStats");
+    if (currentHole) {
+        scorecard.innerHTML = "";
+    } else {
+        scorecard.replaceChildren(scorecardViewElement(round));
+    }
+}
+
+/**
+ * Return the score class (birdie, bogey, etc)
+ * @param relativeScore the score relative to par
+ * @returns {string} the score class
+ */
+function scoreClass(relativeScore: number): string {
+    const s = Math.round(relativeScore);
+    if (s >= 2) {
+        return "double_bogey";
+    } else if (s == 1) {
+        return "bogey";
+    } else if (s == 0) {
+        return "par";
+    } else if (s == -1) {
+        return "birdie";
+    } else if (s == -2) {
+        return "eagle";
+    } else {
+        return "albatross";
+    }
+}
+
 /**
  * =========================
  * Handlers for click events
@@ -1768,7 +1910,6 @@ function handleLoad() {
         if (!loaded) {
             roundUpdateWithData(data)
         }
-        holeSelect(currentHole.number);
     });
     holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
 }
@@ -1810,7 +1951,7 @@ function handleRoundCreateClickCallback(courseParams?: Course) {
         if (confirm("Are you sure you want to start a new round? All current data will be lost.")) {
             roundCreate(courseParams);
             holeSelectViewUpdate();
-            rerender();
+            rerender("full");
         }
     });
 }
