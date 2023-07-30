@@ -1224,7 +1224,13 @@ function getLocationOnMap(): Promise<GeolocationPositionIsh> {
  */
 function currentPositionRead(maximumAge = 5000): GeolocationPosition {
     // Expire current position if beyond timeout (5s)
-    if (currentPosition?.timestamp < (Date.now() - maximumAge)) {
+    if (!currentPosition
+        || (currentPosition?.timestamp < (Date.now() - maximumAge))
+        || (currentPosition?.coords.accuracy > 10)
+        || (!mapView.getBounds().contains(
+            L.latLng([currentPosition?.coords.latitude, currentPosition?.coords.longitude])
+        ))
+    ) {
         currentPosition = undefined;
     }
     return currentPosition;
@@ -1267,13 +1273,21 @@ function mapViewCreate(mapid) {
 /**
  * Recenter the map on a point
  * Options for key include "currentPosition", "currentHole", "course". Default to currentPosition.
- * @param {String} key
+ * @param {String} [key]
  */
-function mapRecenter(key: string) {
+function mapRecenter(key?: string) {
     let flyoptions = {
         animate: true,
         duration: 0.33
     }
+    if (!key && currentHole) {
+        key = "currentHole";
+    } else if (currentPositionRead()) {
+        key = "currentPosition";
+    } else {
+        key = "course"
+    }
+
     if (key == "course") {
         let bbox = grids.getGolfCourseBbox(roundCourseParams(round));
         if (bbox) {
@@ -1289,7 +1303,7 @@ function mapRecenter(key: string) {
             console.debug("Recentering on current pin");
             mapView.flyTo([currentHole.pin.y, currentHole.pin.x], 18, flyoptions);
         }
-    } else if (!key || key == "currentPosition") {
+    } else if (key == "currentPosition") {
         if (currentPositionEnabled && currentPosition) {
             console.debug("Recentering on current position");
             mapView.flyTo([currentPosition.coords.latitude, currentPosition.coords.longitude], 20, flyoptions);
@@ -2075,7 +2089,7 @@ function handleCopyToClipboardClick() {
  * Recenter the map on the current hole
  */
 function handleRecenterClick() {
-    mapRecenter("currentHole");
+    mapRecenter();
 }
 
 /**
