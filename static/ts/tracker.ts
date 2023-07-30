@@ -23,7 +23,7 @@ let currentHole: Hole = round.holes.at(-1);
 let currentStrokeIndex: number = currentHole.strokes.length;
 let layers: object = {};
 let actionStack: Action[] = [];
-let currentPosition: GeolocationPositionIsh;
+let currentPosition: GeolocationPosition;
 let currentPositionEnabled: boolean;
 let holeSelector: HTMLElement;
 let activeStroke: Stroke;
@@ -1205,9 +1205,14 @@ function getLocationOnMap(): Promise<GeolocationPositionIsh> {
 
 /**
  * Shortcut to get current position from cache
- * @returns {GeolocationPositionIsh}
+ * @param {number} maximumAge the maximum length of time since update to accept
+ * @returns {GeolocationPosition}
  */
-function currentPositionRead(): GeolocationPositionIsh {
+function currentPositionRead(maximumAge = 5000): GeolocationPosition {
+    // Expire current position if beyond timeout (5s)
+    if (currentPosition.timestamp < Date.now() - maximumAge) {
+        currentPosition = undefined;
+    }
     return currentPosition;
 }
 
