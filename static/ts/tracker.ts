@@ -728,6 +728,16 @@ function pinMarkerCreate(hole: Hole) {
     markerCreate(id, coordinate, options);
 }
 
+function pinMarkerUpdate(hole: Hole) {
+    const id = holePinID(hole);
+    const layer = layerRead(id);
+    if (!layer) {
+        return
+    }
+
+    layer.setLatLng(L.latLng(hole.pin.y, hole.pin.x))
+}
+
 /**
  * Draw a hole line showing the intended playing line
  * @param {Hole} hole the Hole interface object
@@ -973,6 +983,7 @@ function markerCreate(name: string, coordinate: Coordinate, options?: object): L
     const marker = L.marker([coordinate.y, coordinate.x], options);
     marker.on("drag", handleMarkerDrag(marker, coordinate));
     marker.on("dragend", (() => rerender("dragend")));
+    marker.on("dragstart", () => undoCreate("markerMove"));
     layerCreate(name, marker)
     strokelineUpdate();
     return marker
@@ -1014,6 +1025,7 @@ function undoCreate(action: string) {
         round: structuredClone(round),
         currentHoleNum: currentHole ? currentHole.number : undefined,
         currentStrokeIndex,
+        activeStroke: structuredClone(activeStroke)
     });
     console.debug(`Created a new undo point for action#${action}`)
 }
@@ -1023,16 +1035,22 @@ function undoCreate(action: string) {
  */
 function undoRun() {
     if (actionStack.length > 0) {
+        console.debug("Undoing last action");
+
+        // Calculate values
         const previousAction = actionStack.pop();
+        const holeSelectNum = previousAction.currentHoleNum ? previousAction.currentHoleNum : -1;
+        const holeIndex = holeSelectNum > 0 ? holeSelectNum - 1 : undefined;
+        const strokeIndex = previousAction.currentStrokeIndex ? previousAction.currentStrokeIndex : undefined;
+
+        // Do the actual reset
         round = previousAction.round;
-        if (previousAction.currentHoleNum) {
-            currentHole = round.holes[previousAction.currentHoleNum - 1];
-        } else {
-            currentHole = undefined;
-        }
-        currentStrokeIndex = previousAction.currentStrokeIndex;
-        holeSelect(previousAction.currentHoleNum);
-        saveData();
+        currentHole = holeIndex === undefined ? undefined : round.holes[holeIndex];
+        currentStrokeIndex = strokeIndex;
+        activeStroke = previousAction.activeStroke;
+
+        // Reset displays post-reset
+        rerender("full");
     } else {
         document.getElementById("error").innerText = "No action to undo.";
         console.error("No action to undo.");
@@ -1280,12 +1298,14 @@ function mapRecenter(key?: string) {
         animate: true,
         duration: 0.33
     }
-    if (!key && currentHole) {
-        key = "currentHole";
-    } else if (currentPositionRead()) {
-        key = "currentPosition";
-    } else {
-        key = "course"
+    if (!key) {
+        if (currentHole) {
+            key = "currentHole";
+        } else if (currentPositionRead()) {
+            key = "currentPosition";
+        } else {
+            key = "course"
+        }
     }
 
     if (key == "course") {
@@ -1738,6 +1758,9 @@ function rerender(type?: string) {
         strokeMarkerAimDelete();
         strokeMarkerAimCreate();
         strokeTerrainSelectUpdate();
+    }
+    if (type == "full" && currentHole) {
+        pinMarkerUpdate(currentHole);
     }
 
     // Rerender everything

@@ -40,6 +40,7 @@ interface Action {
     round: Round,
     currentHoleNum: number,
     currentStrokeIndex: number
+    activeStroke: Stroke
 }
 
 interface Club {
