@@ -140,11 +140,11 @@ body {
     border-radius: 50%;
     color: black;
     font-size: 1em;
-    height: 3em;
+    height: 2em;
     margin-left: 0.5em;
     padding: 0;
     position: relative;
-    width: 3em;
+    width: 2em;
     display: flex;
     align-items: center;
     justify-content: center;
