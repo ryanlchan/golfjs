@@ -161,12 +161,22 @@ function strokeDispersion(stroke: Stroke, val?: number | string): number {
     }
 }
 
+/**
+ * Reset a stroke to aim at the pin
+ * @param stroke the stroke to reset aim for
+ * @returns the updated stroke
+ */
 function strokeAimReset(stroke: Stroke): Stroke {
     const hole = getStrokeHole(stroke);
     stroke.aim = { ...hole.pin };
     return stroke;
 }
 
+/**
+ * Get the hole for a stroke
+ * @param stroke the stroke to get the hole for
+ * @returns the hole for the stroe
+ */
 function getStrokeHole(stroke: Stroke): Hole {
     return round.holes[stroke.hole - 1];
 }
@@ -1815,6 +1825,11 @@ function osmCourseID(type: string, id: number): string {
     return `osm-${type}-${id}`
 }
 
+/**
+ * Create a scorecard as table
+ * @param round a round to create a scorecard for
+ * @returns {HTMLElement} a table containing the scorecard
+ */
 function scorecardViewElement(round: Round): HTMLElement {
     // Create the table element
     const table = document.createElement('table');
@@ -1906,11 +1921,15 @@ function scorecardViewElement(round: Round): HTMLElement {
     return table;
 }
 
+/**
+ * Update the scorecard view with either a table or nothing
+ */
 function scorecardViewUpdate(): void {
     const scorecard = document.getElementById("overviewStats");
     if (currentHole) {
-        scorecard.innerHTML = "";
+        scorecard.classList.add("inactive");
     } else {
+        scorecard.classList.remove("inactive");
         scorecard.replaceChildren(scorecardViewElement(round));
     }
 }
@@ -2054,6 +2073,9 @@ function handleCourseSearchInput() {
     }, 500);
 }
 
+/**
+ * Take a new dispersion input and update current stroke
+ */
 function handleDispersionInput() {
     const val = this.value;
     try {
@@ -2066,6 +2088,9 @@ function handleDispersionInput() {
     }
 }
 
+/**
+ * Take a terrain input and update current stroke
+ */
 function handleTerrainInput() {
     const val = this.value;
     if (val == "" || val in STROKES_REMAINING_COEFFS) {
