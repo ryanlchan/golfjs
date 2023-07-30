@@ -45,7 +45,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
     undoCreate("strokeCreate");
 
     // handle no current hole
-    if (!currentHole || !currentStrokeIndex) {
+    if (currentHole == undefined || currentStrokeIndex == undefined) {
         currentHole = round.holes.reduce((latest, hole) => {
             return hole.number > latest.number && hole.strokes.length > 0 ? hole : latest
         })
