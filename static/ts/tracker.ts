@@ -1214,7 +1214,7 @@ function getLocationOnMap(): Promise<GeolocationPositionIsh> {
  */
 function currentPositionRead(maximumAge = 5000): GeolocationPosition {
     // Expire current position if beyond timeout (5s)
-    if (currentPosition.timestamp < Date.now() - maximumAge) {
+    if (currentPosition?.timestamp < (Date.now() - maximumAge)) {
         currentPosition = undefined;
     }
     return currentPosition;
@@ -1863,7 +1863,7 @@ function scorecardViewElement(round: Round): HTMLElement {
         // Create cells for Par
         const parCell = document.createElement('td');
         const par = hole.par
-        parCell.textContent = par.toString();
+        parCell.textContent = par ? par.toString() : "";
         totalPar += par;
         row.appendChild(parCell);
 
@@ -1956,6 +1956,8 @@ function handleLoad() {
     grids.fetchGolfCourseData(course).then((data) => {
         if (!loaded) {
             roundUpdateWithData(data)
+        } else {
+            mapRecenter("course");
         }
     });
     holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
