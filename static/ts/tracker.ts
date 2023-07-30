@@ -803,6 +803,7 @@ function roundCreate(courseParams: Course) {
     round = { ...defaultRound(), course: courseName, courseId: courseId };
     currentHole = round.holes.at(0)
     currentStrokeIndex = 0;
+    activeStroke = undefined;
     layerDeleteAll();
     grids.fetchGolfCourseData(courseParams).then(roundUpdateWithData);
 }
