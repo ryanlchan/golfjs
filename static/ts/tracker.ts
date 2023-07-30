@@ -1020,6 +1020,12 @@ function handleUndoActionClick() {
  * @param {String} action
  */
 function undoCreate(action: string) {
+    // Limit undo stack to 5
+    if (actionStack.length > 5) {
+        actionStack = actionStack.slice(0, 5);
+    }
+
+    // Create undo point
     actionStack.push({
         action,
         round: structuredClone(round),
