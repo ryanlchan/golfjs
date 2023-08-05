@@ -192,25 +192,25 @@ function getGolfCourseData(courseParams) {
 /**
  * Get the reference playing line for a hole at a course
  * @param {Course} courseParams
- * @param {Number} holeNumber
+ * @param {Number} holeIndex
  * @returns {Feature} a single line feature
  */
-export function getGolfHoleLine(courseParams, holeNumber) {
+export function getGolfHoleLine(courseParams, holeIndex) {
     let data = getGolfCourseData(courseParams);
     if (data instanceof Error) {
         // Data not ready, just reraise the error
         return data;
     }
-    return turf.getCluster(data, { 'golf': "hole", 'ref': holeNumber }).features[0];
+    return turf.getCluster(data, { 'golf': "hole", 'ref': holeIndex + 1 }).features[0];
 }
 
 /**
  * Get all polys that intersect with the reference playing line
  * @param {Course} courseParams
- * @param {Number} holeNumber
+ * @param {Number} holeIndex
  * @returns {FeatureCollection}
  */
-function getGolfHolePolys(courseParams, holeNumber) {
+function getGolfHolePolys(courseParams, holeIndex) {
     let data = getGolfCourseData(courseParams);
     if (data instanceof Error) {
         // Data not ready, just reraise the error
@@ -218,7 +218,7 @@ function getGolfHolePolys(courseParams, holeNumber) {
     }
 
     // Get the reference line
-    let line = getGolfHoleLine(courseParams, holeNumber);
+    let line = getGolfHoleLine(courseParams, holeIndex);
     if (line instanceof Error) {
         let msg = "Bad data set from OSM";
         console.error(msg);
@@ -227,7 +227,7 @@ function getGolfHolePolys(courseParams, holeNumber) {
     }
     if (!line) {
         let courseName = courseParams["name"]
-        let msg = `No hole line found for course ${courseName} hole ${holeNumber}`
+        let msg = `No hole line found for course ${courseName} hole ${holeIndex}`
         console.warn(msg)
         throw new Error(msg);
     }
@@ -239,11 +239,11 @@ function getGolfHolePolys(courseParams, holeNumber) {
 /**
  * Get greens that intersect a single hole's reference playing line
  * @param {Course} courseParams
- * @param {Number} holeNumber
+ * @param {Number} holeIndex
  * @returns {FeatureCollection}
  */
-function getGolfHoleGreen(courseParams, holeNumber) {
-    let data = getGolfHolePolys(courseParams, holeNumber);
+function getGolfHoleGreen(courseParams, holeIndex) {
+    let data = getGolfHolePolys(courseParams, holeIndex);
     if (data instanceof Error) {
         // Data not ready, just reraise the error
         return data
@@ -254,11 +254,11 @@ function getGolfHoleGreen(courseParams, holeNumber) {
 /**
  * Get a coordinate object that represents the center of a green
  * @param {Course} courseParams the course
- * @param {number} holeNumber the hole number
+ * @param {number} holeIndex the hole number
  * @returns {turf.coordinates} the center of the green as coordinates
  */
-export function getGolfHoleGreenCenter(courseParams, holeNumber) {
-    const green = getGolfHoleGreen(courseParams, holeNumber);
+export function getGolfHoleGreenCenter(courseParams, holeIndex) {
+    const green = getGolfHoleGreen(courseParams, holeIndex);
     return turf.center(green).geometry.coordinates;
 }
 
@@ -336,7 +336,7 @@ function turfbbToleafbb(turfbb) {
 
 /**
  * Get a 2x2 bounding box for a golf course
- * @param {Course} courseParams 
+ * @param {Course} courseParams
  * @returns {number[number[]]} a 2x2 bbox
  */
 export function getGolfCourseBbox(courseParams) {
@@ -350,12 +350,12 @@ export function getGolfCourseBbox(courseParams) {
 
 /**
  * Get a 2x2 bounding box for a single golf hold
- * @param {Course} courseParams 
- * @param {number} holeNumber 
+ * @param {Course} courseParams
+ * @param {number} holeIndex
  * @returns {number[number[]]} a 2x2 bbox
  */
-export function getGolfHoleBbox(courseParams, holeNumber) {
-    let line = getGolfHoleLine(courseParams, holeNumber);
+export function getGolfHoleBbox(courseParams, holeIndex) {
+    let line = getGolfHoleLine(courseParams, holeIndex);
     if (line instanceof Error) {
         return
     } else if (line) {

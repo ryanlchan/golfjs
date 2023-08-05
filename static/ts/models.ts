@@ -13,7 +13,7 @@ interface Round {
 }
 
 interface Hole {
-    number: number,
+    index: number,
     pin?: Coordinate,
     par?: number,
     handicap?: number,
@@ -22,7 +22,7 @@ interface Hole {
 
 interface Stroke {
     index: number,
-    hole: number,
+    holeIndex: number,
     start: Coordinate,
     aim?: Coordinate,
     club?: string,
@@ -38,7 +38,7 @@ interface Course {
 interface Action {
     action: string,
     round: Round,
-    currentHoleNum: number,
+    currentHoleIndex: number,
     currentStrokeIndex: number
     activeStroke: Stroke
 }
