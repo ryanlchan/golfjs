@@ -167,6 +167,7 @@ function strokeDispersion(stroke: Stroke, val?: number | string): number {
  * @returns the updated stroke
  */
 function strokeAimReset(stroke: Stroke): Stroke {
+    undoCreate("strokeAimReset");
     const hole = getStrokeHole(stroke);
     stroke.aim = { ...hole.pin };
     return stroke;
