@@ -58,12 +58,19 @@ button {
     position: relative;
 }
 
-#mapControls {
+.mapControlsContainer {
     position: absolute;
     z-index: 1001;
     bottom: 2em;
-    right: 0em;
     width: 3em;
+}
+
+#mapControlsRight {
+    right: 0em;
+}
+
+#mapControlsLeft {
+    left: 0em;
 }
 
 /* Specific styles */
