@@ -271,6 +271,7 @@ function strokeMarkerActivate(marker: L.Marker) {
 
     // Rerender stroke list
     holeStatsUpdate();
+    strokeTerrainSelectUpdate();
 }
 
 /**
@@ -1657,6 +1658,7 @@ function strokeTerrainSelectCreate() {
  * Update the stroke terrain selector with the current stroke's terrain
  */
 function strokeTerrainSelectUpdate() {
+    if (!activeStroke) return
     const el = <HTMLSelectElement>document.getElementById("terrainInput");
     const currentTerrain = activeStroke.terrain;
     if (currentTerrain === undefined) {
@@ -2146,7 +2148,6 @@ function handleDispersionInput() {
     const val = this.value;
     try {
         strokeDispersion(activeStroke, val);
-
         rerender("full");
     } catch (e) {
         // Dispersion is probably invalid
