@@ -17,25 +17,30 @@ const distanceAbbreviations = {
 interface formatDistanceOptions {
     to_unit?: string,
     from_unit?: string,
-    precision?: number
+    precision?: number,
+    include_unit?: boolean
 }
-export function formatDistance(distance: number, options?: formatDistanceOptions) {
+export function formatDistance(distance: number, options?: formatDistanceOptions): string {
     let opt = {
         from_unit: "meters",
         to_unit: "meters",
-        precision: 1
+        precision: 1,
+        with_unit: false
     }
     if (options) {
         opt = { ...opt, ...options }
     }
-
     const converted = distance / unitConversions[opt["from_unit"]] * unitConversions[opt["to_unit"]];
     const trimmed = converted.toFixed(opt["precision"]);
+    if (opt["include_unit"]) {
+        const unit = distanceAbbreviation(options["to_unit"]);
+        return trimmed + unit;
+    }
     return trimmed;
 }
 
-export function distanceAbbreviation(options: formatDistanceOptions) {
-    return distanceAbbreviations[options["to_unit"]];
+export function distanceAbbreviation(unit: string) {
+    return distanceAbbreviations[unit];
 }
 
 /**

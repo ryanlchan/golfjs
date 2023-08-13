@@ -11,7 +11,7 @@ import chroma from "chroma-js";
 // Modules
 import * as grids from "./grids";
 import { wait } from "./grids";
-import { getDistance, formatDistance, distanceAbbreviation } from "./projections";
+import { getDistance, formatDistance } from "./projections";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
@@ -329,11 +329,10 @@ function strokeMarkerAimCreate() {
  * @returns {String}
  */
 function strokeMarkerAimTooltip(): string {
-    const distanceOptions = { to_unit: displayUnits, precision: 1 }
+    const distanceOptions = { to_unit: displayUnits, precision: 1, include_unit: true }
     const aimDistance = formatDistance(getDistance(activeStroke.start, activeStroke.aim), distanceOptions);
     const pinDistance = formatDistance(getDistance(activeStroke.aim, currentHole.pin), distanceOptions);
-    const unit = distanceAbbreviation(distanceOptions);
-    let text = `${aimDistance}${unit} to aim<br> ${pinDistance}${unit} to pin`;
+    let text = `${aimDistance} to aim<br> ${pinDistance} to pin`;
 
     const sggrid = layerRead("active_grid");
     if (sggrid && sggrid.options.grid) {
@@ -407,10 +406,9 @@ function strokeSgGridID(stroke: Stroke): string {
  */
 function strokeTooltipText(stroke: Stroke) {
     const club = stroke.club;
-    const distanceOptions = { to_unit: displayUnits, precision: 1 }
+    const distanceOptions = { to_unit: displayUnits, precision: 1, include_unit: true }
     const distance = formatDistance(strokeDistance(stroke), distanceOptions);
-    const unit = distanceAbbreviation(distanceOptions);
-    return `${club} (${distance}${unit})`
+    return `${club} (${distance})`
 }
 
 
@@ -1465,8 +1463,7 @@ function holeStatsUpdate() {
  * @returns {HTMLElement} the li element for the list
  */
 function strokeStatsListItem(stroke: Stroke): HTMLElement {
-    const distOptions = { to_unit: displayUnits, precision: 1 }
-    const unit = distanceAbbreviation(distOptions);
+    const distOptions = { to_unit: displayUnits, precision: 1, include_unit: true }
     const distance = formatDistance(strokeDistance(stroke), distOptions);
     const dispersion = formatDistance(stroke.dispersion, distOptions);
 
@@ -1477,14 +1474,14 @@ function strokeStatsListItem(stroke: Stroke): HTMLElement {
     const text = document.createElement("div");
     const dispersionLink = document.createElement("a");
     text.classList.add("strokeDetails");
-    text.innerHTML = `${stroke.club} (${distance}${unit}) | &#xb1;`;
+    text.innerHTML = `${stroke.club} (${distance}) | &#xb1;`;
     dispersionLink.setAttribute("href", `#stroke_${stroke.index}_dispersion`);
-    dispersionLink.innerText = `${dispersion}${unit}`;
+    dispersionLink.innerText = `${dispersion}`;
     dispersionLink.addEventListener("click", () => {
         let disp = prompt("Enter a dispersion:");
         if (disp != null) {
             const dOpt = { from_unit: displayUnits, to_unit: "meters", precision: 2 }
-            stroke.dispersion = formatDistance(parseFloat(disp), dOpt);
+            stroke.dispersion = parseFloat(formatDistance(parseFloat(disp), dOpt));
             rerender("full");
         }
         // Force a rerender of the grid
