@@ -75,6 +75,10 @@ button {
     left: 0em;
 }
 
+#strokeAdd path {
+    fill: white;
+}
+
 /* Specific styles */
 
 body {
