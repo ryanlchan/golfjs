@@ -36,7 +36,9 @@ button {
 }
 
 .insideLabel {
-    margin-left: -1.3em;
+    margin-left: -1.7em;
+    text-align: right;
+    overflow: visible;
     color: rgb(80, 80, 80);
 }
 
@@ -186,7 +188,7 @@ body {
 }
 
 #dispersionInput {
-    width: 3em;
+    width: 5em;
 }
 
 /* Scorecard styles */

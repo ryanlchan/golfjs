@@ -11,6 +11,7 @@ import chroma from "chroma-js";
 // Modules
 import * as grids from "./grids";
 import { wait } from "./grids";
+import { getDistance, formatDistance, distanceAbbreviation } from "./projections";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
@@ -28,6 +29,7 @@ let currentPosition: GeolocationPosition;
 let currentPositionEnabled: boolean;
 let holeSelector: HTMLElement;
 let activeStroke: Stroke;
+let displayUnits = "yards";
 
 /**
  * ===========
@@ -327,9 +329,11 @@ function strokeMarkerAimCreate() {
  * @returns {String}
  */
 function strokeMarkerAimTooltip(): string {
-    const aimDistance = getDistance(activeStroke.start, activeStroke.aim).toFixed(1);
-    const pinDistance = getDistance(activeStroke.aim, currentHole.pin).toFixed(1);
-    let text = `${aimDistance}m to aim<br> ${pinDistance}m to pin`;
+    const distanceOptions = { to_unit: displayUnits, precision: 1 }
+    const aimDistance = formatDistance(getDistance(activeStroke.start, activeStroke.aim), distanceOptions);
+    const pinDistance = formatDistance(getDistance(activeStroke.aim, currentHole.pin), distanceOptions);
+    const unit = distanceAbbreviation(distanceOptions);
+    let text = `${aimDistance}${unit} to aim<br> ${pinDistance}${unit} to pin`;
 
     const sggrid = layerRead("active_grid");
     if (sggrid && sggrid.options.grid) {
@@ -403,8 +407,10 @@ function strokeSgGridID(stroke: Stroke): string {
  */
 function strokeTooltipText(stroke: Stroke) {
     const club = stroke.club;
-    const distance = strokeDistance(stroke).toFixed(1)
-    return `${club} (${distance}m)`
+    const distanceOptions = { to_unit: displayUnits, precision: 1 }
+    const distance = formatDistance(strokeDistance(stroke), distanceOptions);
+    const unit = distanceAbbreviation(distanceOptions);
+    return `${club} (${distance}${unit})`
 }
 
 
@@ -1130,32 +1136,6 @@ function layerReadAll(): object {
  */
 
 /**
- * Calculates the distance between two coordinates in meters.
- * @param {Coordinate} coord1 - The first coordinate object { x, y }.
- * @param {Coordinate} coord2 - The second coordinate object { x, y }.
- * @returns {number} The distance between the coordinates in meters.
- */
-function getDistance(coord1: Coordinate, coord2: Coordinate): number {
-    const lat1 = coord1.y;
-    const lon1 = coord1.x;
-    const lat2 = coord2.y;
-    const lon2 = coord2.x;
-    const R = 6371e3; // meters
-    const phi1 = (lat1 * Math.PI) / 180; // phi, lambda in radians
-    const phi2 = (lat2 * Math.PI) / 180;
-    const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-    const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a =
-        Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-        Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    const distance = R * c; // meters
-    return distance;
-}
-
-/**
  * Get the user's location from browser or cache
  * @param {boolean} force set to true to skip location cache
  * @returns {Promise} resolves with a GeolocationPositionIsh
@@ -1485,12 +1465,11 @@ function holeStatsUpdate() {
  * @returns {HTMLElement} the li element for the list
  */
 function strokeStatsListItem(stroke: Stroke): HTMLElement {
-    let distance = 0;
-    if (currentHole.strokes[stroke.index + 1]) {
-        distance = getDistance(stroke.start, currentHole.strokes[stroke.index + 1].start);
-    } else if (currentHole.pin) {
-        distance = getDistance(stroke.start, currentHole.pin);
-    }
+    const distOptions = { to_unit: displayUnits, precision: 1 }
+    const unit = distanceAbbreviation(distOptions);
+    const distance = formatDistance(strokeDistance(stroke), distOptions);
+    const dispersion = formatDistance(stroke.dispersion, distOptions);
+
     const listItem = document.createElement("li");
     const container = document.createElement("div");
     container.classList.add("strokeStatContainer");
@@ -1498,13 +1477,14 @@ function strokeStatsListItem(stroke: Stroke): HTMLElement {
     const text = document.createElement("div");
     const dispersionLink = document.createElement("a");
     text.classList.add("strokeDetails");
-    text.innerHTML = `${stroke.club} (${Math.round(distance)}m) | &#xb1;`;
+    text.innerHTML = `${stroke.club} (${distance}${unit}) | &#xb1;`;
     dispersionLink.setAttribute("href", `#stroke_${stroke.index}_dispersion`);
-    dispersionLink.innerText = `${stroke.dispersion}m`;
+    dispersionLink.innerText = `${dispersion}${unit}`;
     dispersionLink.addEventListener("click", () => {
         let disp = prompt("Enter a dispersion:");
         if (disp != null) {
-            stroke.dispersion = parseFloat(disp);
+            const dOpt = { from_unit: displayUnits, to_unit: "meters", precision: 2 }
+            stroke.dispersion = formatDistance(parseFloat(disp), dOpt);
             rerender("full");
         }
         // Force a rerender of the grid
@@ -1556,7 +1536,8 @@ function aimStatsUpdate() {
 
     // Update dispersion
     const disp = <HTMLInputElement>document.getElementById("dispersionInput");
-    disp.value = stroke.dispersion.toString();
+    const dOpt = { to_unit: displayUnits, precision: 1 }
+    disp.value = formatDistance(stroke.dispersion, dOpt);
 
     // Add Content
     el.replaceChildren(stats);
