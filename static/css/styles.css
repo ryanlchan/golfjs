@@ -63,16 +63,17 @@ button {
 .mapControlsContainer {
     position: absolute;
     z-index: 1001;
-    bottom: 2em;
     width: 3em;
 }
 
 #mapControlsRight {
     right: 0em;
+    bottom: 2em;
 }
 
 #mapControlsLeft {
     left: 0em;
+    bottom: 2em;
 }
 
 #mapControlsUpperRight {
@@ -89,6 +90,23 @@ button {
     text-align: center;
     vertical-align: middle;
     padding-top: 0.5em;
+}
+
+#errorContainer {
+    margin-top: 2em;
+    width: 100%;
+    position: fixed;
+    z-index: 1001;
+}
+
+#error {
+    border-radius: 15px;
+    padding: 0.5em;
+    text-align: center;
+    width: 80%;
+    top: 2em;
+    margin: 0 auto;
+    font-size: 16px;
 }
 
 #distanceToPin {
@@ -110,10 +128,6 @@ body {
 
 .bodyContainer {
     margin: 8px;
-}
-
-#error {
-    color: red;
 }
 
 #locationData {

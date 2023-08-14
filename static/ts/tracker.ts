@@ -12,11 +12,13 @@ import chroma from "chroma-js";
 import * as grids from "./grids";
 import { wait } from "./grids";
 import { getDistance, formatDistance } from "./projections";
+import { PositionError } from "./errors";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
 import flagImg from "../img/flag.png";
 import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
+import { Position } from "geojson";
 
 // Variables
 let mapView: any;
@@ -1063,7 +1065,7 @@ function undoRun() {
         // Reset displays post-reset
         rerender("full");
     } else {
-        document.getElementById("error").innerText = "No action to undo.";
+        showError(new Error("No action to undo."));
         console.error("No action to undo.");
     }
 }
@@ -1153,7 +1155,8 @@ function getLocation(force?: boolean): Promise<any> {
             let e = new PositionError("Geolocation is not supported by this browser.", 2);
             reject(e);
         } else {
-            navigator.geolocation.getCurrentPosition(resolve, reject);
+            const options = { maximumAge: 5000, timeout: 5000, enableHighAccuracy: true }
+            navigator.geolocation.getCurrentPosition(resolve, reject, options);
         }
     });
 }
@@ -1182,7 +1185,8 @@ function getLocationIf(condition: Function): Promise<any> {
  */
 function getClickLocation(): Promise<GeolocationPositionIsh> {
     return new Promise((resolve) => {
-        document.getElementById("error").innerText = "Click the map to set location";
+        const error = new PositionError("Click the map to set location", 0);
+        showError(error);
         mapView.on('click', (e) => {
             const clickPosition = {
                 coords: {
@@ -1428,9 +1432,9 @@ function currentPositionUpdate() {
 
         // Update live distance box
         distanceToPinViewUpdate();
-    }, showError, {
+    }, showPositionError, {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 5000,
         maximumAge: 1000
     });
 }
@@ -2187,28 +2191,42 @@ function handleTerrainInput() {
     rerender("dragend");
 }
 
-/**
- * Shows an error message based on the geolocation error code.
- * @param {PositionError} error - The geolocation error object.
- */
-function showError(error: PositionError) {
+function showPositionError(error: PositionError) {
+    let er = new Error();
     switch (error.code) {
         case error.PERMISSION_DENIED:
-            document.getElementById("error").innerText = "User denied the request for Geolocation.";
+            er.message = "User denied the request for Geolocation.";
             break;
         case error.POSITION_UNAVAILABLE:
-            document.getElementById("error").innerText = "Location information is unavailable.";
+            er.message = "Location information is unavailable.";
             break;
         case error.TIMEOUT:
-            document.getElementById("error").innerText = "The request to get user location timed out.";
+            er.message = "The request to get user location timed out.";
             break;
         case error.UNKNOWN_ERROR:
-            document.getElementById("error").innerText = "An unknown error occurred.";
+            er.message = "An unknown error occurred.";
             break;
         default:
-            document.getElementById("error").innerText = error.message;
+            er.message = error.message;
             break;
     }
+    showError(er);
+}
+
+/**
+ * Shows an error message based on the geolocation error code.
+ * @param {Error} error - The geolocation error object.
+ */
+function showError(error: Error | string) {
+    const el = document.getElementById("error");
+    el.classList.remove("inactive");
+    el.innerText = error instanceof Error ? error.message : error;
+    const close = document.createElement("a");
+    close.href = "#";
+    close.innerText = " X "
+    close.addEventListener('click', () => el.classList.add("inactive"));
+    el.appendChild(close);
+    setTimeout(() => el.classList.add("inactive"), 5000)
 }
 
 // Event listeners
