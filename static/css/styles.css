@@ -75,6 +75,27 @@ button {
     left: 0em;
 }
 
+#mapControlsUpperRight {
+    top: 2em;
+    right: 2em;
+}
+
+.mapInfoBox {
+    border-radius: 15px;
+    width: 6em;
+    height: 4em;
+    background-color: white;
+    border: gray 1px solid;
+    text-align: center;
+    vertical-align: middle;
+    padding-top: 0.5em;
+}
+
+#distanceToPin {
+    font-size: 1.5em;
+    font-weight: 900;
+}
+
 #strokeAdd path {
     fill: white;
 }

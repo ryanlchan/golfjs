@@ -1240,6 +1240,17 @@ function currentPositionRead(maximumAge = 5000): GeolocationPosition {
 }
 
 /**
+ * Shortcut to get current position from cache as a Coordinate
+ * @param {number} maximumAge the maximum length of time since update to accept
+ * @returns {Coordinate}
+ */
+function currentCoordRead(maximumAge = 5000): Coordinate {
+    const pos = currentPositionRead(maximumAge);
+    if (!pos) return undefined;
+    return { x: pos.coords.longitude, y: pos.coords.latitude, crs: "EPSG:4326" };
+}
+
+/**
  * =======================
  * Views/Output formatting
  * =======================
@@ -1412,6 +1423,9 @@ function currentPositionUpdate() {
             );
             layerCreate(markerID, currentPositionMarker);
         }
+
+        // Update live distance box
+        distanceToPinViewUpdate();
     }, showError, {
         enableHighAccuracy: true,
         timeout: 10000,
@@ -1714,6 +1728,21 @@ function strokeMoveViewCreate(stroke: Stroke, offset: number): HTMLElement {
         strokeMove(stroke.holeIndex, stroke.index, offset);
     }));
     return link
+}
+
+function distanceToPinViewUpdate(id: string = "distanceToPin"): void {
+    const el = document.getElementById(id);
+    const parent = el.parentElement;
+    if (currentHole?.pin && currentPositionRead()) {
+        parent.classList.remove("inactive");
+
+        const opt = { to_unit: displayUnits, include_unit: true };
+        const pos = currentCoordRead();
+        const dist = formatDistance(getDistance(pos, currentHole.pin), opt);
+        el.innerText = dist;
+    } else {
+        parent.classList.add("inactive");
+    }
 }
 
 /**
