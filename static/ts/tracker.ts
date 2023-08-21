@@ -1382,12 +1382,11 @@ function holeSelectViewCreate(element: HTMLSelectElement) {
  * Update a given select element with current hole options
  */
 function holeSelectViewUpdate() {
-    if (!holeSelector) {
+    if (!holeSelector || !(holeSelector instanceof HTMLSelectElement)) {
         return
     }
-    if (!(holeSelector instanceof HTMLSelectElement)) {
-        return
-    }
+
+    // Non-hole options
     let overview = document.createElement('option');
     overview.value = "-1";
     overview.text = "Overview";

@@ -1,3 +1,7 @@
+import { point } from "@turf/helpers";
+import distance from "@turf/distance";
+import { Point } from "geojson";
+
 // Conversions from Meters
 export const unitConversions = {
     meters: 1,
@@ -50,21 +54,19 @@ export function distanceAbbreviation(unit: string) {
  * @returns {number} The distance between the coordinates in meters.
  */
 export function getDistance(coord1: Coordinate, coord2: Coordinate): number {
-    const lat1 = coord1.y;
-    const lon1 = coord1.x;
-    const lat2 = coord2.y;
-    const lon2 = coord2.x;
-    const R = 6371e3; // meters
-    const phi1 = (lat1 * Math.PI) / 180; // phi, lambda in radians
-    const phi2 = (lat2 * Math.PI) / 180;
-    const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-    const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+    if (!coord1 || !coord2) {
+        return 0
+    }
+    const p1 = point([coord1.x, coord1.y]);
+    const p2 = point([coord2.x, coord2.y]);
+    const opts = { units: "meters" }
+    return distance(p1, p2, opts)
+}
 
-    const a =
-        Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-        Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+export function coordToPoint(coord: Coordinate): Point {
+    return point([coord.x, coord.y]);
+}
 
-    const distance = R * c; // meters
-    return distance;
+export function pointToCoord(pt: Point): Coordinate {
+    return { x: pt.coordinates[0], y: pt.coordinates[1], crs: "EPSG:4326" }
 }

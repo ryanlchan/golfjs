@@ -39,8 +39,12 @@ function setCache(key: string, json: object): void {
  * @returns The value retrieved from the cache
  */
 function readCache(key: string): object | null {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : null;
+    try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : null;
+    } catch (e) {
+        return
+    }
 }
 
 /**
@@ -661,7 +665,8 @@ export function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersio
         type: gridTypes.STROKES_GAINED,
         strokesRemainingStart: strokesRemainingStart,
         distanceToHole: distanceToHole,
-        weightedStrokesGained: weightedStrokesGained
+        weightedStrokesGained: weightedStrokesGained,
+        terrain: terrainTypeStart
     }
     hexGrid.properties = properties
 
