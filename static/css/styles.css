@@ -304,6 +304,17 @@ body {
 }
 
 /* Stats styles */
+table thead {
+    background-color: #f2f2f2;
+}
+
+table thead th {
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd;
+}
+
 table tbody tr {
     background-color: #fff;
 }
@@ -326,4 +337,12 @@ table tbody tr:last-child {
 /* Add some hover effect to the rows */
 table tbody tr:hover {
     background-color: #e5e5e5;
+}
+
+body.stats table {
+    margin-bottom: 15px;
+}
+
+td.negative {
+    color: red;
 }

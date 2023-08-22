@@ -3,6 +3,7 @@ import { point, distance, bearing } from '@turf/turf';
 import { erf, cdf, sgGrid } from './grids';
 import * as turf from "@turf/turf";
 import { coordToPoint, getDistance, formatDistance } from './projections';
+import * as chroma from "chroma-js";
 
 interface roundStatsCache {
     round: roundStats,
@@ -134,7 +135,7 @@ export function calculateRoundStatsCache(round: Round, unit?: string): roundStat
     const cache: roundStatsCache = {
         round: null,
         holes: [],
-        strokes: []
+        strokes: [],
     };
 
     // Create config entries
@@ -143,12 +144,12 @@ export function calculateRoundStatsCache(round: Round, unit?: string): roundStat
     // Iterate over round holes forward, 1-18
     for (let hole of round.holes) {
         const pin = hole.pin;
-        let strokeEnd = pin;
         let hstats: holeStats = defaultHoleStats(hole);
 
         // Within each hole, calculate strokes gained from last stroke backwards
         let holeAcc = hole.strokes.reduceRight((acc: any, stroke: Stroke) => {
             const srnext = acc.srnext;
+            const strokeEnd = acc.strokeEnd;
             const grid = sgGrid(
                 [stroke.start.y, stroke.start.x],
                 [stroke.aim.y, stroke.aim.x],
@@ -210,9 +211,10 @@ export function calculateRoundStatsCache(round: Round, unit?: string): roundStat
 
             // Update acc and return
             acc.srnext = strokesRemaining;
+            acc.strokeEnd = stroke.start;
             acc.strokes.push(stats);
             return acc;
-        }, { srnext: 0, strokes: [] });
+        }, { srnext: 0, strokes: [], strokeEnd: pin });
 
         // Calculate the rest of the hole stats
         let hsummary = summarizeStrokes(holeAcc.strokes);
@@ -367,7 +369,7 @@ function proximityStatsActualToPin(stroke: Stroke, round: Round, grid: turf.Feat
     const end = getStrokeEndFromRound(round, stroke);
     const proximity = getDistance(end, pin);
     const [pX, pA] = xyProximities(stroke.start, pin, end);
-    const proximityPerc = grid.features.reduce((acc, el) => el.distanceToPin < proximity ? acc + 1 : acc, 0) / grid.features.length;
+    const proximityPerc = grid.features.reduce((acc, el) => el.properties.distanceToHole > proximity ? acc + 1 : acc, 0) / grid.features.length;
     return {
         proximity,
         proximityCrossTrack: pX,
@@ -421,6 +423,8 @@ function defaultStrokesSummary(): strokesSummary {
 
 
 export function createStatsView(stats: breakdownStats): HTMLElement {
+    const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
+
     // Create the table and table head
     const table = document.createElement('table');
     const thead = document.createElement('thead');
@@ -428,7 +432,8 @@ export function createStatsView(stats: breakdownStats): HTMLElement {
 
     // Add table headers
     const headerRow = document.createElement('tr');
-    ['Type', 'Strokes', 'Strokes Gained', 'Strokes Gained Predicted', 'Strokes Gained Percentile', 'Proximity Percentile'].forEach(text => {
+    const headers = ['Type', 'Strokes', 'Strokes Gained', 'Strokes Gained Predicted', 'Strokes Gained Percentile', 'Proximity Percentile']
+    headers.forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
         headerRow.appendChild(th);
@@ -436,38 +441,121 @@ export function createStatsView(stats: breakdownStats): HTMLElement {
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Extract data from stats and push to the table body
+    // Extract data from stats
+    let data = [];
     for (const [key, value] of Object.entries(stats)) {
-        if (!value) continue;
+        if (!value) continue
+        data.push([
+            key,
+            value.strokes.toString(),
+            value.strokesGained,
+            value.strokesGainedPredicted,
+            value.strokesGainedPercentile,
+            value.proximityPercentile,
+        ])
+    }
+
+    // Create min/max scales
+    let domains = [];
+    let scales = [];
+    for (let row of data) {
+        if (row[0] == "total") continue
+        for (let [ix, col] of row.entries()) {
+            if (typeof col !== 'number') continue
+            if (domains[ix] == undefined) {
+                domains[ix] = [col, col];
+            } else if (col < domains[ix][0]) {
+                domains[ix][0] = col;
+            } else if (col > domains[ix][1]) {
+                domains[ix][1] = col;
+            }
+        }
+    };
+    for (let [ix, el] of domains.entries()) {
+        if (typeof el === 'undefined') continue
+        scales[ix] = chroma.scale(['red', 'black', 'green']).domain(el);
+    };
+
+    //push to the table body
+    for (let values of data) {
+        const row = document.createElement('tr');
+        for (let [ix, value] of values.entries()) {
+            const td = document.createElement('td');
+            td.textContent = typeof value === 'number' ? value.toFixed(3) : value;
+            if (headers[ix].includes('Percentile')) {
+                td.style.color = percScale(value);
+            } else if (headers[ix].includes('Strokes Gained')) {
+                td.style.color = scales[ix](value);
+            }
+            row.appendChild(td);
+        };
+        tbody.appendChild(row);
+    };
+    table.appendChild(tbody);
+
+    return table;
+}
+
+function createStrokeStatsTable(strokes: strokeStats[]): HTMLElement {
+    const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
+    const sgScale = chroma.scale(['red', 'black', 'green']).domain([-0.5, 0, 0.3]);
+
+    // Create the table, table head, and table body
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+    table.appendChild(thead);
+    table.appendChild(tbody);
+
+    // Define table headers
+    const headers = [
+        'Hole', 'Stroke', 'Club', 'Terrain', 'To Aim', 'Strokes Gained',
+        'Strokes Gained Predicted', 'Strokes Gained Percentile',
+        'Proximity to Aim Percentile'
+    ];
+
+    // Add table headers to the thead
+    const headerRow = document.createElement('tr');
+    headers.forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+
+    // Iterate over strokes to populate tbody
+    strokes = [...strokes].sort((a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index);
+    for (const stats of strokes) {
         const row = document.createElement('tr');
 
-        const typeTd = document.createElement('td');
-        typeTd.textContent = key;
-        row.appendChild(typeTd);
+        // Extract desired data from the current strokeStats object
+        const data = [
+            (stats.holeIndex + 1).toString(),
+            (stats.index + 1).toString(),
+            stats.club,
+            stats.terrain,
+            stats.distanceToAim.toFixed(1),
+            stats.strokesGained,
+            stats.strokesGainedPredicted,
+            stats.strokesGainedPercentile,
+            stats.proximityActualToAim.proximityPercentile
+        ];
 
-        const strokesTd = document.createElement('td');
-        strokesTd.textContent = value.strokes.toString();
-        row.appendChild(strokesTd);
+        // Populate the current row with data
+        data.forEach((value, ix) => {
+            const td = document.createElement('td');
+            td.textContent = typeof value === 'number' ? value.toFixed(3) : value;
+            if (headers[ix].includes('Percentile')) {
+                td.style.color = percScale(value);
+            } else if (headers[ix].includes('Strokes Gained')) {
+                td.style.color = sgScale(value);
+            }
+            row.appendChild(td);
+        });
 
-        const strokesGainedTd = document.createElement('td');
-        strokesGainedTd.textContent = value.strokesGained.toFixed(3);
-        row.appendChild(strokesGainedTd);
-
-        const strokesGainedPredictedTd = document.createElement('td');
-        strokesGainedPredictedTd.textContent = value.strokesGainedPredicted.toFixed(3);
-        row.appendChild(strokesGainedPredictedTd);
-
-        const strokesGainedPercentileTd = document.createElement('td');
-        strokesGainedPercentileTd.textContent = value.strokesGainedPercentile.toFixed(3);
-        row.appendChild(strokesGainedPercentileTd);
-
-        const proximityPercentileTd = document.createElement('td');
-        proximityPercentileTd.textContent = value.proximityPercentile.toFixed(3);
-        row.appendChild(proximityPercentileTd);
-
+        // Append the current row to the tbody
         tbody.appendChild(row);
     }
-    table.appendChild(tbody);
 
     return table;
 }
@@ -475,17 +563,37 @@ export function createStatsView(stats: breakdownStats): HTMLElement {
 let cache: roundStatsCache;
 let breakdowns: breakdownStats;
 
-function handleLoad() {
-    new Promise(() => {
+function generateView() {
+    const unit = localStorage.getItem("displayUnit") ? localStorage.getItem("displayUnit") : "yards";
+    const output = document.getElementById("breakdownTables");
+
+    // Create loading bar
+    const prog = document.createElement('progress');
+    output.replaceChildren(prog);
+
+    // Generate or load cache
+    let cache = JSON.parse(localStorage.getItem("statsCache"));
+    if (!cache) {
         const round = JSON.parse(localStorage.getItem("golfData"));
-        const unit = localStorage.getItem("displayUnit") ? localStorage.getItem("displayUnit") : "yards";
-        const output = document.getElementById("breakdownTables");
-        const cache = calculateRoundStatsCache(round, unit);
-        const breakdowns = calculateBreakdownStats(cache, unit);
-        breakdowns.total = cache.round;
-        const table = createStatsView(breakdowns);
-        output.replaceChildren(table);
-    });
+        cache = calculateRoundStatsCache(round, unit);
+        localStorage.setItem("statsCache", JSON.stringify(cache));
+    }
+
+    // Generate output
+    const breakdowns = calculateBreakdownStats(cache, unit);
+    breakdowns.total = cache.round;
+    const table = createStatsView(breakdowns);
+    const strokeList = createStrokeStatsTable(cache.strokes);
+    output.replaceChildren(table, strokeList);
+}
+
+function regenerateView() {
+    localStorage.removeItem("statsCache");
+    new Promise(() => generateView());
+}
+
+function handleLoad() {
+    new Promise(() => generateView());
 }
 window.onload = handleLoad;
-
+document.getElementById("regenerate").addEventListener('click', regenerateView);

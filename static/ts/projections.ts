@@ -22,17 +22,20 @@ interface formatDistanceOptions {
     to_unit?: string,
     from_unit?: string,
     precision?: number,
-    include_unit?: boolean
+    include_unit?: boolean,
 }
-export function formatDistance(distance: number, options?: formatDistanceOptions): string {
+export function formatDistance(distance: number | string, options?: formatDistanceOptions): string {
     let opt = {
         from_unit: "meters",
         to_unit: "meters",
         precision: 1,
-        with_unit: false
+        with_unit: false,
     }
     if (options) {
         opt = { ...opt, ...options }
+    }
+    if (typeof (distance) == "string") {
+        distance = parseFloat(distance);
     }
     const converted = distance / unitConversions[opt["from_unit"]] * unitConversions[opt["to_unit"]];
     const trimmed = converted.toFixed(opt["precision"]);
@@ -41,6 +44,10 @@ export function formatDistance(distance: number, options?: formatDistanceOptions
         return trimmed + unit;
     }
     return trimmed;
+}
+
+export function formatDistanceAsNumber(distance: number | string, options?: formatDistanceOptions): number {
+    return parseFloat(formatDistance(distance, options));
 }
 
 export function distanceAbbreviation(unit: string) {

@@ -11,14 +11,13 @@ import chroma from "chroma-js";
 // Modules
 import * as grids from "./grids";
 import { wait } from "./grids";
-import { getDistance, formatDistance } from "./projections";
+import { getDistance, formatDistance, formatDistanceAsNumber } from "./projections";
 import { PositionError } from "./errors";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
 import flagImg from "../img/flag.png";
 import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
-import { Position } from "geojson";
 
 // Variables
 let mapView: any;
@@ -154,10 +153,11 @@ function strokeDistance(stroke: Stroke): number {
  * @returns {number} the dispersion of this stroke
  */
 function strokeDispersion(stroke: Stroke, val?: number | string): number {
+    const distOpts = { from_unit: displayUnits, to_unit: "meters", output: "number" }
     if (!val) {
         return stroke.dispersion;
     } else if (typeof (val) == "string") {
-        return stroke.dispersion = parseFloat(val);
+        return stroke.dispersion = formatDistanceAsNumber(val, distOpts);
     } else if (typeof (val) == "number") {
         return stroke.dispersion = val;
     } else {
@@ -1508,8 +1508,7 @@ function strokeStatsListItem(stroke: Stroke): HTMLElement {
     dispersionLink.addEventListener("click", () => {
         let disp = prompt("Enter a dispersion:");
         if (disp != null) {
-            const dOpt = { from_unit: displayUnits, to_unit: "meters", precision: 2 }
-            stroke.dispersion = parseFloat(formatDistance(parseFloat(disp), dOpt));
+            strokeDispersion(stroke, disp);
             rerender("full");
         }
         // Force a rerender of the grid
