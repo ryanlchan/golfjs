@@ -1,5 +1,16 @@
 /** @type {import('vite').UserConfig} */
-export default {
+import { resolve } from 'path'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
     base: "/golfjs/",
-    assetsInclude: ["**/*.png"]
-}
+    assetsInclude: ["**/*.png"],
+    build: {
+        rollupOptions: {
+            input: {
+                main: resolve(__dirname, 'index.html'),
+                stats: resolve(__dirname, 'stats.html'),
+            }
+        }
+    }
+})
