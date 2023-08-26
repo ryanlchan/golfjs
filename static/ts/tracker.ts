@@ -7,6 +7,8 @@ import * as L from "leaflet";
 import type { GeoJSONOptions } from "leaflet";
 import * as turf from "@turf/turf";
 import chroma from "chroma-js";
+import { Loader } from "@googlemaps/js-api-loader";
+import "./googlemutant.js";
 
 // Modules
 import * as grids from "./grids";
@@ -1194,7 +1196,7 @@ function getClickLocation(): Promise<GeolocationPositionIsh> {
                     longitude: e.latlng.lng,
                 }
             }
-            document.getElementById("error").innerText = ""
+            hideError();
             resolve(clickPosition);
         });
     });
@@ -1231,14 +1233,9 @@ function getLocationOnMap(): Promise<GeolocationPositionIsh> {
  */
 function currentPositionRead(maximumAge = 5000): GeolocationPosition {
     // Expire current position if beyond timeout (5s)
-    if (!currentPosition
-        || (currentPosition?.timestamp < (Date.now() - maximumAge))
-        || (currentPosition?.coords.accuracy > 10)
-        || (!mapView.getBounds().contains(
-            L.latLng([currentPosition?.coords.latitude, currentPosition?.coords.longitude])
-        ))
-    ) {
-        currentPosition = undefined;
+    if ((currentPosition?.timestamp < (Date.now() - maximumAge))
+        || (currentPosition?.coords.accuracy > 10)) {
+        return undefined;
     }
     return currentPosition;
 }
@@ -1274,18 +1271,21 @@ function mapViewCreate(mapid) {
     mapContainer.style.height = mapHeight + 'px';
 
     // Initialize the Leaflet map
-    mapView = L.map(mapid).setView([36.567383, -121.947729], 18);
-    L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
-        attribution:
-            'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery &copy; <a href="https://www.mapbox.com/">Mapbox</a>',
-        maxZoom: 22,
-        maxNativeZoom: 19,
-        id: "mapbox/satellite-v9",
-        tileSize: 512,
-        zoomOffset: -1,
-        accessToken:
-            "pk.eyJ1IjoicnlhbmxjaGFuIiwiYSI6ImNsamwyb2JwcDBuYzMzbHBpb2l0dHg2ODIifQ.vkFG7K0DrbHs5O1W0CIvzw", // replace with your Mapbox access token
+    const loader = new Loader({
+        apiKey: "AIzaSyCt0j3Nx9-UvVwCfwFboY4xQn9qn_C15CA",
+        version: "weekly",
+    });
+    loader.load();
+    mapView = L.map(mapid, { attributionControl: false }).setView([36.567383, -121.947729], 18);
+    L.gridLayer.googleMutant({
+        type: "satellite",
+        maxZoom: 24,
+        attribution: "",
     }).addTo(mapView);
+
+    // L.control.attribution({ position: 'bottomleft' }).addAttribution(
+    //     'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery &copy; <a href="https://www.mapbox.com/">Mapbox</a>'
+    // ).addTo(mapView);
 }
 
 /**
@@ -2225,6 +2225,12 @@ function showError(error: Error | string) {
     close.addEventListener('click', () => el.classList.add("inactive"));
     el.appendChild(close);
     setTimeout(() => el.classList.add("inactive"), 5000)
+}
+
+function hideError() {
+    const el = document.getElementById("error");
+    el.innerText = "";
+    el.classList.add("inactive");
 }
 
 // Event listeners

@@ -67,13 +67,13 @@ button {
 }
 
 #mapControlsRight {
-    right: 0em;
-    bottom: 2em;
+    right: 0.5em;
+    bottom: 3em;
 }
 
 #mapControlsLeft {
-    left: 0em;
-    bottom: 2em;
+    left: 0.5em;
+    bottom: 3em;
 }
 
 #mapControlsUpperRight {

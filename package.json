@@ -19,12 +19,15 @@
   },
   "homepage": "https://github.com/ryanlchan/golfjs#readme",
   "dependencies": {
-    "leaflet": "^1.9.4"
+    "@googlemaps/js-api-loader": "^1.16.2",
+    "@types/leaflet.gridlayer.googlemutant": "^0.4.6",
+    "leaflet": "^1.9.4",
+    "leaflet.gridlayer.googlemutant": "^0.14.0"
   },
   "devDependencies": {
-    "vite": "^4.4.7",
-    "osmtogeojson": "^3.0.0-beta.5",
     "@turf/turf": "^6.5.0",
-    "chroma-js": "^2.4.2"
+    "chroma-js": "^2.4.2",
+    "osmtogeojson": "^3.0.0-beta.5",
+    "vite": "^4.4.7"
   }
 }
