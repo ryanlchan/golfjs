@@ -1282,10 +1282,6 @@ function mapViewCreate(mapid) {
         maxZoom: 24,
         attribution: "",
     }).addTo(mapView);
-
-    // L.control.attribution({ position: 'bottomleft' }).addAttribution(
-    //     'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery &copy; <a href="https://www.mapbox.com/">Mapbox</a>'
-    // ).addTo(mapView);
 }
 
 /**
@@ -2105,6 +2101,13 @@ function handleRoundCreateClickCallback(courseParams?: Course) {
         }
 
         if (confirm("Are you sure you want to start a new round? All current data will be lost.")) {
+            let priorRounds = readCache('priorRounds');
+            if (!priorRounds) {
+                priorRounds = {};
+            }
+            const roundKey = `${round.course}-${round.courseId}-${round.date}`;
+            priorRounds[roundKey] = { ...round };
+            setCache('priorRounds', priorRounds);
             roundCreate(courseParams);
             holeSelectViewUpdate();
             rerender("full");

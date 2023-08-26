@@ -566,6 +566,11 @@ let breakdowns: breakdownStats;
 function generateView() {
     const unit = localStorage.getItem("displayUnit") ? localStorage.getItem("displayUnit") : "yards";
     const output = document.getElementById("breakdownTables");
+    const round = JSON.parse(localStorage.getItem("golfData"));
+
+    // Output round metadata
+    const header = document.getElementById("roundTitle");
+    header.innerText = `${round.course} - ${round.date}`;
 
     // Create loading bar
     const prog = document.createElement('progress');
@@ -574,7 +579,6 @@ function generateView() {
     // Generate or load cache
     let cache = JSON.parse(localStorage.getItem("statsCache"));
     if (!cache) {
-        const round = JSON.parse(localStorage.getItem("golfData"));
         cache = calculateRoundStatsCache(round, unit);
         localStorage.setItem("statsCache", JSON.stringify(cache));
     }
