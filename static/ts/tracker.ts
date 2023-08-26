@@ -12,9 +12,9 @@ import "./googlemutant.js";
 
 // Modules
 import * as grids from "./grids";
-import { wait } from "./grids";
 import { getDistance, formatDistance, formatDistanceAsNumber } from "./projections";
 import { PositionError } from "./errors";
+import { readCache, setCache, deleteCache, wait } from "./utils";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";

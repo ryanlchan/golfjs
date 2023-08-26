@@ -1,7 +1,7 @@
 import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
 import { HOLE_OUT_COEFFS, OSM_GOLF_TO_TERRAIN, STROKES_REMAINING_COEFFS } from "./coeffs20230705";
-
+import { readCache, setCache, deleteCache } from "./utils";
 export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 
 /**
@@ -11,49 +11,6 @@ export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" 
  */
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search?q=";
-
-/**
- * Utility to have a wait promise
- * @param ms - The number of milliseconds to wait
- * @returns Promise that resolves after a delay
- */
-export function wait(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Store an item in the localStorage cache under a given key
- * @param key - The key under which to store the value
- * @param json - The value to be stored
- */
-function setCache(key: string, json: object): void {
-    localStorage.setItem(
-        key,
-        JSON.stringify({ ...json })
-    );
-}
-
-/**
- * Read an item from cache under a given key
- * @param key - The key for which to retrieve the value
- * @returns The value retrieved from the cache
- */
-function readCache(key: string): object | null {
-    try {
-        const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : null;
-    } catch (e) {
-        return
-    }
-}
-
-/**
- * Remove an item from cache
- * @param key - The key for the item to remove
- */
-function deleteCache(key: string): void {
-    localStorage.removeItem(key);
-}
 
 /**
  * Generate a cache key given a course interface
