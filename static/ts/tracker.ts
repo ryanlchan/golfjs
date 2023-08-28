@@ -14,7 +14,9 @@ import "./googlemutant.js";
 import * as grids from "./grids";
 import { getDistance, formatDistance, formatDistanceAsNumber } from "./projections";
 import { PositionError } from "./errors";
-import { readCache, setCache, deleteCache, wait } from "./utils";
+import { showError, hideError, wait } from "./utils";
+import * as cache from "./cache";
+import { roundCreate, roundCourseParams } from "./rounds.js";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
@@ -23,7 +25,7 @@ import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
 
 // Variables
 let mapView: any;
-let round: Round = defaultRound();
+let round: Round = roundCreate();
 let currentHole: Hole = round.holes.at(-1);
 let currentStrokeIndex: number = currentHole.strokes.length;
 let layers: object = {};
@@ -802,99 +804,18 @@ function holeLineId(hole: Hole): string {
  */
 
 /**
- * Create a new round and clear away all old data
- * Tries to background fetch course data and will call #roundUpdateWithData after loaded
- * @param {Course} courseParams the course
+ * Loads saved round data and initializes relevant variables
  */
-function roundCreate(courseParams: Course) {
-    // Set undo point
-    undoCreate("roundCreate")
-    let el = document.getElementById("courseName");
-    if (!(el instanceof HTMLInputElement)) {
-        return
+function loadRoundData(): void {
+    const loaded = loadData();
+    if (!loaded) {
+        return;
     }
-    let inputVal: string = el.value;
-    if (!courseParams && !inputVal) {
-        console.error("Cannot create a round without any inputs");
-        return
-    } else if (!courseParams) {
-        let el = document.getElementById("courseName");
-        if (!(el instanceof HTMLInputElement)) {
-            return
-        }
-        let inputVal: string = el.value;
-        courseParams = { name: inputVal }
-    }
-    let courseName = courseParams["name"];
-    let courseId = courseParams["id"];
-
-    // Reset all major data
-    localStorage.removeItem("golfData");
-    round = { ...defaultRound(), course: courseName, courseId: courseId };
-    currentHole = round.holes.at(0)
+    console.log("Rehydrating round from cache");
+    holeSelect(-1);
+    currentHole = round.holes.at(0);
     currentStrokeIndex = 0;
     activeStroke = undefined;
-    layerDeleteAll();
-    grids.fetchGolfCourseData(courseParams).then(roundUpdateWithData);
-}
-
-/**
- * After downloading polygons, update the Round with relevant data like pins and holes
- * @param {turf.FeatureCollection} courseData the polygons for this course
- */
-function roundUpdateWithData(courseData: turf.FeatureCollection) {
-    let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
-    for (let line of lines) {
-        const index = parseInt(line.properties.ref) - 1;
-        const cog = grids.getGolfHoleGreenCenter(roundCourseParams(round), index);
-        const pin = {
-            x: cog[0],
-            y: cog[1],
-            crs: "EPSG:4326",
-        };
-        let hole = { ...defaultCurrentHole(), index: index, pin: pin };
-        if (line.properties.par) {
-            hole["par"] = parseInt(line.properties.par)
-        }
-        if (line.properties.handicap) {
-            hole["handicap"] = parseInt(line.properties.handicap)
-        }
-        round.holes[hole.index] = { ...hole, ...round.holes[hole.index] }
-    }
-    holeSelectViewUpdate();
-    holeSelect(-1);
-}
-
-/**
- * Return a default Hole object conforming to the interface
- * @returns {Hole} a default Hole interface
- */
-function defaultCurrentHole(): Hole {
-    return {
-        index: 0,
-        strokes: [],
-    };
-}
-
-/**
- * Returns a default Round object conforming to the interface
- * @returns {Round} a default Round interface
- */
-function defaultRound(): Round {
-    return {
-        date: new Date().toISOString(),
-        course: "Rancho Park Golf Course",
-        holes: [defaultCurrentHole()],
-    };
-}
-
-/**
- * Return a course interface given a round interface
- * @param {Round} round the round object
- * @returns {Course} the course parameters
- */
-function roundCourseParams(round: Round): Course {
-    return { 'name': round.course, 'id': round.courseId }
 }
 
 /**
@@ -954,22 +875,17 @@ function clubReadAll(): Array<any> {
  * Save round data to localstorage
  */
 function saveData() {
-    localStorage.setItem(
-        "golfData",
-        JSON.stringify({ ...round })
-    );
+    cache.setJSON("golfData", { ...round });
 }
 
 /**
  * Loads the data from localStorage and initializes the map.
- * @returns {object | undefined} the loaded round or undefined
+ * @returns {Round} the loaded round or undefined
  */
-function loadData(): object | undefined {
-    const loadedData = JSON.parse(localStorage.getItem("golfData"));
+function loadData(): Round {
+    const loadedData = cache.getJSON("golfData") as Round;
     if (loadedData) {
         round = loadedData;
-        console.log("Rehydrating round from localStorage")
-        holeSelect(-1);
         return round;
     }
     return undefined;
@@ -1188,7 +1104,7 @@ function getLocationIf(condition: Function): Promise<any> {
 function getClickLocation(): Promise<GeolocationPositionIsh> {
     return new Promise((resolve) => {
         const error = new PositionError("Click the map to set location", 0);
-        showError(error);
+        showError(error, -1);
         mapView.on('click', (e) => {
             const clickPosition = {
                 coords: {
@@ -1271,11 +1187,17 @@ function mapViewCreate(mapid) {
     mapContainer.style.height = mapHeight + 'px';
 
     // Initialize the Leaflet map
+    let gmapsKey = cache.get("googleMapsAPIKey");
+    if (!gmapsKey && typeof (gmapsKey) != "string") {
+        gmapsKey = prompt("Enter a Google Maps API key to initialize the map:")
+        cache.set("googleMapsAPIKey", gmapsKey);
+    }
+
     const loader = new Loader({
-        apiKey: "AIzaSyCt0j3Nx9-UvVwCfwFboY4xQn9qn_C15CA",
+        apiKey: gmapsKey,
         version: "weekly",
     });
-    loader.load();
+    loader.importLibrary("maps");
     mapView = L.map(mapid, { attributionControl: false }).setView([36.567383, -121.947729], 18);
     L.gridLayer.googleMutant({
         type: "satellite",
@@ -1441,18 +1363,6 @@ function positionMarkerPopupText(layer: L.Marker) {
     const dOpt = { to_unit: displayUnits, include_unit: true }
     const dist = formatDistance(getDistance(coord, currentHole.pin), dOpt);
     return `${dist} to pin`;
-}
-
-/**
- * Updates the round data displayed on the page.
- */
-function roundViewUpdate() {
-    const locationData = document.getElementById("locationData");
-    locationData.textContent = JSON.stringify(
-        { ...round },
-        null,
-        2
-    );
 }
 
 /**
@@ -1761,7 +1671,6 @@ function distanceToPinViewUpdate(id: string = "distanceToPin"): void {
 function rerender(type?: string) {
     // Render calls that can occur any time, high perf
     if (!type || type == "full") {
-        roundViewUpdate();
         strokelineUpdate();
         strokeMarkerUpdate();
         strokeMarkerAimUpdate();
@@ -1853,37 +1762,6 @@ function clubStrokeViewToggle() {
     if (!(currentPositionEnabled)) {
         currentPositionUpdate()
     }
-}
-
-/**
- * Render the results from a course search via nominatim
- * @param {any[]} results the results from Nominatim search
- */
-function courseSearchViewUpdate(results: any[]) {
-    let resultList = document.getElementById("courseSearchResults");
-    resultList.innerHTML = "";
-
-    // Iterate over the results and display each match
-    results.forEach((result) => {
-        let listItem = document.createElement("li");
-        let link = document.createElement("a");
-        let courseParams = { 'name': result.namedetails.name, 'id': osmCourseID(result.osm_type, result.osm_id) }
-        link.innerText = result.display_name;
-        link.setAttribute("href", `#${result.osm_id}`)
-        link.addEventListener('click', handleRoundCreateClickCallback(courseParams))
-        listItem.appendChild(link);
-        resultList.appendChild(listItem);
-    });
-}
-
-/**
- * Return a unique courseID corresponding to an OSM object
- * @param {String} type the OSM type (way, relation, etc)
- * @param {Number} id the OSM ID
- * @returns {String}
- */
-function osmCourseID(type: string, id: number): string {
-    return `osm-${type}-${id}`
 }
 
 /**
@@ -2054,16 +1932,8 @@ function handleLoad() {
     clubStrokeViewCreate(clubReadAll(), document.getElementById("clubStrokeCreateContainer"));
     gridTypeSelectCreate();
     strokeTerrainSelectCreate();
-    const loaded = loadData();
-    let course = { 'name': round.course, 'id': round.courseId }
-    grids.fetchGolfCourseData(course).then((data) => {
-        if (!loaded) {
-            roundUpdateWithData(data)
-        } else {
-            mapRecenter("course");
-        }
-    });
     holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
+    loadRoundData();
 }
 
 /**
@@ -2072,47 +1942,6 @@ function handleLoad() {
 function handleStrokeAddClick() {
     clubStrokeViewToggle();
     strokeMarkerDeactivate();
-}
-
-/**
- * Handles the click event for starting a new round.
- * @param {Course} [courseParams] the course to create for. If not provided, then infers from input box.
- */
-function handleRoundCreateClickCallback(courseParams?: Course) {
-    return (() => {
-
-        let courseName;
-        let courseId;
-
-        if (courseParams) {
-            courseName = courseParams["name"];
-            courseId = courseParams["id"];
-        } else {
-            let el = document.getElementById("courseName");
-            if (!(el instanceof HTMLInputElement)) {
-                return
-            }
-            courseName = el.value;
-        }
-
-        if (!courseName && !courseId) {
-            alert("Course name cannot be blank!");
-            return
-        }
-
-        if (confirm("Are you sure you want to start a new round? All current data will be lost.")) {
-            let priorRounds = readCache('priorRounds');
-            if (!priorRounds) {
-                priorRounds = {};
-            }
-            const roundKey = `${round.course}-${round.courseId}-${round.date}`;
-            priorRounds[roundKey] = { ...round };
-            setCache('priorRounds', priorRounds);
-            roundCreate(courseParams);
-            holeSelectViewUpdate();
-            rerender("full");
-        }
-    });
 }
 
 /**
@@ -2144,24 +1973,6 @@ function handleCopyToClipboardClick() {
  */
 function handleRecenterClick() {
     mapRecenter();
-}
-
-/**
- * Search Nominatim when a user is done typing in the course name box
- * Debounces to only search after 500ms of inactivity
- */
-let timeoutId;
-function handleCourseSearchInput() {
-    let query = this.value;
-
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-        if (query.length >= 3) {
-            return grids.courseSearch(query).then(courseSearchViewUpdate);
-        } else {
-            document.getElementById("courseSearchResults").innerHTML = "";
-        }
-    }, 500);
 }
 
 /**
@@ -2214,40 +2025,14 @@ function showPositionError(error: PositionError) {
     showError(er);
 }
 
-/**
- * Shows an error message based on the geolocation error code.
- * @param {Error} error - The geolocation error object.
- */
-function showError(error: Error | string) {
-    const el = document.getElementById("error");
-    el.classList.remove("inactive");
-    el.innerText = error instanceof Error ? error.message : error;
-    const close = document.createElement("a");
-    close.href = "#";
-    close.innerText = " X "
-    close.addEventListener('click', () => el.classList.add("inactive"));
-    el.appendChild(close);
-    setTimeout(() => el.classList.add("inactive"), 5000)
-}
-
-function hideError() {
-    const el = document.getElementById("error");
-    el.innerText = "";
-    el.classList.add("inactive");
-}
-
 // Event listeners
 let strokeMarkerAimCreateButton = document.getElementById("strokeMarkerAimCreate")
 
 window.onload = handleLoad;
 document.getElementById("strokeAdd").addEventListener("click", handleStrokeAddClick);
 document.getElementById("clubStrokeCreateContainerClose").addEventListener("click", clubStrokeViewToggle);
-document.getElementById("roundCreate").addEventListener("click", handleRoundCreateClickCallback());
-document.getElementById("toggleRound").addEventListener("click", handleToggleRoundClick);
-document.getElementById("copyToClipboard").addEventListener("click", handleCopyToClipboardClick);
 document.getElementById("undoAction").addEventListener("click", handleUndoActionClick);
 document.getElementById("recenter").addEventListener("click", handleRecenterClick);
 strokeMarkerAimCreateButton.addEventListener('click', handleStrokeMarkerAimCreateClick);
-document.getElementById("courseName").addEventListener("input", handleCourseSearchInput);
 document.getElementById("dispersionInput").addEventListener("change", handleDispersionInput);
 document.getElementById("terrainInput").addEventListener("change", handleTerrainInput);

@@ -7,36 +7,31 @@ export function wait(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Store an item in the localStorage cache under a given key
- * @param key - The key under which to store the value
- * @param json - The value to be stored
- */
-export function setCache(key: string, json: object): void {
-    localStorage.setItem(
-        key,
-        JSON.stringify({ ...json })
-    );
-}
 
 /**
- * Read an item from cache under a given key
- * @param key - The key for which to retrieve the value
- * @returns The value retrieved from the cache
+ * Shows an error message based on the geolocation error code.
+ * @param {Error} error - The geolocation error object.
  */
-export function readCache(key: string): object | null {
-    try {
-        const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : null;
-    } catch (e) {
-        return
+export function showError(error: Error | string, timeout = 5000): void {
+    const el = document.getElementById("error");
+    el.classList.remove("inactive");
+    el.innerText = error instanceof Error ? error.message : error;
+    const close = document.createElement("a");
+    close.href = "#";
+    close.innerText = " X "
+    close.addEventListener('click', () => el.classList.add("inactive"));
+    el.appendChild(close);
+    if (timeout > 0) {
+        setTimeout(() => el.classList.add("inactive"), timeout)
     }
 }
 
+
 /**
- * Remove an item from cache
- * @param key - The key for the item to remove
+ * Hide an error
  */
-export function deleteCache(key: string): void {
-    localStorage.removeItem(key);
+export function hideError(): void {
+    const el = document.getElementById("error");
+    el.innerText = "";
+    el.classList.add("inactive");
 }

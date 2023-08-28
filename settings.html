@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Golf-settings.js</title>
+    <link rel="stylesheet" href="static/css/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+
+<body class="settings">
+    <div id="errorContainer">
+        <div id="error" class="danger inactive">
+            Enable Javascript
+        </div>
+    </div>
+    <div class="bodyContainer">
+        <div class="buttonRow">
+            <button id="roundCreate">New Round</button>
+            <button id="copyToClipboard">Copy to Clipboard</button>
+        </div>
+        <div id="roundInfo" class="inactive">
+            <input type="text" id="courseName" placeholder="Course Name">
+            <ul id="courseSearchResults"></ul>
+        </div>
+        <div id="jsonOutput">
+            <pre id="locationData"></pre>
+        </div>
+    </div>
+    <script type="module" src="static/ts/settings.ts"></script>
+</body>
+
+</html>

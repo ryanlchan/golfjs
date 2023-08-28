@@ -42,7 +42,19 @@ button {
     color: rgb(80, 80, 80);
 }
 
-/* Map Styles */
+.linkButton {
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid buttonborder;
+    background-color: buttonface;
+    display: inline-block;
+    text-decoration: none;
+    color: buttontext;
+}
+
+/* 
+* Map Styles 
+*/
 .leaflet-control-attribution {
     font-size: xx-small;
 }
@@ -92,48 +104,6 @@ button {
     padding-top: 0.5em;
 }
 
-#errorContainer {
-    margin-top: 2em;
-    width: 100%;
-    position: fixed;
-    z-index: 1001;
-}
-
-#error {
-    border-radius: 15px;
-    padding: 0.5em;
-    text-align: center;
-    width: 80%;
-    top: 2em;
-    margin: 0 auto;
-    font-size: 16px;
-}
-
-#distanceToPin {
-    font-size: 1.5em;
-    font-weight: 900;
-}
-
-#strokeAdd path {
-    fill: white;
-}
-
-/* Specific styles */
-
-body {
-    margin: 0;
-    font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
-    font-size: 14px;
-}
-
-.bodyContainer {
-    margin: 8px;
-}
-
-#locationData {
-    white-space: pre;
-}
-
 #mapid {
     margin-bottom: 10px;
     height: 80vh;
@@ -151,8 +121,95 @@ body {
     -webkit-touch-callout: none;
 }
 
-#roundInfo {
-    display: auto;
+.active-marker {
+    background-color: #dc3545;
+    border-radius: 50%;
+    filter: drop-shadow(0px 0px 10px red);
+}
+
+/* 
+* Structural components
+*/
+#errorContainer {
+    margin-top: 2em;
+    width: 100%;
+    position: fixed;
+    z-index: 1001;
+}
+
+#error {
+    border-radius: 15px;
+    padding: 0.5em;
+    text-align: center;
+    width: 80%;
+    top: 2em;
+    margin: 0 auto;
+    font-size: 16px;
+}
+
+body {
+    margin: 0;
+    font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+    font-size: 14px;
+}
+
+.bodyContainer {
+    margin: 8px;
+}
+
+/*
+* Generic Table styling
+*/
+table thead {
+    background-color: #f2f2f2;
+}
+
+table thead th {
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd;
+}
+
+table tbody tr {
+    background-color: #fff;
+}
+
+table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Alternate row background color for better readability */
+table tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+/* Alternate row background color for better readability */
+table tbody tr:last-child {
+    font-weight: 700;
+}
+
+/* Add some hover effect to the rows */
+table tbody tr:hover {
+    background-color: #e5e5e5;
+}
+
+/* 
+* Tracker.js styles
+*/
+
+#distanceToPin {
+    font-size: 1.5em;
+    font-weight: 900;
+}
+
+#strokeAdd path {
+    fill: white;
+}
+
+#locationData {
+    white-space: pre;
 }
 
 #holeStats {
@@ -230,45 +287,11 @@ body {
     width: 5em;
 }
 
-/* Scorecard styles */
+/*
+* Scorecard styles 
+*/
 .scorecard {
     text-align: center;
-}
-
-.scorecard thead {
-    background-color: #f2f2f2;
-}
-
-.scorecard th {
-    padding: 12px;
-    text-align: left;
-    font-weight: bold;
-    border-bottom: 2px solid #ddd;
-}
-
-/* Style the table body rows */
-.scorecard tbody tr {
-    background-color: #fff;
-}
-
-.scorecard td {
-    padding: 12px;
-    border-bottom: 1px solid #ddd;
-}
-
-/* Alternate row background color for better readability */
-.scorecard tbody tr:nth-child(even) {
-    background-color: #f2f2f2;
-}
-
-/* Alternate row background color for better readability */
-.scorecard tbody tr:last-child {
-    font-weight: 700;
-}
-
-/* Add some hover effect to the rows */
-.scorecard tbody tr:hover {
-    background-color: #e5e5e5;
 }
 
 .scorecard td.albatross {
@@ -295,49 +318,9 @@ body {
     background-color: coral;
 }
 
-/* Map styles */
-
-.active-marker {
-    background-color: #dc3545;
-    border-radius: 50%;
-    filter: drop-shadow(0px 0px 10px red);
-}
-
-/* Stats styles */
-table thead {
-    background-color: #f2f2f2;
-}
-
-table thead th {
-    padding: 12px;
-    text-align: left;
-    font-weight: bold;
-    border-bottom: 2px solid #ddd;
-}
-
-table tbody tr {
-    background-color: #fff;
-}
-
-table td {
-    padding: 12px;
-    border-bottom: 1px solid #ddd;
-}
-
-/* Alternate row background color for better readability */
-table tbody tr:nth-child(even) {
-    background-color: #f2f2f2;
-}
-
-/* Alternate row background color for better readability */
-table tbody tr:last-child {
-    font-weight: 700;
-}
-
-/* Add some hover effect to the rows */
-table tbody tr:hover {
-    background-color: #e5e5e5;
-}
+/* 
+* Stats.js styles 
+*/
 
 body.stats table {
     margin-bottom: 15px;
@@ -345,4 +328,17 @@ body.stats table {
 
 td.negative {
     color: red;
+}
+
+/*
+* new.js styles
+*/
+
+#roundInfo {
+    display: auto;
+}
+
+input.buttonInput {
+    font-size: 16px;
+    padding: 8px;
 }

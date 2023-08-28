@@ -1,7 +1,7 @@
 import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
 import { HOLE_OUT_COEFFS, OSM_GOLF_TO_TERRAIN, STROKES_REMAINING_COEFFS } from "./coeffs20230705";
-import { readCache, setCache, deleteCache } from "./utils";
+import * as cache from "./cache";
 export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 
 /**
@@ -42,6 +42,26 @@ export function courseSearch(query: string): Promise<any> {
         });
 }
 
+/**
+ * Return a unique courseID corresponding to an OSM object
+ * @param {String} type the OSM type (way, relation, etc)
+ * @param {Number} id the OSM ID
+ * @returns {String}
+ */
+export function osmCourseID(type: string, id: number): string {
+    return `osm-${type}-${id}`
+}
+
+/**
+ * Parse an osmCourseID to return the component parts
+ * @param id the ID from osmCourseID
+ */
+export function osmParseID(id: "string"): string[] {
+    if (!id.includes("osm-")) {
+        return
+    }
+    return id.split("-").slice(1);
+}
 
 /**
  * Fetch some data from OSM, process it, then cache it in localStorage
@@ -71,14 +91,18 @@ function fetchOSMData(query, storageKey) {
             console.debug("Succesfully downloaded OSM polys, starting processing")
             data = osmtogeojson(data);
             data = scrubOSMData(data);
-            if (data.features.length > 0) {
+            if (data.features.length > 18) {
                 console.debug("Succesfully processed OSM polys, caching as " + storageKey);
-                setCache(storageKey, data);
+                cache.setJSON(storageKey, data);
                 return data;
             } else {
                 return Promise.reject(new Error('No polygons returned'));
             }
         }).catch((error) => console.error(error));
+}
+
+export function clearOSMData(courseParams: Course) {
+    cache.remove(cacheKey(courseParams));
 }
 
 /**
@@ -99,15 +123,13 @@ export function fetchGolfCourseData(courseParams, force?) {
     let courseName = courseParams['name']
     let courseId = courseParams['id']
     let storageKey = cacheKey(courseParams);
-    let cache = readCache(storageKey);
-    if (!force && cache) {
-        return Promise.resolve(cache);
+    let cached = cache.getJSON(storageKey);
+    if (!force && cached) {
+        return Promise.resolve(cached);
     }
     let query = ""
     if (courseId) {
-        let components = courseId.split("-");
-        let type = components[1]
-        let id = components[2]
+        let [type, id] = osmParseID(courseId);
         query = `[out:json];
         (${type}(${id});)-> .bound;
         (.bound;map_to_area;)->.golf_area;
@@ -140,7 +162,7 @@ export function fetchGolfCourseData(courseParams, force?) {
 function getGolfCourseData(courseParams) {
     // Check if the cache has it first
     let storageKey = cacheKey(courseParams);
-    let polys = readCache(storageKey);
+    let polys = cache.getJSON(storageKey);
     if (polys) {
         // Cache hit, just return the callback asap
         return polys;
@@ -183,7 +205,7 @@ function getGolfHolePolys(courseParams, holeIndex) {
     if (line instanceof Error) {
         let msg = "Bad data set from OSM";
         console.error(msg);
-        deleteCache(cacheKey(courseParams));
+        cache.remove(cacheKey(courseParams));
         throw new Error(msg);
     }
     if (!line) {

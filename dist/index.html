@@ -6,9 +6,11 @@
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script type="module" crossorigin src="/golfjs/assets/main-e076fef2.js"></script>
-  <link rel="modulepreload" crossorigin href="/golfjs/assets/projections-55f0cb18.js">
-  <link rel="stylesheet" href="/golfjs/assets/projections-25fbaf26.css">
+  <script type="module" crossorigin src="/golfjs/assets/main-49c9bfe3.js"></script>
+  <link rel="modulepreload" crossorigin href="/golfjs/assets/grids-fe47a364.js">
+  <link rel="modulepreload" crossorigin href="/golfjs/assets/projections-8e325d26.js">
+  <link rel="modulepreload" crossorigin href="/golfjs/assets/rounds-ee3700a6.js">
+  <link rel="stylesheet" href="/golfjs/assets/grids-b3863bbb.css">
 </head>
 
 <body>
@@ -93,21 +95,12 @@
         </div>
         <hr>
         <div class="buttonRow">
-            <button id="toggleRound">Edit Round Info</button>
+            <a href="settings.html">Edit Round Info</a>
             <a href="stats.html">Access Stats</a>
-        </div>
-        <div id="roundInfo" class="inactive">
-            <input type="text" id="courseName" placeholder="Course Name">
-            <button id="roundCreate">New Round</button>
-            <button id="copyToClipboard">Copy to Clipboard</button>
-            <ul id="courseSearchResults"></ul>
-            <pre id="locationData"></pre>
         </div>
         <hr>
 
     </div>
-    <!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCt0j3Nx9-UvVwCfwFboY4xQn9qn_C15CA" async
-        defer></script> -->
     
 </body>
 

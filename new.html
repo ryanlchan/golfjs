@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Golf-new-round.js</title>
+    <link rel="stylesheet" href="static/css/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+
+<body class="newRound">
+    <div id="errorContainer">
+        <div id="error" class="danger inactive">
+            Enable Javascript
+        </div>
+    </div>
+    <div class="bodyContainer">
+        <div id="roundInfo">
+            <h2>New round</h2>
+            <input type="text" id="courseName" class="buttonInput" placeholder="Course Name">
+            <button id="searchButton">Search</button>
+            <ol id="courseSearchResults"></ol>
+        </div>
+    </div>
+    <script type="module" src="static/ts/new.ts"></script>
+</body>
+
+</html>
