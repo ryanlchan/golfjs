@@ -39,7 +39,7 @@ export function roundCreate(courseParams?: Course): Round {
  * 
  */
 export function roundInitialize(round: Round): Promise<Round> {
-    return fetchGolfCourseData(roundCourseParams(round))
+    return fetchGolfCourseData(roundCourseParams(round), true)
         .then((data) => roundUpdateWithData(round, data));
 }
 
