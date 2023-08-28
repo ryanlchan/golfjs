@@ -195,6 +195,28 @@ table tbody tr:hover {
     background-color: #e5e5e5;
 }
 
+/*
+* Generic elements
+*/
+pre code {
+    display: block;
+    white-space: pre;
+    -webkit-overflow-scrolling: touch;
+    overflow-x: scroll;
+    max-width: 100%;
+    min-width: 100px;
+    font-family: MyFancyCustomFont, monospace;
+    font-size: inherit;
+    word-wrap: break-word;
+    box-decoration-break: clone;
+    padding: 1em;
+    border-radius: .2rem;
+    color: #c25;
+    background-color: #f7f7f9;
+    border: 1px solid #e1e1e8;
+    border-radius: 3px;
+}
+
 /* 
 * Tracker.js styles
 */

@@ -14,17 +14,29 @@
         </div>
     </div>
     <div class="bodyContainer">
-        <div class="buttonRow">
-            <button id="roundCreate">New Round</button>
-            <button id="copyToClipboard">Copy to Clipboard</button>
+        <div id="roundInfo">
+            <div class="buttonRow">
+                <h2>Current Round</h2>
+                <button id="copyToClipboard">Copy to Clipboard</button>
+                <button id="showRoundInfo">Toggle round info</button>
+            </div>
+            <pre id="jsonOutput" class="inactive">
+                <code></code>
+            </pre>
         </div>
-        <div id="roundInfo" class="inactive">
-            <input type="text" id="courseName" placeholder="Course Name">
-            <ul id="courseSearchResults"></ul>
+        <div id="savedRounds">
+            <h2>Saved Rounds</h2>
+            <ol id="savedRoundsList">
+                <li>None</li>
+            </ol>
         </div>
-        <div id="jsonOutput">
-            <pre id="locationData"></pre>
+        <div id="savedCourses">
+            <h2>Saved Courses</h2>
+            <ol id="savedCoursesList">
+                <li>None</li>
+            </ol>
         </div>
+
     </div>
     <script type="module" src="static/ts/settings.ts"></script>
 </body>

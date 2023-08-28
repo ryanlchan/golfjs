@@ -1,36 +1,68 @@
-import * as utils from "./utils";
-import * as cache from "./cache";
+import { roundDeleteArchive, roundLoad, roundLoadArchive, roundSwap } from "./rounds";
 
 /**
  * Updates the round data displayed on the page.
  */
-function roundViewUpdate(): void {
-    const output = document.getElementById("jsonOutput");
+function jsonViewUpdate(): void {
+    const output = document.getElementById("jsonOutput").firstElementChild;
+    const round = roundLoad();
     output.textContent = JSON.stringify(
-        { ...round },
+        round,
         null,
         2
     );
 }
 
-
-/**
- * Search Nominatim when a user is done typing in the course name box
- * Debounces to only search after 500ms of inactivity
- */
-let timeoutId;
-function handleCourseSearchInput() {
-    let query = this.value;
-
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-        if (query.length >= 3) {
-            return grids.courseSearch(query).then(courseSearchViewUpdate);
-        } else {
-            document.getElementById("courseSearchResults").innerHTML = "";
+function roundListViewUpdate(): void {
+    const rounds = roundLoadArchive();
+    const listItems = rounds.map(round => {
+        let li = document.createElement('li');
+        let link = document.createElement('a');
+        link.innerText = `${round.date} - ${round.course}`;
+        link.href = "#";
+        link.onclick = () => {
+            roundSwap(round);
+            window.location.href = "/";
         }
-    }, 500);
+
+        let del = document.createElement('a');
+        del.innerText = " [Delete]";
+        del.href = "#";
+        del.onclick = () => {
+            if (confirm("Are you sure you want to delete this round?")) {
+                roundDeleteArchive(round);
+                window.location.reload();
+            }
+        };
+
+        li.appendChild(link);
+        li.appendChild(del);
+        return li
+    })
+    const roundList = document.getElementById("savedRoundsList");
+    roundList.replaceChildren(...listItems);
 }
 
-document.getElementById("toggleRound").addEventListener("click", handleToggleRoundClick);
-document.getElementById("copyToClipboard").addEventListener("click", handleCopyToClipboardClick);
+/**
+ * Handles the click event for toggling the round information display.
+ */
+function handleShowRoundClick() {
+    const el = document.getElementById("jsonOutput");
+    el.classList.toggle("inactive");
+}
+
+/**
+ * Handles the click event for copying location data to the clipboard.
+ */
+function handleCopyToClipboardClick() {
+    navigator.clipboard.writeText(document.getElementById("jsonOutput").firstElementChild.textContent);
+}
+
+function handleLoad() {
+    jsonViewUpdate();
+    roundListViewUpdate();
+}
+
+window.onload = handleLoad;
+document.getElementById("showRoundInfo").addEventListener('click', handleShowRoundClick);
+document.getElementById("copyToClipboard").addEventListener('click', handleCopyToClipboardClick);

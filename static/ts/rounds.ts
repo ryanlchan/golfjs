@@ -24,6 +24,15 @@ export function roundLoad(): Round {
 }
 
 /**
+ * Archive current round and load new one
+ */
+export function roundSwap(newRound: Round): void {
+    const r = roundLoad();
+    if (roundIsPlayed(r)) roundArchive(r);
+    roundSave(newRound);
+}
+
+/**
  * Create a new round and clear away all old data
  * @param {Course} courseParams the course
  * @returns {Round} a new Round object
@@ -83,7 +92,31 @@ export function roundArchive(round: Round): void {
 }
 
 /**
- * Clear the cache of any rounds and reset
+ * Load all archived rounds as an array
+ * @returns {Round[]} An array of all rounds
+ */
+export function roundLoadArchive(): Round[] {
+    let priorRounds = cache.getJSON('priorRounds');
+    if (!priorRounds) return []
+    return Object.values(priorRounds);
+}
+
+/**
+ * Drop a round from the archive
+ * @param round the round to delete from the archive
+ */
+export function roundDeleteArchive(round: Round) {
+    let priorRounds = cache.getJSON('priorRounds');
+    if (!priorRounds) {
+        return;
+    }
+    const roundKey = roundID(round);
+    delete priorRounds[roundKey];
+    cache.setJSON('priorRounds', priorRounds);
+}
+
+/**
+ * Delete current round and start over
  */
 export function roundClear(): void {
     let round = roundCreate();

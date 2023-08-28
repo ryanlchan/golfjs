@@ -159,7 +159,7 @@ export function fetchGolfCourseData(courseParams, force?) {
  * @param {Course} courseParams
  * @returns
  */
-function getGolfCourseData(courseParams) {
+export function getGolfCourseData(courseParams) {
     // Check if the cache has it first
     let storageKey = cacheKey(courseParams);
     let polys = cache.getJSON(storageKey);

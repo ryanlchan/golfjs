@@ -805,17 +805,24 @@ function holeLineId(hole: Hole): string {
 
 /**
  * Loads saved round data and initializes relevant variables
+ * @returns {Promise} returns the round once all data is loaded
  */
-function loadRoundData(): void {
+function loadRoundData(): Promise<Round> {
     const loaded = loadData();
     if (!loaded) {
         return;
     }
     console.log("Rehydrating round from cache");
-    holeSelect(-1);
-    currentHole = round.holes.at(0);
-    currentStrokeIndex = 0;
-    activeStroke = undefined;
+
+    const params = roundCourseParams(round);
+    if (grids.getGolfCourseData(params) instanceof Error) {
+        return grids.fetchGolfCourseData(params, true)
+            .then(() => loadRoundData());
+    } else {
+        currentHole = round.holes.at(0);
+        currentStrokeIndex = currentHole.strokes.length;
+        return Promise.resolve(loaded);
+    }
 }
 
 /**
@@ -1928,12 +1935,14 @@ function scoreClass(relativeScore: number): string {
  * Handles the window onload event.
  */
 function handleLoad() {
-    mapViewCreate("mapid");
-    clubStrokeViewCreate(clubReadAll(), document.getElementById("clubStrokeCreateContainer"));
-    gridTypeSelectCreate();
-    strokeTerrainSelectCreate();
-    holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
-    loadRoundData();
+    loadRoundData().then(() => {
+        mapViewCreate("mapid");
+        clubStrokeViewCreate(clubReadAll(), document.getElementById("clubStrokeCreateContainer"));
+        gridTypeSelectCreate();
+        strokeTerrainSelectCreate();
+        holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
+        holeSelect(-1);
+    });
 }
 
 /**
@@ -1951,21 +1960,6 @@ function handleStrokeAddClick() {
 function handleStrokeMarkerAimCreateClick() {
     strokeAimReset(activeStroke);
     rerender("full");
-}
-
-/**
- * Handles the click event for toggling the round information display.
- */
-function handleToggleRoundClick() {
-    const roundDiv = document.getElementById("roundInfo");
-    roundDiv.classList.toggle("inactive");
-}
-
-/**
- * Handles the click event for copying location data to the clipboard.
- */
-function handleCopyToClipboardClick() {
-    navigator.clipboard.writeText(document.getElementById("locationData").textContent);
 }
 
 /**

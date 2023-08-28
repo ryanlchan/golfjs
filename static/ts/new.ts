@@ -1,6 +1,6 @@
 import * as utils from "./utils";
 import { courseSearch, osmCourseID, clearOSMData } from "./grids";
-import { roundCreate, roundInitialize, roundSave, roundClear } from "./rounds";
+import { roundCreate, roundInitialize, roundClear, roundSwap } from "./rounds";
 
 function search(query: string): Promise<void> {
     if (query.length >= 3) {
@@ -55,10 +55,11 @@ function handleRoundCreateClickCallback(courseParams?: Course) {
         if (!confirm("Are you sure you want to start a new round? All current data will be lost.")) {
             return
         }
+
         let round = roundCreate(courseParams);
         roundInitialize(round)
             .then((round) => {
-                roundSave(round);
+                roundSwap(round);
                 window.location.href = "./"
             }).catch(e => {
                 utils.showError(e);
