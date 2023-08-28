@@ -38,7 +38,11 @@ export function roundSwap(newRound: Round): void {
  * @returns {Round} a new Round object
  */
 export function roundCreate(courseParams?: Course): Round {
-    return { ...defaultRound(), ...courseParams };
+    if (courseParams) {
+        return { ...defaultRound(), course: courseParams.name, courseId: courseParams.id };
+    } else {
+        return defaultRound();
+    }
 }
 
 /**
