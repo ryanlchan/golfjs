@@ -4,12 +4,25 @@ import { roundCreate, roundInitialize, roundClear, roundSwap } from "./rounds";
 
 function search(query: string): Promise<void> {
     if (query.length >= 3) {
-        return courseSearch(query)
+        return localSearch(query)
             .then(courseSearchViewUpdate)
             .catch((e) => utils.showError(e));
     } else {
         document.getElementById("courseSearchResults").innerHTML = "";
     }
+}
+
+function localSearch(query: string): Promise<any> {
+    const token = query.toLowerCase();
+    return fetch("/courses.json")
+        .then(data => data.json())
+        .then(data => {
+            return data.elements.filter(course => {
+                return Object.values(course.tags)
+                    .filter(tag => (typeof tag == "string") && tag.toLowerCase().includes(token))
+                    .length > 0
+            });
+        });
 }
 
 /**
@@ -23,9 +36,11 @@ function courseSearchViewUpdate(results: any[]) {
     const children = results.map((result) => {
         let listItem = document.createElement("li");
         let link = document.createElement("a");
-        let courseParams = { 'name': result.namedetails.name, 'id': osmCourseID(result.osm_type, result.osm_id) }
-        link.innerText = result.display_name;
-        link.setAttribute("href", `#${result.osm_id}`)
+        let courseParams = { 'name': result.tags.name, 'id': osmCourseID(result.type, result.id) }
+        link.innerText = courseParams.name;
+        if (result.tags["addr:street"]) link.innerText += `, ${result.tags["addr:street"]}`;
+        if (result.tags["addr:city"]) link.innerText += `, ${result.tags["addr:city"]}`;
+        link.setAttribute("href", `#${courseParams.id}`)
         link.addEventListener('click', handleRoundCreateClickCallback(courseParams))
         listItem.appendChild(link);
         return listItem;

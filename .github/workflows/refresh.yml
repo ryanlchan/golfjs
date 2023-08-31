@@ -1,0 +1,25 @@
+name: Refresh Feed
+on:
+  schedule:
+    - cron: 0 0 * * 0 # Fetch at midnight on Sundays
+jobs:
+  refresh-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+
+      - name: Fetch API Data 📦
+        uses: JamesIves/fetch-api-data-action@v2
+        with:
+          endpoint: https://overpass-api.de/api/interpreter
+          configuration: '{ "method": "POST", "body":"data=%5Bout%3Ajson%5D%3B%28relation%28%7B%7Bbbox%7D%7D%29%5Bleisure%3Dgolf_course%5D%3Bway%28%7B%7Bbbox%7D%7D%29%5Bleisure%3Dgolf_course%5D%3B%29%3Bout%20tags%3B" }' # [out:json];(relation({{bbox}})[leisure=golf_course];way({{bbox}})[leisure=golf_course];);out tags;
+
+      - name: Build and Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: main # Pushes the updates to the main branch.
+          folder: fetch-api-data-action # The location of the data.json file saved by the Fetch API Data action.
+          target-folder: public # Saves the data into the 'data' directory on the main branch.
