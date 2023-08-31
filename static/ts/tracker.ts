@@ -1394,7 +1394,7 @@ function holeStatsUpdate() {
     } else {
         // No current hole, assume overview
         strokeElement.innerHTML = "";
-        holeElement.innerHTML = "";
+        holeElement.innerHTML = `| ${round.course}`;
     }
 }
 
