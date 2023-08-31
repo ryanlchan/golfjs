@@ -2,6 +2,7 @@ name: Refresh Feed
 on:
   schedule:
     - cron: 0 0 * * 0 # Fetch at midnight on Sundays
+    workflow_dispatch:
 jobs:
   refresh-feed:
     runs-on: ubuntu-latest
