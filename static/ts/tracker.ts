@@ -1410,7 +1410,7 @@ function strokeStatsListItem(stroke: Stroke): HTMLElement {
 
     const listItem = document.createElement("li");
     const container = document.createElement("div");
-    container.classList.add("strokeStatContainer");
+    container.classList.add("strokeStatContainer", "listCell");
 
     const text = document.createElement("div");
     const dispersionLink = document.createElement("a");

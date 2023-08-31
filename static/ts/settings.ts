@@ -1,5 +1,6 @@
 import { roundDeleteArchive, roundLoad, roundLoadArchive, roundSwap } from "./rounds";
-
+import { parseCacheKey } from "./grids";
+import { getJSON, remove } from "./cache";
 /**
  * Updates the round data displayed on the page.
  */
@@ -17,30 +18,73 @@ function roundListViewUpdate(): void {
     const rounds = roundLoadArchive();
     const listItems = rounds.map(round => {
         let li = document.createElement('li');
-        let link = document.createElement('a');
-        link.innerText = `${round.date} - ${round.course}`;
-        link.href = "#";
-        link.onclick = () => {
+        let div = document.createElement('div');
+        div.classList.add('listCell', 'listCellClickable');
+        div.innerText = `${round.date} - ${round.course} `;
+        div.onclick = () => {
             roundSwap(round);
             window.location.href = "/";
         }
 
-        let del = document.createElement('a');
-        del.innerText = " [Delete]";
-        del.href = "#";
-        del.onclick = () => {
+        let controls = document.createElement('div');
+        controls.classList.add("listCellControls");
+
+        let del = document.createElement('button');
+        del.innerHTML = "&#215;";
+        del.classList.add("linkCircleButton", "danger");
+        del.onclick = (e) => {
             if (confirm("Are you sure you want to delete this round?")) {
+                e.stopPropagation();
                 roundDeleteArchive(round);
                 window.location.reload();
             }
         };
 
-        li.appendChild(link);
-        li.appendChild(del);
+        controls.appendChild(del);
+        div.appendChild(controls);
+        li.appendChild(div);
         return li
     })
+    listItems.sort((a, b) => a.innerText.localeCompare(b.innerText));
     const roundList = document.getElementById("savedRoundsList");
     roundList.replaceChildren(...listItems);
+}
+
+function courseListViewUpdate(): void {
+    const courses = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        let key = localStorage.key(i);
+        if (!key.includes("courseData-")) continue
+        const name = key.slice(11).split("-osm-").slice(0, 1)[0];
+
+        let li = document.createElement('li');
+        let div = document.createElement('div');
+        div.classList.add('listCell');
+        div.innerText = `${name} `;
+
+        let controls = document.createElement('div');
+        controls.classList.add("listCellControls");
+
+        let del = document.createElement('button');
+        del.innerHTML = "&#215;";
+        del.classList.add("linkCircleButton", "danger");
+        del.onclick = (e) => {
+            if (confirm("Are you sure you want to delete this course?")) {
+                e.stopPropagation();
+                remove(key);
+                window.location.reload();
+            }
+        };
+
+        controls.append(del);
+        div.append(controls);
+        li.appendChild(div);
+        courses.push(li);
+    }
+
+    courses.sort((a, b) => a.innerText.localeCompare(b.innerText));
+    const courseList = document.getElementById("savedCoursesList");
+    courseList.replaceChildren(...courses);
 }
 
 /**
@@ -61,6 +105,7 @@ function handleCopyToClipboardClick() {
 function handleLoad() {
     jsonViewUpdate();
     roundListViewUpdate();
+    courseListViewUpdate();
 }
 
 window.onload = handleLoad;

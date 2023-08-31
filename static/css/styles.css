@@ -1,6 +1,7 @@
 /* Button classes */
 button {
     padding: 10px;
+    cursor: pointer;
 }
 
 .buttonRow {
@@ -50,6 +51,18 @@ button {
     display: inline-block;
     text-decoration: none;
     color: buttontext;
+}
+
+.linkCircleButton {
+    border-radius: 50%;
+    padding: 0;
+    font-size: 1em;
+    height: 2em;
+    width: 2em;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* 
@@ -217,6 +230,28 @@ pre code {
     border-radius: 3px;
 }
 
+.listCell {
+    display: flex;
+    height: 4em;
+    border: solid 1px grey;
+    vertical-align: middle;
+    align-items: center;
+    padding: 5px 10px 5px 10px;
+    margin: 0px 0px 5px 10px;
+}
+
+.listCellClickable:hover {
+    background-color: #e5e5e5;
+    cursor: pointer;
+}
+
+.listCellControls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
 /* 
 * Tracker.js styles
 */
@@ -274,13 +309,7 @@ pre code {
 }
 
 #strokeStats .strokeStatContainer {
-    display: flex;
-    height: 4em;
-    border: solid 1px grey;
-    vertical-align: middle;
-    align-items: center;
-    padding: 5px 10px 5px 10px;
-    margin: 0px 0px 5px 10px;
+    /* moved to .listCell */
 }
 
 .strokeControls {

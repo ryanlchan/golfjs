@@ -17,7 +17,7 @@ const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search?q=";
  * @param courseParams - The course parameters for which to generate a key
  * @returns The cache key
  */
-function cacheKey(courseParams: Course): string {
+export function cacheKey(courseParams: Course): string {
     return `courseData-${courseParams.name}-${courseParams.id}`;
 }
 
