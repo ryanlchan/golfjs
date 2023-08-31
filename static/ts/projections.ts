@@ -1,6 +1,6 @@
 import { point } from "@turf/helpers";
 import distance from "@turf/distance";
-import { Point } from "geojson";
+import type { Point } from "geojson";
 
 // Conversions from Meters
 export const unitConversions = {

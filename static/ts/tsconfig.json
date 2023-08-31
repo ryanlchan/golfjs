@@ -9,6 +9,9 @@
         "moduleResolution": "Bundler",
         "sourceMap": true,
         "outDir": "dist/js",
-        "allowJs": true
+        "allowJs": true,
+        "types": [
+            "vite/client"
+        ]
     }
 }

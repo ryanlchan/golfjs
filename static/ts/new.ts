@@ -1,5 +1,5 @@
 import * as utils from "./utils";
-import { courseSearch, osmCourseID, clearOSMData } from "./grids";
+import { osmCourseID, clearOSMData } from "./grids";
 import { roundCreate, roundInitialize, roundClear, roundSwap } from "./rounds";
 
 function search(query: string): Promise<void> {
@@ -14,7 +14,7 @@ function search(query: string): Promise<void> {
 
 function localSearch(query: string): Promise<any> {
     const token = query.toLowerCase();
-    return fetch("/courses.json")
+    return fetch(`${import.meta.env.BASE_URL}courses.json`)
         .then(data => data.json())
         .then(data => {
             return data.elements.filter(course => {
