@@ -15,8 +15,9 @@ jobs:
       - name: Fetch API Data 📦
         uses: JamesIves/fetch-api-data-action@v2
         with:
-          endpoint: https://overpass-api.de/api/interpreter
-          configuration: '{ "method": "POST", "body":"data=%5Bout%3Ajson%5D%3B(relation%5Bleisure%3Dgolf_course%5D%3Bway%5Bleisure%3Dgolf_course%5D%3B)%3Bout+tags%3B" }' # [out:json];(relation({{bbox}})[leisure=golf_course];way({{bbox}})[leisure=golf_course];);out tags;
+          endpoint: https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%3B(relation%5Bleisure%3Dgolf_course%5D%3Bway%5Bleisure%3Dgolf_course%5D%3B)%3Bout+tags%3B
+          configuration: '{ "method": "GET" }'
+          set-output: false
 
       - name: Build and Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
