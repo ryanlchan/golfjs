@@ -1,30 +1,33 @@
 // stats.ts
-import { point, distance, bearing } from '@turf/turf';
-import { erf, cdf, sgGrid } from './grids';
-import * as turf from "@turf/turf";
-import { coordToPoint, getDistance, formatDistance } from './projections';
+import { point, distance, bearing, FeatureCollection } from '@turf/turf';
 import * as chroma from "chroma-js";
 
-interface roundStatsCache {
+import { cdf, sgGrid } from './grids';
+import { coordToPoint, getDistance, formatDistance } from './projections';
+import { roundID, roundLoad } from './rounds';
+import { touch } from './utils';
+import * as cacheUtils from "./cache";
+
+interface roundStatsCache extends hasUpdateDates {
     round: roundStats,
     holes: holeStats[],
     strokes: strokeStats[]
     breakdowns?: breakdownStats
 }
 
-interface roundStats extends strokesSummary {
+interface roundStats extends strokesSummary, hasUpdateDates {
     par: number,
     filter?: string,
     strokesRemaining: number
 }
 
-interface holeStats extends strokesSummary {
+interface holeStats extends strokesSummary, hasUpdateDates {
     index: number,
     par: number,
     strokesRemaining: number
 }
 
-interface strokeStats {
+interface strokeStats extends hasUpdateDates {
     index: number,
     holeIndex: number,
     club: string,
@@ -44,7 +47,7 @@ interface strokeStats {
     bearingActual: number
 }
 
-interface strokesSummary {
+interface strokesSummary extends hasUpdateDates {
     strokes: number,
     strokesGained: number,
     strokesGainedPredicted: number,
@@ -92,6 +95,10 @@ function setRoundStats(cache: roundStatsCache, stats: roundStats): void {
     cache.round = stats;
 }
 
+function statsCacheKey(round: Round) {
+    return `stats-${roundID(round)}`;
+}
+
 /**
  * Utilities
  */
@@ -128,15 +135,20 @@ function getStrokeEndFromRound(round: Round, stroke: Stroke): Coordinate {
 /**
  * Runs a full recalculation of a round 
  * @param round the round to recalculate
+ * @param cache? the prior round cache, optinoally, for an update
  * @returns {roundStatsCache}
  */
-export function calculateRoundStatsCache(round: Round, unit?: string): roundStatsCache {
+export function calculateRoundStatsCache(round: Round, cache?: roundStatsCache): roundStatsCache {
     let rstats: roundStats = defaultRoundStats();
-    const cache: roundStatsCache = {
-        round: null,
-        holes: [],
-        strokes: [],
-    };
+    if (!cache) {
+        cache = {
+            round: null,
+            holes: [],
+            strokes: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+    }
 
     // Create config entries
     const roundCourseParams = { 'name': round.course, 'id': round.courseId }
@@ -148,69 +160,74 @@ export function calculateRoundStatsCache(round: Round, unit?: string): roundStat
 
         // Within each hole, calculate strokes gained from last stroke backwards
         let holeAcc = hole.strokes.reduceRight((acc: any, stroke: Stroke) => {
-            const srnext = acc.srnext;
-            const strokeEnd = acc.strokeEnd;
-            const grid = sgGrid(
-                [stroke.start.y, stroke.start.x],
-                [stroke.aim.y, stroke.aim.x],
-                [pin.y, pin.x],
-                stroke.dispersion,
-                roundCourseParams,
-                stroke.terrain
-            );
-            const index = stroke.index;
-            const holeIndex = stroke.holeIndex;
-            const terrain = grid.properties.terrain;
-            const distanceToAim = getDistance(stroke.start, stroke.aim);
-            const distanceToPin = getDistance(stroke.start, pin);
-            const distanceToActual = getDistance(stroke.start, strokeEnd);
-            const proximityActualToAim = proximityStatsActualToAim(stroke, round, strokeEnd);
-            const proximityActualToPin = proximityStatsActualToPin(stroke, round, grid, pin);
-            const strokesRemaining = grid.properties.strokesRemainingStart;
-            const strokesGained = grid.properties.strokesRemainingStart - srnext - 1;
-            const strokesGainedPredicted = grid.properties.weightedStrokesGained;
-            const strokesGainedOverPredicted = strokesGained - strokesGainedPredicted;
-            const strokesGainedPercentile = grid.features.reduce(
-                (prior, el) => prior + (el.properties.strokesGained <= strokesGained),
-                0
-            ) / grid.features.length;
-            const bearingAim = turf.bearing(coordToPoint(stroke.start), coordToPoint(stroke.aim));
-            const bearingPin = turf.bearing(coordToPoint(stroke.start), coordToPoint(pin));
-            const bearingActual = turf.bearing(coordToPoint(stroke.start), coordToPoint(strokeEnd));
+            let stats: strokeStats = getStrokeStats(cache, stroke.holeIndex, stroke.index);
+            if (!stats || (stats.updatedAt < stroke.updatedAt)) {
+                const srnext = acc.srnext;
+                const strokeEnd = acc.strokeEnd;
+                const grid = sgGrid(
+                    [stroke.start.y, stroke.start.x],
+                    [stroke.aim.y, stroke.aim.x],
+                    [pin.y, pin.x],
+                    stroke.dispersion,
+                    roundCourseParams,
+                    stroke.terrain
+                );
+                const index = stroke.index;
+                const holeIndex = stroke.holeIndex;
+                const terrain = grid.properties.terrain;
+                const distanceToAim = getDistance(stroke.start, stroke.aim);
+                const distanceToPin = getDistance(stroke.start, pin);
+                const distanceToActual = getDistance(stroke.start, strokeEnd);
+                const proximityActualToAim = proximityStatsActualToAim(stroke, round, strokeEnd);
+                const proximityActualToPin = proximityStatsActualToPin(stroke, round, grid, pin);
+                const strokesRemaining = grid.properties.strokesRemainingStart;
+                const strokesGained = grid.properties.strokesRemainingStart - srnext - 1;
+                const strokesGainedPredicted = grid.properties.weightedStrokesGained;
+                const strokesGainedOverPredicted = strokesGained - strokesGainedPredicted;
+                const strokesGainedPercentile = grid.features.reduce(
+                    (prior, el) => prior + (el.properties.strokesGained <= strokesGained),
+                    0
+                ) / grid.features.length;
+                const bearingAim = bearing(coordToPoint(stroke.start), coordToPoint(stroke.aim));
+                const bearingPin = bearing(coordToPoint(stroke.start), coordToPoint(pin));
+                const bearingActual = bearing(coordToPoint(stroke.start), coordToPoint(strokeEnd));
 
-            const stats: strokeStats = {
-                index: index,
-                holeIndex: holeIndex,
-                club: stroke.club,
-                terrain: terrain,
-                distanceToAim: distanceToAim,
-                distanceToPin: distanceToPin,
-                distanceToActual: distanceToActual,
-                proximityActualToAim: proximityActualToAim,
-                proximityActualToPin: proximityActualToPin,
-                strokesRemaining: strokesRemaining,
-                strokesGained: strokesGained,
-                strokesGainedPredicted: strokesGainedPredicted,
-                strokesGainedOverPredicted: strokesGainedOverPredicted,
-                strokesGainedPercentile: strokesGainedPercentile,
-                bearingAim: bearingAim,
-                bearingPin: bearingPin,
-                bearingActual: bearingActual,
+                stats = {
+                    index: index,
+                    holeIndex: holeIndex,
+                    club: stroke.club,
+                    terrain: terrain,
+                    distanceToAim: distanceToAim,
+                    distanceToPin: distanceToPin,
+                    distanceToActual: distanceToActual,
+                    proximityActualToAim: proximityActualToAim,
+                    proximityActualToPin: proximityActualToPin,
+                    strokesRemaining: strokesRemaining,
+                    strokesGained: strokesGained,
+                    strokesGainedPredicted: strokesGainedPredicted,
+                    strokesGainedOverPredicted: strokesGainedOverPredicted,
+                    strokesGainedPercentile: strokesGainedPercentile,
+                    bearingAim: bearingAim,
+                    bearingPin: bearingPin,
+                    bearingActual: bearingActual,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                }
+
+                // Add strokes to respective caches
+                setStrokeStats(cache, stats);
             }
-
-            // Add strokes to respective caches
-            setStrokeStats(cache, stats);
 
             // Calculate hole stats
             if (stroke.index == 0) {
-                hstats.strokesRemaining = strokesRemaining;
-                if (hstats.par === undefined) {
-                    hstats.par = Math.round(strokesRemaining);
-                }
+                hstats.strokesRemaining = stats.strokesRemaining;
+            }
+            if ((stroke.index == 0) && (hstats.par === undefined)) {
+                hstats.par = Math.round(stats.strokesRemaining);
             }
 
             // Update acc and return
-            acc.srnext = strokesRemaining;
+            acc.srnext = stats.strokesRemaining;
             acc.strokeEnd = stroke.start;
             acc.strokes.push(stats);
             return acc;
@@ -232,6 +249,10 @@ export function calculateRoundStatsCache(round: Round, unit?: string): roundStat
         rstats.strokesRemaining += el.strokesRemaining;
     })
     setRoundStats(cache, rstats);
+
+    // Update last touch
+    touch(cache);
+
     return cache;
 }
 
@@ -362,7 +383,7 @@ function proximityStatsActualToAim(stroke: Stroke, round: Round, end?: Coordinat
     }
 }
 
-function proximityStatsActualToPin(stroke: Stroke, round: Round, grid: turf.FeatureCollection, pin?: Coordinate): proximityStats {
+function proximityStatsActualToPin(stroke: Stroke, round: Round, grid: FeatureCollection, pin?: Coordinate): proximityStats {
     if (!pin) {
         pin = getHolePinFromRound(round, stroke.holeIndex);
     }
@@ -389,7 +410,9 @@ function defaultRoundStats(filter?: string): roundStats {
         strokesGainedPredicted: 0,
         strokesGainedPercentile: 0,
         proximityPercentile: 0,
-        filter: filter ? filter : undefined
+        filter: filter ? filter : undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
     };
 }
 
@@ -402,7 +425,9 @@ function defaultHoleStats(hole: Hole): holeStats {
         strokesGained: 0,
         strokesGainedPredicted: 0,
         strokesGainedPercentile: 0,
-        proximityPercentile: 0
+        proximityPercentile: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
     }
 }
 
@@ -412,7 +437,9 @@ function defaultStrokesSummary(): strokesSummary {
         strokesGained: 0,
         strokesGainedPredicted: 0,
         strokesGainedPercentile: 0,
-        proximityPercentile: 0
+        proximityPercentile: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
     }
 }
 
@@ -484,7 +511,7 @@ export function createStatsView(stats: breakdownStats): HTMLElement {
             td.textContent = typeof value === 'number' ? value.toFixed(3) : value;
             if (headers[ix].includes('Percentile')) {
                 td.style.color = percScale(value);
-            } else if (headers[ix].includes('Strokes Gained')) {
+            } else if (headers[ix].includes('Strokes Gained') && scales[ix]) {
                 td.style.color = scales[ix](value);
             }
             row.appendChild(td);
@@ -560,13 +587,10 @@ function createStrokeStatsTable(strokes: strokeStats[]): HTMLElement {
     return table;
 }
 
-let cache: roundStatsCache;
-let breakdowns: breakdownStats;
-
 function generateView() {
-    const unit = localStorage.getItem("displayUnit") ? localStorage.getItem("displayUnit") : "yards";
+    const unit = cacheUtils.get("displayUnit") ? cacheUtils.get("displayUnit") : "yards";
     const output = document.getElementById("breakdownTables");
-    const round = JSON.parse(localStorage.getItem("golfData"));
+    const round = roundLoad();
 
     // Output round metadata
     const header = document.getElementById("roundTitle");
@@ -577,15 +601,18 @@ function generateView() {
     output.replaceChildren(prog);
 
     // Generate or load cache
-    let cache = JSON.parse(localStorage.getItem("statsCache"));
-    if (!cache) {
-        cache = calculateRoundStatsCache(round, unit);
-        localStorage.setItem("statsCache", JSON.stringify(cache));
+    const key = statsCacheKey(round);
+    let cache = cacheUtils.getJSON(key) as roundStatsCache;
+    if (!cache || !round.updatedAt || !cache.updatedAt || cache.updatedAt < round.updatedAt) {
+        cache = calculateRoundStatsCache(round);
+        cacheUtils.setJSON(key, cache);
     }
 
-    // Generate output
+    // Generate breakdowns data
     const breakdowns = calculateBreakdownStats(cache, unit);
     breakdowns.total = cache.round;
+
+    // Generate breakdown tables
     const table = createStatsView(breakdowns);
     const strokeList = createStrokeStatsTable(cache.strokes);
     output.replaceChildren(table, strokeList);

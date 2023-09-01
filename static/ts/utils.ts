@@ -36,9 +36,11 @@ export function hideError(): void {
     el.classList.add("inactive");
 }
 
-export function touch(obj: hasUpdateDates): hasUpdateDates {
-    obj.updatedAt = Date().toString();
-    return obj;
+export function touch(...objs: hasUpdateDates[]): hasUpdateDates[] {
+    for (let obj of objs) {
+        obj.updatedAt = new Date().toISOString();
+    }
+    return objs;
 }
 
 export function set(obj: hasUpdateDates, key: string, val: any): hasUpdateDates {

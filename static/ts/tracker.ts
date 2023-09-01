@@ -67,8 +67,8 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
             y: position.coords.latitude,
             crs: "EPSG:4326",
         },
-        createdAt: Date().toString(),
-        updatedAt: Date().toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         ...options
     };
     if (currentHole.pin) {
@@ -77,7 +77,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
 
     // Add the stroke to the data layer
     currentHole.strokes.push(stroke);
-    touch(currentHole);
+    touch(currentHole, round);
     currentStrokeIndex++;
 
     // Add the stroke to the view
@@ -106,7 +106,7 @@ function strokeDelete(holeIndex, strokeIndex: number) {
         currentStrokeIndex = hole.strokes.length;
 
         // Update hole
-        touch(hole);
+        touch(hole, round);
 
         // Rerender views
         holeViewDelete()
@@ -136,7 +136,7 @@ function strokeMove(holeIndex: number, strokeIndex: number, offset: number) {
     hole.strokes.forEach((stroke, index) => stroke.index = index);
 
     // Update hole
-    touch(hole);
+    touch(hole, round);
 
     // Update the map and polylines
     rerender()
@@ -172,7 +172,7 @@ function strokeDispersion(stroke: Stroke, val?: number | string): number {
     } else if (typeof (val) == "string") {
         return stroke.dispersion = formatDistanceAsNumber(val, distOpts);
     } else if (typeof (val) == "number") {
-        touch(stroke);
+        touch(stroke, getStrokeHole(stroke), round);
         return stroke.dispersion = val;
     } else {
         throw new Error("Dispersion must be set to a number or string");
@@ -188,7 +188,7 @@ function strokeAimReset(stroke: Stroke): Stroke {
     undoCreate("strokeAimReset");
     const hole = getStrokeHole(stroke);
     stroke.aim = { ...hole.pin };
-    touch(stroke);
+    touch(stroke, hole, round);
     return stroke;
 }
 
@@ -2002,7 +2002,8 @@ function handleTerrainInput() {
     const val = this.value;
     if (val == "" || val in STROKES_REMAINING_COEFFS) {
         activeStroke.terrain = val;
-        touch(activeStroke);
+        touch(activeStroke, currentHole, round);
+        saveData();
     } else {
         showError(new PositionError("Terrain type not recognized", 4));
         console.error(`Terrain type not recognized, got ${val}`);
