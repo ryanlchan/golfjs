@@ -1823,6 +1823,7 @@ function scorecardViewElement(round: Round): HTMLElement {
     // Create rows for each hole
     for (const hole of round.holes) {
         const row = document.createElement('tr');
+        row.onclick = () => holeSelect(hole.index);
 
         // Create cells for Hole Number
         const holeNumberCell = document.createElement('td');
