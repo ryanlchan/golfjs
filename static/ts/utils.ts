@@ -35,3 +35,14 @@ export function hideError(): void {
     el.innerText = "";
     el.classList.add("inactive");
 }
+
+export function touch(obj: hasUpdateDates): hasUpdateDates {
+    obj.updatedAt = Date().toString();
+    return obj;
+}
+
+export function set(obj: hasUpdateDates, key: string, val: any): hasUpdateDates {
+    obj[key] = val;
+    touch(obj);
+    return obj;
+}

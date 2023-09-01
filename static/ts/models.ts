@@ -1,3 +1,9 @@
+// Base interfaces
+interface hasUpdateDates {
+    updatedAt?: string,
+    createdAt?: string
+}
+
 // Actual models
 interface Coordinate {
     x: number,
@@ -5,7 +11,7 @@ interface Coordinate {
     crs: string
 }
 
-interface Round {
+interface Round extends hasUpdateDates {
     version?: number,
     date: string,
     course: string,
@@ -13,7 +19,7 @@ interface Round {
     holes: Hole[],
 }
 
-interface Hole {
+interface Hole extends hasUpdateDates {
     index: number,
     pin?: Coordinate,
     par?: number,
@@ -21,7 +27,7 @@ interface Hole {
     strokes: Stroke[]
 }
 
-interface Stroke {
+interface Stroke extends hasUpdateDates {
     index: number,
     holeIndex: number,
     start: Coordinate,

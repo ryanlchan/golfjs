@@ -1,4 +1,3 @@
-import * as utils from "./utils";
 import * as cache from "./cache";
 import { fetchGolfCourseData, getGolfHoleGreenCenter } from "./grids";
 import { FeatureCollection } from "geojson";

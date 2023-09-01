@@ -4,7 +4,6 @@
  */
 // Dependencies
 import * as L from "leaflet";
-import type { GeoJSONOptions } from "leaflet";
 import * as turf from "@turf/turf";
 import chroma from "chroma-js";
 import { Loader } from "@googlemaps/js-api-loader";
@@ -14,7 +13,7 @@ import "./googlemutant.js";
 import * as grids from "./grids";
 import { getDistance, formatDistance, formatDistanceAsNumber } from "./projections";
 import { PositionError } from "./errors";
-import { showError, hideError, wait } from "./utils";
+import { showError, hideError, wait, touch } from "./utils";
 import * as cache from "./cache";
 import { roundCreate, roundCourseParams } from "./rounds.js";
 
@@ -68,6 +67,8 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
             y: position.coords.latitude,
             crs: "EPSG:4326",
         },
+        createdAt: Date().toString(),
+        updatedAt: Date().toString(),
         ...options
     };
     if (currentHole.pin) {
@@ -76,6 +77,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
 
     // Add the stroke to the data layer
     currentHole.strokes.push(stroke);
+    touch(currentHole);
     currentStrokeIndex++;
 
     // Add the stroke to the view
@@ -103,6 +105,9 @@ function strokeDelete(holeIndex, strokeIndex: number) {
         // Reset stroke index
         currentStrokeIndex = hole.strokes.length;
 
+        // Update hole
+        touch(hole);
+
         // Rerender views
         holeViewDelete()
         holeViewCreate(hole)
@@ -129,6 +134,10 @@ function strokeMove(holeIndex: number, strokeIndex: number, offset: number) {
     hole.strokes.splice(strokeIndex, 1)
     hole.strokes.splice(strokeIndex + offset, 0, mover)
     hole.strokes.forEach((stroke, index) => stroke.index = index);
+
+    // Update hole
+    touch(hole);
+
     // Update the map and polylines
     rerender()
 }
@@ -163,6 +172,7 @@ function strokeDispersion(stroke: Stroke, val?: number | string): number {
     } else if (typeof (val) == "string") {
         return stroke.dispersion = formatDistanceAsNumber(val, distOpts);
     } else if (typeof (val) == "number") {
+        touch(stroke);
         return stroke.dispersion = val;
     } else {
         throw new Error("Dispersion must be set to a number or string");
@@ -178,6 +188,7 @@ function strokeAimReset(stroke: Stroke): Stroke {
     undoCreate("strokeAimReset");
     const hole = getStrokeHole(stroke);
     stroke.aim = { ...hole.pin };
+    touch(stroke);
     return stroke;
 }
 
@@ -427,7 +438,7 @@ function strokeTooltipText(stroke: Stroke) {
 /**
  * Duck type a GridOptions object that allows us to reference the grid from GeoJSON layers
  */
-interface GridOptions extends GeoJSONOptions {
+interface GridOptions extends L.GeoJSONOptions {
     grid: L.GeoJSON
 }
 
@@ -1991,6 +2002,7 @@ function handleTerrainInput() {
     const val = this.value;
     if (val == "" || val in STROKES_REMAINING_COEFFS) {
         activeStroke.terrain = val;
+        touch(activeStroke);
     } else {
         showError(new PositionError("Terrain type not recognized", 4));
         console.error(`Terrain type not recognized, got ${val}`);
