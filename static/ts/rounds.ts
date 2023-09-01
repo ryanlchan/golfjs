@@ -60,7 +60,7 @@ export function roundInitialize(round: Round): Promise<Round> {
  * After downloading polygons, update the Round with relevant data like pins and holes
  * @param {turf.FeatureCollection} courseData the polygons for this course
  */
-function roundUpdateWithData(round: Round, courseData: FeatureCollection): Round {
+export function roundUpdateWithData(round: Round, courseData: FeatureCollection): Round {
     let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
     for (let line of lines) {
         const index = parseInt(line.properties.ref) - 1;

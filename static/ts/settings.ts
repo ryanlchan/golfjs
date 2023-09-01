@@ -1,6 +1,9 @@
-import { roundDeleteArchive, roundLoad, roundLoadArchive, roundSwap } from "./rounds";
-import { parseCacheKey } from "./grids";
+import {
+    roundDeleteArchive, roundLoad, roundLoadArchive,
+    roundSwap, roundCreate, roundUpdateWithData
+} from "./rounds";
 import { getJSON, remove } from "./cache";
+import type { FeatureCollection } from "geojson";
 /**
  * Updates the round data displayed on the page.
  */
@@ -55,12 +58,17 @@ function courseListViewUpdate(): void {
     for (let i = 0; i < localStorage.length; i++) {
         let key = localStorage.key(i);
         if (!key.includes("courseData-")) continue
-        const name = key.slice(11).split("-osm-").slice(0, 1)[0];
+        const [name, id] = key.slice(11).split("-osm-");
 
         let li = document.createElement('li');
         let div = document.createElement('div');
-        div.classList.add('listCell');
+        div.classList.add('listCell', 'listCellClickable');
         div.innerText = `${name} `;
+        div.onclick = () => {
+            const round = roundCreate({ name: name, id: `osm-${id}` });
+            roundUpdateWithData(round, getJSON(key) as FeatureCollection);
+            window.location.href = "/"
+        }
 
         let controls = document.createElement('div');
         controls.classList.add("listCellControls");
