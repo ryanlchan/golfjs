@@ -153,6 +153,7 @@ function defaultRound(): Round {
         date: new Date().toISOString(),
         course: "Rancho Park Golf Course",
         holes: [defaultCurrentHole()],
+        version: 2.0
     };
 }
 

@@ -6,6 +6,7 @@ interface Coordinate {
 }
 
 interface Round {
+    version?: number,
     date: string,
     course: string,
     courseId?: string,
