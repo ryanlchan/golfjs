@@ -133,7 +133,7 @@ function getStrokeEndFromRound(round: Round, stroke: Stroke): Coordinate {
  */
 
 /**
- * Runs a full recalculation of a round 
+ * Runs a full recalculation of a round
  * @param round the round to recalculate
  * @param cache? the prior round cache, optinoally, for an update
  * @returns {roundStatsCache}
@@ -256,7 +256,7 @@ export function calculateRoundStatsCache(round: Round, cache?: roundStatsCache):
     return cache;
 }
 
-function breakdownStrokes(cache: roundStatsCache, unit?: string): any {
+function breakdownStrokes(cache: roundStatsCache, unit?: string): object {
     // Create stats breakdown caches
     let putts = [];
     let chips = [];
@@ -274,24 +274,28 @@ function breakdownStrokes(cache: roundStatsCache, unit?: string): any {
             putts.push(stroke);
         } else if (distanceToAimInUnits <= 100) {
             chips.push(stroke);
-        } else if (stroke.index == 0 && hole.par > 3) {
+        } else if (stroke.index == 0 && (hole.par && hole.par > 3)) {
             drives.push(stroke);
         } else {
             approaches.push(stroke);
         }
     });
 
-    return { putts: putts, chips: chips, approaches: approaches, drives: drives }
+    return { putts: putts, chips: chips, approaches: approaches, drives: drives, total: cache.strokes }
 }
 
-export function calculateBreakdownStats(cache: roundStatsCache, unit?: string): breakdownStats {
-    const breakdowns = breakdownStrokes(cache, unit);
-    return {
-        putts: summarizeStrokes(breakdowns.putts),
-        chips: summarizeStrokes(breakdowns.chips),
-        approaches: summarizeStrokes(breakdowns.approaches),
-        drives: summarizeStrokes(breakdowns.drives),
+/**
+ * Summarizes a group of stroke breakdowns
+ * @param {object<string, strokeStats[]>} groups an object with string keys and an array of strokeStats,
+ *  Should mimic outpt of breakdownStrokes()
+ * @returns {breakdownStats} stats summarized by keys
+ */
+export function summarizeStrokeGroups(groups: object): breakdownStats {
+    let out = {}
+    for (let [key, value] of Object.entries(groups)) {
+        out[key] = summarizeStrokes(value);
     }
+    return out as breakdownStats;
 }
 
 // Create some summarization functions
@@ -454,8 +458,7 @@ export function createStatsView(cache: roundStatsCache, unit?: string): HTMLElem
 
     // Calculate breakdowns
     const breakdowns = breakdownStrokes(cache, unit);
-    const stats = calculateBreakdownStats(cache, unit);
-    stats.total = cache.round;
+    const stats = summarizeStrokeGroups(breakdowns);
 
     // Create the table and table head
     const table = document.createElement('table');
