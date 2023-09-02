@@ -640,7 +640,7 @@ function createStrokeStatsTable(strokes: strokeStats[], unit?: string): HTMLElem
     totalStrokesGainedPercentile = totalStrokesGainedPercentile / data.length;
     totalProximityPercentile = totalProximityPercentile / data.length;
 
-    const totals = ["Total", "Total", clubCount, terrainCount,
+    const totals = ["Total", "", clubCount, terrainCount,
         formatDistance(totalDistanceToAim, distanceOptions),
         formatDistance(totalDistanceToActual, distanceOptions),
         totalStrokesGained, totalStrokesGainedPredicted,
@@ -653,8 +653,10 @@ function createStrokeStatsTable(strokes: strokeStats[], unit?: string): HTMLElem
             td.textContent = value.toFixed(3);
         } else if (typeof value === 'string') {
             td.textContent = value;
+        } else if (typeof value === 'object') {
+            td.innerHTML = explodeCounts(value);
         } else {
-            JSON.stringify(value);
+            td.textContent = JSON.stringify(value);
         }
         if (headers[ix].includes('Percentile')) {
             td.style.color = percScale(value);
@@ -668,6 +670,16 @@ function createStrokeStatsTable(strokes: strokeStats[], unit?: string): HTMLElem
     table.id = "strokeStatsTable";
 
     return table;
+}
+
+function explodeCounts(obj: object): string {
+    let out = "";
+    let counts = Object.entries(obj);
+    counts.sort((a, b) => a[1] - b[1]);
+    for (let [key, count] of counts) {
+        out = out.concat(`${count} ${key},<br/>`)
+    }
+    return out
 }
 
 function generateView() {
