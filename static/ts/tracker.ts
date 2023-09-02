@@ -1844,7 +1844,7 @@ function scorecardViewElement(round: Round): HTMLElement {
         // Create cells for Handicap, if enabled
         if (enableHandicap) {
             const handicapCell = document.createElement('td');
-            const handicap = hole.handicap
+            const handicap = hole.handicap;
             handicapCell.textContent = handicap ? handicap.toString() : "";
             row.appendChild(handicapCell);
         }

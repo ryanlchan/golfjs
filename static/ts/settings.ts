@@ -1,6 +1,6 @@
 import {
     roundDeleteArchive, roundLoad, roundLoadArchive,
-    roundSwap, roundCreate, roundUpdateWithData
+    roundSwap, roundCreate, roundUpdateWithData, roundSave
 } from "./rounds";
 import { getJSON, remove } from "./cache";
 import type { FeatureCollection } from "geojson";
@@ -67,6 +67,7 @@ function courseListViewUpdate(): void {
         div.onclick = () => {
             const round = roundCreate({ name: name, id: `osm-${id}` });
             roundUpdateWithData(round, getJSON(key) as FeatureCollection);
+            roundSwap(round);
             window.location.href = "/"
         }
 
