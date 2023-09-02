@@ -185,9 +185,9 @@ export function calculateRoundStatsCache(round: Round, cache?: roundStatsCache):
                 const strokesGainedPredicted = grid.properties.weightedStrokesGained;
                 const strokesGainedOverPredicted = strokesGained - strokesGainedPredicted;
                 const strokesGainedPercentile = grid.features.reduce(
-                    (prior, el) => prior + (el.properties.strokesGained <= strokesGained),
+                    (prior, el) => prior + (el.properties.strokesGained <= strokesGained ? el.properties.probability : 0),
                     0
-                ) / grid.features.length;
+                );
                 const bearingAim = bearing(coordToPoint(stroke.start), coordToPoint(stroke.aim));
                 const bearingPin = bearing(coordToPoint(stroke.start), coordToPoint(pin));
                 const bearingActual = bearing(coordToPoint(stroke.start), coordToPoint(strokeEnd));
