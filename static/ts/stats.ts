@@ -449,8 +449,13 @@ function defaultStrokesSummary(): strokesSummary {
  */
 
 
-export function createStatsView(stats: breakdownStats): HTMLElement {
+export function createStatsView(cache: roundStatsCache, unit?: string): HTMLElement {
     const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
+
+    // Calculate breakdowns
+    const breakdowns = breakdownStrokes(cache, unit);
+    const stats = calculateBreakdownStats(cache, unit);
+    stats.total = cache.round;
 
     // Create the table and table head
     const table = document.createElement('table');
@@ -516,9 +521,17 @@ export function createStatsView(stats: breakdownStats): HTMLElement {
             }
             row.appendChild(td);
         };
+
+        // If a user clicks a row, show only those strokes in the breakdowns
+        row.onclick = () => {
+            const strokeTable = document.getElementById("strokeStatsTable");
+            const strokeList = createStrokeStatsTable(breakdowns[values[0]]);
+            strokeTable.replaceWith(strokeList);
+        }
         tbody.appendChild(row);
     };
     table.appendChild(tbody);
+    table.id = "statsViewTable";
 
     return table;
 }
@@ -652,6 +665,7 @@ function createStrokeStatsTable(strokes: strokeStats[], unit?: string): HTMLElem
     })
     row.replaceChildren(...tds);
     tbody.appendChild(row);
+    table.id = "strokeStatsTable";
 
     return table;
 }
@@ -672,15 +686,13 @@ function generateView() {
     // Generate or load cache
     const key = statsCacheKey(round);
     let cache = cacheUtils.getJSON(key) as roundStatsCache;
-    if (!cache || !round.updatedAt || !cache.updatedAt || cache.updatedAt < round.updatedAt) {
+    if (!cache || (round.updatedAt && cache.updatedAt && cache.updatedAt < round.updatedAt)) {
         cache = calculateRoundStatsCache(round);
         cacheUtils.setJSON(key, cache);
     }
 
     // Generate breakdowns data
-    const breakdowns = calculateBreakdownStats(cache, unit);
-    breakdowns.total = cache.round;
-    const table = createStatsView(breakdowns);
+    const table = createStatsView(cache, unit);
     const strokeList = createStrokeStatsTable(cache.strokes);
     output.replaceChildren(table, strokeList);
 }
