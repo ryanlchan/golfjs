@@ -523,9 +523,10 @@ export function createStatsView(stats: breakdownStats): HTMLElement {
     return table;
 }
 
-function createStrokeStatsTable(strokes: strokeStats[]): HTMLElement {
+function createStrokeStatsTable(strokes: strokeStats[], unit?: string): HTMLElement {
     const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
     const sgScale = chroma.scale(['red', 'black', 'green']).domain([-0.5, 0, 0.3]);
+    const distanceOptions = { to_unit: unit ? unit : "yards", include_unit: false }
 
     // Create the table, table head, and table body
     const table = document.createElement('table');
@@ -536,7 +537,8 @@ function createStrokeStatsTable(strokes: strokeStats[]): HTMLElement {
 
     // Define table headers
     const headers = [
-        'Hole', 'Stroke', 'Club', 'Terrain', 'To Aim', 'Strokes Gained',
+        'Hole', 'Stroke', 'Club', 'Terrain', `To Aim (${distanceOptions.to_unit})`,
+        `To Actual  (${distanceOptions.to_unit})`, 'Strokes Gained',
         'Strokes Gained Predicted', 'Strokes Gained Percentile',
         'Proximity to Aim Percentile'
     ];
@@ -552,24 +554,55 @@ function createStrokeStatsTable(strokes: strokeStats[]): HTMLElement {
 
     // Iterate over strokes to populate tbody
     strokes = [...strokes].sort((a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index);
-    for (const stats of strokes) {
-        const row = document.createElement('tr');
 
-        // Extract desired data from the current strokeStats object
-        const data = [
+    // Extract desired data from the current strokeStats object
+    const clubCount = {};
+    const terrainCount = {};
+    let totalDistanceToAim = 0;
+    let totalDistanceToActual = 0;
+    let totalStrokesGained = 0;
+    let totalStrokesGainedPredicted = 0;
+    let totalStrokesGainedPercentile = 0;
+    let totalProximityPercentile = 0;
+
+    const data = strokes.map((stats) => {
+        if (clubCount[stats.club]) {
+            clubCount[stats.club]++;
+        } else {
+            clubCount[stats.club] = 1
+        }
+
+        if (terrainCount[stats.terrain]) {
+            terrainCount[stats.terrain]++;
+        } else {
+            terrainCount[stats.terrain] = 1
+        }
+
+        totalDistanceToAim += stats.distanceToAim;
+        totalDistanceToActual += stats.distanceToActual;
+        totalStrokesGained += stats.strokesGained;
+        totalStrokesGainedPredicted += stats.strokesGainedPredicted;
+        totalStrokesGainedPercentile += stats.strokesGainedPercentile;
+        totalProximityPercentile += stats.proximityActualToAim.proximityPercentile;
+
+        return [
             (stats.holeIndex + 1).toString(),
             (stats.index + 1).toString(),
             stats.club,
             stats.terrain,
-            stats.distanceToAim.toFixed(1),
+            formatDistance(stats.distanceToAim, distanceOptions),
+            formatDistance(stats.distanceToActual, distanceOptions),
             stats.strokesGained,
             stats.strokesGainedPredicted,
             stats.strokesGainedPercentile,
             stats.proximityActualToAim.proximityPercentile
         ];
+    })
 
-        // Populate the current row with data
-        data.forEach((value, ix) => {
+    // Populate the current row with data
+    const rows = data.map((values) => {
+        const row = document.createElement('tr');
+        const tds = values.map((value, ix) => {
             const td = document.createElement('td');
             td.textContent = typeof value === 'number' ? value.toFixed(3) : value;
             if (headers[ix].includes('Percentile')) {
@@ -577,12 +610,48 @@ function createStrokeStatsTable(strokes: strokeStats[]): HTMLElement {
             } else if (headers[ix].includes('Strokes Gained')) {
                 td.style.color = sgScale(value);
             }
-            row.appendChild(td);
-        });
+            return td;
+        })
+        row.replaceChildren(...tds);
+        return row;
+    });
 
-        // Append the current row to the tbody
-        tbody.appendChild(row);
-    }
+    // Append the current row to the tbody
+    tbody.replaceChildren(...rows);
+
+    // Add Totals row
+    totalDistanceToAim = totalDistanceToAim / data.length;
+    totalDistanceToActual = totalDistanceToActual / data.length;
+    totalStrokesGained = totalStrokesGained / data.length;
+    totalStrokesGainedPredicted = totalStrokesGainedPredicted / data.length;
+    totalStrokesGainedPercentile = totalStrokesGainedPercentile / data.length;
+    totalProximityPercentile = totalProximityPercentile / data.length;
+
+    const totals = ["Total", "Total", clubCount, terrainCount,
+        formatDistance(totalDistanceToAim, distanceOptions),
+        formatDistance(totalDistanceToActual, distanceOptions),
+        totalStrokesGained, totalStrokesGainedPredicted,
+        totalStrokesGainedPercentile, totalProximityPercentile
+    ]
+    const row = document.createElement('tr');
+    const tds = totals.map((value, ix) => {
+        const td = document.createElement('td');
+        if (typeof value === 'number') {
+            td.textContent = value.toFixed(3);
+        } else if (typeof value === 'string') {
+            td.textContent = value;
+        } else {
+            JSON.stringify(value);
+        }
+        if (headers[ix].includes('Percentile')) {
+            td.style.color = percScale(value);
+        } else if (headers[ix].includes('Strokes Gained')) {
+            td.style.color = sgScale(value);
+        }
+        return td;
+    })
+    row.replaceChildren(...tds);
+    tbody.appendChild(row);
 
     return table;
 }
@@ -611,15 +680,15 @@ function generateView() {
     // Generate breakdowns data
     const breakdowns = calculateBreakdownStats(cache, unit);
     breakdowns.total = cache.round;
-
-    // Generate breakdown tables
     const table = createStatsView(breakdowns);
     const strokeList = createStrokeStatsTable(cache.strokes);
     output.replaceChildren(table, strokeList);
 }
 
 function regenerateView() {
-    localStorage.removeItem("statsCache");
+    const round = roundLoad();
+    const key = statsCacheKey(round);
+    cacheUtils.remove(key);
     new Promise(() => generateView());
 }
 
