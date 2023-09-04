@@ -26,7 +26,7 @@ function roundListViewUpdate(): void {
         div.innerText = `${round.date} - ${round.course} `;
         div.onclick = () => {
             roundSwap(round);
-            window.location.href = "/";
+            window.location.href = import.meta.env.BASE_URL;
         }
 
         let controls = document.createElement('div');
@@ -68,7 +68,7 @@ function courseListViewUpdate(): void {
             const round = roundCreate({ name: name, id: `osm-${id}` });
             roundUpdateWithData(round, getJSON(key) as FeatureCollection);
             roundSwap(round);
-            window.location.href = "/"
+            window.location.href = import.meta.env.BASE_URL;
         }
 
         let controls = document.createElement('div');
