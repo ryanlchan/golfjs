@@ -18,7 +18,7 @@ const distanceAbbreviations = {
     miles: "mi"
 }
 
-interface formatDistanceOptions {
+export interface formatDistanceOptions {
     to_unit?: string,
     from_unit?: string,
     precision?: number,

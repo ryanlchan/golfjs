@@ -17,11 +17,11 @@ import { PositionError } from "./errors";
 import { showError, hideError, wait, touch } from "./utils";
 import * as cache from "./cache";
 import { roundCreate, roundCourseParams } from "./rounds.js";
+import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
 import flagImg from "../img/flag.png";
-import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
 
 // Variables
 let mapView: any;
