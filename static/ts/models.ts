@@ -12,6 +12,7 @@ interface Coordinate {
 }
 
 interface Round extends hasUpdateDates {
+    id?: string,
     version?: number,
     date: string,
     course: string,
@@ -20,6 +21,7 @@ interface Round extends hasUpdateDates {
 }
 
 interface Hole extends hasUpdateDates {
+    id?: string,
     index: number,
     pin?: Coordinate,
     par?: number,
@@ -28,6 +30,7 @@ interface Hole extends hasUpdateDates {
 }
 
 interface Stroke extends hasUpdateDates {
+    id?: string,
     index: number,
     holeIndex: number,
     start: Coordinate,

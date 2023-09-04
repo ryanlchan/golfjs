@@ -8,6 +8,7 @@ import * as turf from "@turf/turf";
 import chroma from "chroma-js";
 import { Loader } from "@googlemaps/js-api-loader";
 import "./googlemutant.js";
+import { typeid } from "typeid-js";
 
 // Modules
 import * as grids from "./grids";
@@ -60,6 +61,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
 
     // Create the stroke object
     const stroke: Stroke = {
+        id: typeid("stroke").toString(),
         index: currentStrokeIndex,
         holeIndex: currentHole.index,
         start: {

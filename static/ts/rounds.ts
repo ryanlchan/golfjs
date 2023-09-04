@@ -1,6 +1,7 @@
 import * as cache from "./cache";
 import { fetchGolfCourseData, getGolfHoleGreenCenter } from "./grids";
 import { FeatureCollection } from "geojson";
+import { typeid } from "typeid-js";
 
 /**
  * Save round data to localstorage
@@ -149,10 +150,13 @@ export function roundCourseParams(round: Round): Course {
  */
 function defaultRound(): Round {
     return {
+        id: typeid("round").toString(),
         date: new Date().toISOString(),
         course: "Rancho Park Golf Course",
         holes: [defaultCurrentHole()],
-        version: 2.0
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        version: 2.1
     };
 }
 
@@ -162,7 +166,10 @@ function defaultRound(): Round {
  */
 function defaultCurrentHole(): Hole {
     return {
+        id: typeid("hole").toString(),
         index: 0,
         strokes: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     };
 }
