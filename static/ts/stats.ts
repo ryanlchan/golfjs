@@ -8,26 +8,26 @@ import { roundID, roundLoad } from './rounds';
 import { touch } from './utils';
 import * as cacheUtils from "./cache";
 
-interface roundStatsCache extends hasUpdateDates {
-    round: roundStats,
-    holes: holeStats[],
-    strokes: strokeStats[]
-    breakdowns?: breakdownStats
+interface RoundStatsCache extends hasUpdateDates {
+    round: RoundStats,
+    holes: HoleStats[],
+    strokes: StrokeStats[]
+    breakdowns?: BreakdownStats
 }
 
-interface roundStats extends strokesSummary, hasUpdateDates {
+interface RoundStats extends StrokesSummary, hasUpdateDates {
     par: number,
     filter?: string,
     strokesRemaining: number
 }
 
-interface holeStats extends strokesSummary, hasUpdateDates {
+interface HoleStats extends StrokesSummary, hasUpdateDates {
     index: number,
     par: number,
     strokesRemaining: number
 }
 
-interface strokeStats extends hasUpdateDates {
+interface StrokeStats extends hasUpdateDates {
     index: number,
     holeIndex: number,
     club: string,
@@ -35,8 +35,8 @@ interface strokeStats extends hasUpdateDates {
     distanceToAim: number,
     distanceToPin: number,
     distanceToActual: number,
-    proximityActualToAim: proximityStats,
-    proximityActualToPin: proximityStats,
+    proximityActualToAim: ProximityStats,
+    proximityActualToPin: ProximityStats,
     strokesRemaining: number,
     strokesGained: number,
     strokesGainedPredicted: number,
@@ -47,7 +47,7 @@ interface strokeStats extends hasUpdateDates {
     bearingActual: number
 }
 
-interface strokesSummary extends hasUpdateDates {
+interface StrokesSummary extends hasUpdateDates {
     strokes: number,
     strokesGained: number,
     strokesGainedPredicted: number,
@@ -55,7 +55,7 @@ interface strokesSummary extends hasUpdateDates {
     proximityPercentile: number
 }
 
-interface proximityStats {
+interface ProximityStats {
     proximity: number,
     proximityCrossTrack: number,
     proximityAlongTrack: number,
@@ -64,34 +64,34 @@ interface proximityStats {
     proximityPercentileAlongTrack: number,
 }
 
-interface breakdownStats {
-    putts: strokesSummary,
-    chips: strokesSummary,
-    approaches: strokesSummary,
-    drives: strokesSummary,
-    total?: strokesSummary
+interface BreakdownStats {
+    putts: StrokesSummary,
+    chips: StrokesSummary,
+    approaches: StrokesSummary,
+    drives: StrokesSummary,
+    total?: StrokesSummary
 }
 
 /**
  * Cache operations
  */
-function getHoleStats(cache: roundStatsCache, holeIndex: number): holeStats {
+function getHoleStats(cache: RoundStatsCache, holeIndex: number): HoleStats {
     return cache.holes.filter((el) => el.index == holeIndex)[0];
 }
 
-function setHoleStats(cache: roundStatsCache, stats: holeStats): void {
+function setHoleStats(cache: RoundStatsCache, stats: HoleStats): void {
     cache.holes.push(stats);
 }
 
-function getStrokeStats(cache: roundStatsCache, holeIndex: number, strokeIndex: number): strokeStats {
+function getStrokeStats(cache: RoundStatsCache, holeIndex: number, strokeIndex: number): StrokeStats {
     return cache.strokes.filter((el) => el.index == strokeIndex && el.holeIndex == holeIndex)[0];
 }
 
-function setStrokeStats(cache: roundStatsCache, stats: strokeStats): void {
+function setStrokeStats(cache: RoundStatsCache, stats: StrokeStats): void {
     cache.strokes.push(stats);
 }
 
-function setRoundStats(cache: roundStatsCache, stats: roundStats): void {
+function setRoundStats(cache: RoundStatsCache, stats: RoundStats): void {
     cache.round = stats;
 }
 
@@ -136,10 +136,10 @@ function getStrokeEndFromRound(round: Round, stroke: Stroke): Coordinate {
  * Runs a full recalculation of a round
  * @param round the round to recalculate
  * @param cache? the prior round cache, optinoally, for an update
- * @returns {roundStatsCache}
+ * @returns {RoundStatsCache}
  */
-export function calculateRoundStatsCache(round: Round, cache?: roundStatsCache): roundStatsCache {
-    let rstats: roundStats = defaultRoundStats();
+export function calculateRoundStatsCache(round: Round, cache?: RoundStatsCache): RoundStatsCache {
+    let rstats: RoundStats = defaultRoundStats();
     if (!cache) {
         cache = {
             round: null,
@@ -156,11 +156,11 @@ export function calculateRoundStatsCache(round: Round, cache?: roundStatsCache):
     // Iterate over round holes forward, 1-18
     for (let hole of round.holes) {
         const pin = hole.pin;
-        let hstats: holeStats = defaultHoleStats(hole);
+        let hstats: HoleStats = defaultHoleStats(hole);
 
         // Within each hole, calculate strokes gained from last stroke backwards
         let holeAcc = hole.strokes.reduceRight((acc: any, stroke: Stroke) => {
-            let stats: strokeStats = getStrokeStats(cache, stroke.holeIndex, stroke.index);
+            let stats: StrokeStats = getStrokeStats(cache, stroke.holeIndex, stroke.index);
             if (!stats || (stats.updatedAt < stroke.updatedAt)) {
                 const srnext = acc.srnext;
                 const strokeEnd = acc.strokeEnd;
@@ -178,8 +178,8 @@ export function calculateRoundStatsCache(round: Round, cache?: roundStatsCache):
                 const distanceToAim = getDistance(stroke.start, stroke.aim);
                 const distanceToPin = getDistance(stroke.start, pin);
                 const distanceToActual = getDistance(stroke.start, strokeEnd);
-                const proximityActualToAim = proximityStatsActualToAim(stroke, round, strokeEnd);
-                const proximityActualToPin = proximityStatsActualToPin(stroke, round, grid, pin);
+                const proximityActualToAim = ProximityStatsActualToAim(stroke, round, strokeEnd);
+                const proximityActualToPin = ProximityStatsActualToPin(stroke, round, grid, pin);
                 const strokesRemaining = grid.properties.strokesRemainingStart;
                 const strokesGained = grid.properties.strokesRemainingStart - srnext - 1;
                 const strokesGainedPredicted = grid.properties.weightedStrokesGained;
@@ -256,7 +256,7 @@ export function calculateRoundStatsCache(round: Round, cache?: roundStatsCache):
     return cache;
 }
 
-function breakdownStrokes(cache: roundStatsCache, unit?: string): object {
+function breakdownStrokes(cache: RoundStatsCache, unit?: string): object {
     // Create stats breakdown caches
     let putts = [];
     let chips = [];
@@ -286,23 +286,28 @@ function breakdownStrokes(cache: roundStatsCache, unit?: string): object {
 
 /**
  * Summarizes a group of stroke breakdowns
- * @param {object<string, strokeStats[]>} groups an object with string keys and an array of strokeStats,
+ * @param {object<string, StrokeStats[]>} groups an object with string keys and an array of StrokeStats,
  *  Should mimic outpt of breakdownStrokes()
- * @returns {breakdownStats} stats summarized by keys
+ * @returns {BreakdownStats} stats summarized by keys
  */
-export function summarizeStrokeGroups(groups: object): breakdownStats {
+export function summarizeStrokeGroups(groups: object): BreakdownStats {
     let out = {}
     for (let [key, value] of Object.entries(groups)) {
         out[key] = summarizeStrokes(value);
     }
-    return out as breakdownStats;
+    return out as BreakdownStats;
 }
 
 // Create some summarization functions
 const sum = (list: number[]) => list.reduce((acc, el) => acc + el);
 const average = (list: number[]) => sum(list) / list.length;
 
-function summarizeStrokes(strokes: strokeStats[]): strokesSummary {
+/**
+ * Create summaries for an array of StrokeStats
+ * @param strokes an array of StrokeStats to summarize
+ * @returns {StrokesSummary} a summary cache of stats
+ */
+function summarizeStrokes(strokes: StrokeStats[]): StrokesSummary {
     if (strokes.length == 0) return
     let summary = defaultStrokesSummary();
     let strokeAcc = {
@@ -319,7 +324,7 @@ function summarizeStrokes(strokes: strokeStats[]): strokesSummary {
     }
 
     // Iterate through strokes and map relevant stats
-    strokes.forEach((el: strokeStats) => {
+    strokes.forEach((el: StrokeStats) => {
         for (let key in strokeAcc) {
             if (key == "proximityPercentile") {
                 strokeAcc[key].push(el.proximityActualToAim[key])
@@ -367,7 +372,7 @@ function xyProximities(start: Coordinate, aim: Coordinate, end: Coordinate): [nu
     return [dXt, dAim - dAt];
 }
 
-function proximityStatsActualToAim(stroke: Stroke, round: Round, end?: Coordinate): proximityStats {
+function ProximityStatsActualToAim(stroke: Stroke, round: Round, end?: Coordinate): ProximityStats {
     if (!end) {
         end = getStrokeEndFromRound(round, stroke);
     }
@@ -387,7 +392,7 @@ function proximityStatsActualToAim(stroke: Stroke, round: Round, end?: Coordinat
     }
 }
 
-function proximityStatsActualToPin(stroke: Stroke, round: Round, grid: FeatureCollection, pin?: Coordinate): proximityStats {
+function ProximityStatsActualToPin(stroke: Stroke, round: Round, grid: FeatureCollection, pin?: Coordinate): ProximityStats {
     if (!pin) {
         pin = getHolePinFromRound(round, stroke.holeIndex);
     }
@@ -405,7 +410,7 @@ function proximityStatsActualToPin(stroke: Stroke, round: Round, grid: FeatureCo
     }
 }
 
-function defaultRoundStats(filter?: string): roundStats {
+function defaultRoundStats(filter?: string): RoundStats {
     return {
         strokes: 0,
         par: 0,
@@ -420,7 +425,7 @@ function defaultRoundStats(filter?: string): roundStats {
     };
 }
 
-function defaultHoleStats(hole: Hole): holeStats {
+function defaultHoleStats(hole: Hole): HoleStats {
     return {
         index: hole.index,
         par: hole.par,
@@ -435,7 +440,7 @@ function defaultHoleStats(hole: Hole): holeStats {
     }
 }
 
-function defaultStrokesSummary(): strokesSummary {
+function defaultStrokesSummary(): StrokesSummary {
     return {
         strokes: 0,
         strokesGained: 0,
@@ -453,7 +458,7 @@ function defaultStrokesSummary(): strokesSummary {
  */
 
 
-export function createStatsView(cache: roundStatsCache, unit?: string): HTMLElement {
+export function createStatsView(cache: RoundStatsCache, unit?: string): HTMLElement {
     const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
 
     // Calculate breakdowns
@@ -527,7 +532,7 @@ export function createStatsView(cache: roundStatsCache, unit?: string): HTMLElem
 
         // If a user clicks a row, show only those strokes in the breakdowns
         row.onclick = () => {
-            const strokeTable = document.getElementById("strokeStatsTable");
+            const strokeTable = document.getElementById("StrokeStatsTable");
             const strokeList = createStrokeStatsTable(breakdowns[values[0]]);
             strokeTable.replaceWith(strokeList);
         }
@@ -539,7 +544,7 @@ export function createStatsView(cache: roundStatsCache, unit?: string): HTMLElem
     return table;
 }
 
-function createStrokeStatsTable(strokes: strokeStats[], unit?: string): HTMLElement {
+function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElement {
     const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
     const sgScale = chroma.scale(['red', 'black', 'green']).domain([-0.5, 0, 0.3]);
     const distanceOptions = { to_unit: unit ? unit : "yards", include_unit: false }
@@ -571,7 +576,7 @@ function createStrokeStatsTable(strokes: strokeStats[], unit?: string): HTMLElem
     // Iterate over strokes to populate tbody
     strokes = [...strokes].sort((a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index);
 
-    // Extract desired data from the current strokeStats object
+    // Extract desired data from the current StrokeStats object
     const clubCount = {};
     const terrainCount = {};
     let totalDistanceToAim = 0;
@@ -670,7 +675,7 @@ function createStrokeStatsTable(strokes: strokeStats[], unit?: string): HTMLElem
     })
     row.replaceChildren(...tds);
     tbody.appendChild(row);
-    table.id = "strokeStatsTable";
+    table.id = "StrokeStatsTable";
 
     return table;
 }
@@ -700,7 +705,7 @@ function generateView() {
 
     // Generate or load cache
     const key = statsCacheKey(round);
-    let cache = cacheUtils.getJSON(key) as roundStatsCache;
+    let cache = cacheUtils.getJSON(key) as RoundStatsCache;
     if (!cache || (round.updatedAt && cache.updatedAt && cache.updatedAt < round.updatedAt)) {
         cache = calculateRoundStatsCache(round);
         cacheUtils.setJSON(key, cache);
