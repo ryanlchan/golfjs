@@ -74,7 +74,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
         ...options
     };
     if (currentHole.pin) {
-        stroke.aim = { ...currentHole.pin };
+        stroke.aim = currentHole.pin;
     }
 
     // Add the stroke to the data layer
@@ -189,7 +189,7 @@ function strokeDispersion(stroke: Stroke, val?: number | string): number {
 function strokeAimReset(stroke: Stroke): Stroke {
     undoCreate("strokeAimReset");
     const hole = getStrokeHole(stroke);
-    stroke.aim = { ...hole.pin };
+    stroke.aim = hole.pin;
     touch(stroke, hole, round);
     return stroke;
 }
@@ -334,8 +334,10 @@ function strokeMarkerAimCreate() {
         return
     }
 
-    let marker = markerCreate("active_aim", activeStroke.aim);
+    let aim = { ...activeStroke.aim };
+    let marker = markerCreate("active_aim", aim);
     marker.bindTooltip(strokeMarkerAimTooltip, { permanent: true, direction: "top", offset: [-15, 0] })
+    marker.once('drag', () => activeStroke.aim = aim);
     let ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
     layerCreate("active_aim_ring", ring);
     gridCreate();
