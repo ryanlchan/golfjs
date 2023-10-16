@@ -111,6 +111,58 @@ function handleCopyToClipboardClick() {
     navigator.clipboard.writeText(document.getElementById("jsonOutput").firstElementChild.textContent);
 }
 
+function handleCodeClick(event: Event) {
+    const codeElem = event.target as HTMLElement;
+    const preElem = codeElem.parentElement as HTMLElement;
+    const textArea = document.createElement('textarea');
+
+    // Copy content from <code> to <textarea>.
+    textArea.value = codeElem.textContent || '';
+
+    // Match the width of <textarea> to <pre>.
+    const computedStyle = getComputedStyle(preElem);
+    textArea.style.width = computedStyle.width;
+
+    // Determine the appropriate height for <textarea>.
+    const preHeight = preElem.getBoundingClientRect().height;
+    const viewableHeight = window.innerHeight * 0.8;
+
+    textArea.style.height = preHeight <= viewableHeight ?
+        `${preHeight}px` :
+        `${viewableHeight}px`;
+
+    // Replace <pre> with <textarea>.
+    preElem.parentElement?.replaceChild(textArea, preElem);
+
+    // Focus the <textarea> and select all text.
+    textArea.focus();
+    textArea.select();
+
+    // Add an event listener to handle when the <textarea> loses focus.
+    textArea.addEventListener('blur', () => handleTextareaBlur(textArea, preElem, codeElem));
+}
+
+function handleTextareaBlur(textArea: HTMLTextAreaElement, preElem: HTMLElement, codeElem: HTMLElement) {
+    // Validate round
+    try {
+        const textInput = JSON.parse(textArea.value);
+        roundSave(textInput);
+    } catch (e) {
+        alert("Invalid round input, disregarding");
+        const round = roundLoad();
+        textArea.value = JSON.stringify(round, null, 2);
+    }
+
+    // Update content from <textarea> to <code>.
+    codeElem.textContent = textArea.value;
+
+    // Replace <textarea> with <pre>.
+    textArea.parentElement?.replaceChild(preElem, textArea);
+
+    // Optionally, re-add the click event listener to the <code> element.
+    codeElem.addEventListener('click', handleCodeClick);
+}
+
 function handleLoad() {
     jsonViewUpdate();
     roundListViewUpdate();
@@ -120,3 +172,4 @@ function handleLoad() {
 window.onload = handleLoad;
 document.getElementById("showRoundInfo").addEventListener('click', handleShowRoundClick);
 document.getElementById("copyToClipboard").addEventListener('click', handleCopyToClipboardClick);
+document.getElementById("jsonOutput").addEventListener('click', handleCodeClick)
