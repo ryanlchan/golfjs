@@ -399,7 +399,9 @@ function ProximityStatsActualToPin(stroke: Stroke, round: Round, grid: FeatureCo
     const end = getStrokeEndFromRound(round, stroke);
     const proximity = getDistance(end, pin);
     const [pX, pA] = xyProximities(stroke.start, pin, end);
-    const proximityPerc = grid.features.reduce((acc, el) => el.properties.distanceToHole > proximity ? acc + 1 : acc, 0) / grid.features.length;
+    const proximityPerc = grid.features.reduce(
+        (acc, el) => acc + (el.properties.distanceToHole > proximity ? el.properties.probability : 0),
+        0);
     return {
         proximity,
         proximityCrossTrack: pX,
