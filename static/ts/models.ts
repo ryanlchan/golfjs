@@ -1,5 +1,5 @@
 // Base interfaces
-interface hasUpdateDates {
+interface HasUpdateDates {
     updatedAt?: string,
     createdAt?: string
 }
@@ -11,7 +11,7 @@ interface Coordinate {
     crs: string
 }
 
-interface Round extends hasUpdateDates {
+interface Round extends HasUpdateDates {
     id?: string,
     version?: number,
     date: string,
@@ -20,7 +20,7 @@ interface Round extends hasUpdateDates {
     holes: Hole[],
 }
 
-interface Hole extends hasUpdateDates {
+interface Hole extends HasUpdateDates {
     id?: string,
     index: number,
     pin?: Coordinate,
@@ -29,7 +29,7 @@ interface Hole extends hasUpdateDates {
     strokes: Stroke[]
 }
 
-interface Stroke extends hasUpdateDates {
+interface Stroke extends HasUpdateDates {
     id?: string,
     index: number,
     holeIndex: number,

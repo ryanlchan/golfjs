@@ -8,26 +8,26 @@ import { roundID, roundLoad } from './rounds';
 import { touch } from './utils';
 import * as cacheUtils from "./cache";
 
-interface RoundStatsCache extends hasUpdateDates {
+interface RoundStatsCache extends HasUpdateDates {
     round: RoundStats,
     holes: HoleStats[],
     strokes: StrokeStats[]
     breakdowns?: BreakdownStats
 }
 
-interface RoundStats extends StrokesSummary, hasUpdateDates {
+interface RoundStats extends StrokesSummary, HasUpdateDates {
     par: number,
     filter?: string,
     strokesRemaining: number
 }
 
-interface HoleStats extends StrokesSummary, hasUpdateDates {
+interface HoleStats extends StrokesSummary, HasUpdateDates {
     index: number,
     par: number,
     strokesRemaining: number
 }
 
-interface StrokeStats extends hasUpdateDates {
+interface StrokeStats extends HasUpdateDates {
     index: number,
     holeIndex: number,
     club: string,
@@ -47,7 +47,7 @@ interface StrokeStats extends hasUpdateDates {
     bearingActual: number
 }
 
-interface StrokesSummary extends hasUpdateDates {
+interface StrokesSummary extends HasUpdateDates {
     strokes: number,
     strokesGained: number,
     strokesGainedPredicted: number,
