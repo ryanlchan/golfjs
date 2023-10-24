@@ -1199,11 +1199,11 @@ function currentCoordRead(maximumAge = 5000): Coordinate {
  * Initialize the leaflet map and satellite baselayer
  */
 function mapViewCreate(mapid) {
-    var mapContainer = document.getElementById(mapid);
+    const mapContainer = document.getElementById(mapid);
 
     // Calculate 80% of the available vertical space
-    var availableHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-    var mapHeight = 0.8 * availableHeight;
+    const availableHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+    const mapHeight = 0.8 * availableHeight;
 
     // Set the height of the container element
     mapContainer.style.height = mapHeight + 'px';
