@@ -2015,6 +2015,21 @@ function handleTerrainInput() {
     rerender("dragend");
 }
 
+function handleHoleIncrement(incr) {
+    let curHoleNum = -1;
+    if (currentHole) {
+        curHoleNum = currentHole.index;
+    }
+    curHoleNum += incr;
+
+    if (curHoleNum >= round.holes.length) {
+        curHoleNum = round.holes.length - 1;
+    } else if (curHoleNum < -1) {
+        curHoleNum = -1;
+    }
+    holeSelect(curHoleNum);
+}
+
 function showPositionError(error: PositionError) {
     let er = new Error();
     switch (error.code) {
@@ -2048,3 +2063,5 @@ document.getElementById("recenter").addEventListener("click", handleRecenterClic
 strokeMarkerAimCreateButton.addEventListener('click', handleStrokeMarkerAimCreateClick);
 document.getElementById("dispersionInput").addEventListener("change", handleDispersionInput);
 document.getElementById("terrainInput").addEventListener("change", handleTerrainInput);
+document.getElementById("holeSelectNext").addEventListener("click", () => handleHoleIncrement(1));
+document.getElementById("holeSelectBack").addEventListener("click", () => handleHoleIncrement(-1));
