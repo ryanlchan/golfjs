@@ -246,6 +246,25 @@ export function getGolfHoleGreenCenter(courseParams, holeIndex) {
 }
 
 /**
+ * Get golf terrain at a given coordinate, given a course
+ * @param {Course} courseParams the course to get terrain for
+ * @param {number[] | Point} location the location, as a WGS84 latlong coordinate
+ * @returns {string} the terrain type
+ */
+export function getGolfTerrainAt(courseParams: Course, location: (number[] | turf.Point)): string {
+    let golfCourseData = getGolfCourseData(courseParams);
+    if (golfCourseData instanceof Error) {
+        // If no data currently available, reraise error to caller
+        return;
+    }
+    let point = location;
+    if (location instanceof Array) {
+        point = turf.flip(turf.point(location));
+    }
+    return findTerrainType(point, golfCourseData);
+}
+
+/**
  * Scrub incoming geojson to conform to internal expectations
  * @param {FeatureCollection} geojson
  * @returns {FeatureCollection}
@@ -353,7 +372,7 @@ export function getGolfHoleBbox(courseParams, holeIndex) {
  * @param {FeatureCollection} [bounds] A prescrubbed collection of boundaries, optional
  * @returns {String} the terrain type
  */
-function findTerrainType(point, collection, bounds?) {
+function findTerrainType(point, collection, bounds?): string {
     if (!bounds) {
         bounds = findBoundaries(collection);
     }
@@ -520,7 +539,7 @@ function addHoleOut(hexGrid, distanceToHole, terrainType, holePoint) {
  * @param {String} terrainType the terrain type
  * @returns {Number} the number of strokes remaining
  */
-function strokesRemaining(distanceToHole, terrainType) {
+export function strokesRemaining(distanceToHole, terrainType) {
     if (!(terrainType in STROKES_REMAINING_COEFFS)) {
         console.error("No strokes remaining polynomial for terrainType" + terrainType + ", defaulting to rough");
         terrainType = "rough"

@@ -1478,10 +1478,11 @@ function aimStatsUpdate() {
     const sa = currentHole.strokes.length - stroke.index - 1;
     let srn = 0;
     if (sa > 0) {
-        let nextStart = currentHole.strokes[stroke.index + 1].start;
-        let startPoint = turf.point([nextStart.x, nextStart.y]);
-        let pinCoord = [hole.pin.x, hole.pin.y];
-        srn = grids.strokesRemainingFrom(startPoint, pinCoord, roundCourseParams(round));
+        const nextStroke = currentHole.strokes[stroke.index + 1];
+        let nextStart = nextStroke.start;
+        let nextDistance = getDistance(nextStroke.start, hole.pin);
+        let nextTerrain = nextStroke.terrain || grids.getGolfTerrainAt(roundCourseParams(round), [nextStart.y, nextStart.x]);
+        srn = grids.strokesRemaining(nextDistance, nextTerrain);
     }
     const sga = sr - srn - 1;
     stats.innerText = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
