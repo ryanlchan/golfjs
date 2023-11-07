@@ -2,8 +2,9 @@ import {
     roundDeleteArchive, roundLoad, roundLoadArchive,
     roundSwap, roundCreate, roundUpdateWithData, roundSave
 } from "./rounds";
-import { getJSON, remove } from "./cache";
+import { getJSON, remove, setJSON } from "./cache";
 import type { FeatureCollection } from "geojson";
+import { GolfClub, getUserClubs, saveUserClubs } from "./clubs";
 /**
  * Updates the round data displayed on the page.
  */
@@ -96,6 +97,54 @@ function courseListViewUpdate(): void {
     courseList.replaceChildren(...courses);
 }
 
+function addRow(tableBody: HTMLTableSectionElement, data?: GolfClub) {
+    if (!data) {
+        data = new GolfClub();
+    }
+    if (tableBody.rows.length < 14) {
+        const index = tableBody.rows.length + 1;
+        const row = tableBody.insertRow();
+        row.insertCell().innerText = index.toString();
+        row.insertCell().innerHTML = `<input type="text" value="${data.name || ""}" placeholder="Club type" /> <input type="hidden" value="${data.id}" />`;
+        row.insertCell().innerHTML = `<input type="text" value="${data.dispersion || ""}" placeholder="Dispersion in meters"/>`;
+        const deleteBtn = document.createElement('button');
+        deleteBtn.innerHTML = "&#215;";
+        deleteBtn.classList.add("linkCircleButton", "danger");
+        deleteBtn.addEventListener('click', () => deleteRow(tableBody, row.rowIndex - 1));
+        row.insertCell().appendChild(deleteBtn);
+    }
+}
+
+function deleteRow(tableBody: HTMLTableSectionElement, index) {
+    tableBody.deleteRow(index);
+    reIndexRows(tableBody);
+}
+
+function reIndexRows(tableBody: HTMLTableSectionElement) {
+    Array.from(tableBody.rows).forEach((row, index) => {
+        row.cells[0].innerText = (index + 1).toString();
+    });
+}
+
+function persistData(tableBody: HTMLTableSectionElement) {
+    const clubs = Array.from(tableBody.rows).map(row => ({
+        id: (row.cells[1].children[1] as HTMLInputElement).value,
+        name: (row.cells[1].children[0] as HTMLInputElement).value,
+        dispersion: parseFloat((row.cells[2].children[0] as HTMLInputElement).value)
+    }));
+    saveUserClubs(clubs);
+}
+
+function createClubTable(el: HTMLElement): void {
+    const clubs = getUserClubs();
+    const tableBody = el.getElementsByTagName('tbody')[0];
+    const addRowButton = el.parentElement.querySelector('#add-row-btn');
+    const saveButton = el.parentElement.querySelector('#save-btn');
+    addRowButton.addEventListener('click', () => addRow(tableBody));
+    saveButton.addEventListener('click', () => persistData(tableBody));
+    clubs.forEach(item => addRow(tableBody, item));
+}
+
 /**
  * Handles the click event for toggling the round information display.
  */
@@ -167,6 +216,7 @@ function handleLoad() {
     jsonViewUpdate();
     roundListViewUpdate();
     courseListViewUpdate();
+    createClubTable(document.getElementById('player-clubs'));
 }
 
 window.onload = handleLoad;

@@ -264,7 +264,7 @@ function breakdownStrokes(cache: RoundStatsCache, unit?: string): object {
     let drives = [];
 
     // Configurations and helpers
-    const distanceOptions = { to_unit: unit ? unit : "yds", include_unit: false }
+    const distanceOptions = { to_unit: unit || "yds", include_unit: false }
 
     cache.strokes.forEach((stroke) => {
         const distanceToAimInUnits = parseFloat(formatDistance(stroke.distanceToAim, distanceOptions));

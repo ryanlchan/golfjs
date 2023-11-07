@@ -12,7 +12,7 @@ export function set(key: string, value: any): void {
  * @param key - The key for which to retrieve the value
  * @returns The value retrieved from the cache
  */
-export function get(key: string): any | null {
+export function get(key: string): string | null {
     return localStorage.getItem(key);
 }
 

@@ -18,6 +18,7 @@ import { showError, hideError, wait, touch } from "./utils";
 import * as cache from "./cache";
 import { roundCreate, roundCourseParams } from "./rounds.js";
 import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
+import { getUsableClubs } from "./clubs.js";
 
 // Static images
 import circleMarkerImg from "../img/circle-ypad.png";
@@ -857,31 +858,6 @@ function clubStrokeCreate(position: GeolocationPositionIsh, club: Club) {
         dispersion: club.dispersion,
     }
     strokeCreate(position, options)
-}
-
-/**
- * Lookup function to get all clubs in the backend, currently static
- * @returns {Array}
- */
-function clubReadAll(): Array<any> {
-    return [
-        { id: 1, name: "D", dispersion: 39 },
-        { id: 2, name: "3w", dispersion: 35 },
-        { id: 3, name: "3h", dispersion: 28 },
-        { id: 4, name: "4i", dispersion: 23 },
-        { id: 5, name: "5i", dispersion: 21.5 },
-        { id: 6, name: "6i", dispersion: 17 },
-        { id: 7, name: "7i", dispersion: 16 },
-        { id: 8, name: "8i", dispersion: 13.5 },
-        { id: 9, name: "9i", dispersion: 11.5 },
-        { id: 10, name: "Pw", dispersion: 10 },
-        { id: 11, name: "Aw", dispersion: 7.5 },
-        { id: 12, name: "Sw", dispersion: 6 },
-        { id: 13, name: "Lw", dispersion: 5 },
-        { id: 14, name: "P", dispersion: -0.15 },
-        { id: 15, name: "Penalty", dispersion: 1, class: "danger" },
-        { id: 16, name: "Skip", dispersion: 1, class: "secondary" },
-    ]
 }
 
 /**
@@ -1954,7 +1930,7 @@ function scoreClass(relativeScore: number): string {
 function handleLoad() {
     loadRoundData().then(() => {
         mapViewCreate("mapid");
-        clubStrokeViewCreate(clubReadAll(), document.getElementById("clubStrokeCreateContainer"));
+        clubStrokeViewCreate(getUsableClubs(), document.getElementById("clubStrokeCreateContainer"));
         gridTypeSelectCreate();
         strokeTerrainSelectCreate();
         holeSelectViewCreate(<HTMLSelectElement>document.getElementById('holeSelector'));
