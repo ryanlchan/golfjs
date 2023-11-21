@@ -216,8 +216,7 @@ function strokeMarkerCreate(stroke: Stroke, options?: object) {
     const coordinate = stroke.start;
     const icon = L.icon({
         iconUrl: circleMarkerImg, // replace with the path to your flag icon
-        iconSize: [30, 45], // size of the icon
-        iconAnchor: [15, 30]
+        iconSize: [30, 30], // size of the icon
     });
     let opt = { draggable: true, opacity: .8, icon, holeIndex: stroke.holeIndex, strokeIndex: stroke.index }
     if (options !== undefined) {
@@ -230,7 +229,7 @@ function strokeMarkerCreate(stroke: Stroke, options?: object) {
     let marker = markerCreate(id, coordinate, opt);
     marker.bindTooltip(
         (function () { return strokeTooltipText(stroke) }),
-        { permanent: true, direction: "top", offset: [0, -10] })
+        { permanent: true, direction: "right", offset: [10, 0] })
     marker.on('click', strokeMarkerActivateCallback(marker));
 }
 
@@ -287,9 +286,8 @@ function strokeMarkerActivate(marker: L.Marker) {
 
     // Activate the clicked marker
     const activeIcon = L.icon({
-        iconUrl: selectedMarkerImg, // replace with the path to your flag icon
-        iconSize: [30, 45], // size of the icon
-        iconAnchor: [15, 30]
+        iconUrl: selectedMarkerImg,
+        iconSize: [30, 30],
     });
     marker.setIcon(activeIcon);
     marker.getElement().classList.add('active-marker');
@@ -322,9 +320,8 @@ function strokeMarkerDeactivate(e?) {
         let activeStrokeMarker = layerRead(strokeMarkerID(activeStroke));
         activeStrokeMarker.getElement().classList.remove('active-marker');
         const inactiveIcon = L.icon({
-            iconUrl: circleMarkerImg, // replace with the path to your flag icon
-            iconSize: [30, 45], // size of the icon
-            iconAnchor: [15, 30]
+            iconUrl: circleMarkerImg,
+            iconSize: [30, 30],
         });
         activeStrokeMarker.setIcon(inactiveIcon);
         activeStroke = null;
@@ -356,8 +353,7 @@ function strokeMarkerAimCreate() {
     let aim = { ...activeStroke.aim };
     const aimIcon = L.icon({
         iconUrl: targetImg, // replace with the path to your flag icon
-        iconSize: [30, 45], // size of the icon
-        iconAnchor: [15, 30],
+        iconSize: [30, 30], // size of the icon
         tooltipAnchor: [15, -15]
     });
     const options = {
@@ -781,7 +777,7 @@ function pinMarkerCreate(hole: Hole) {
         draggable: true,
         icon: flagIcon,
         title: String(holeIndex),
-        zIndexOffset: -10
+        zIndexOffset: -1000
     };
     const id = holePinID(hole);
     markerCreate(id, coordinate, options);
