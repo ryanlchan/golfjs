@@ -377,7 +377,7 @@ function strokeMarkerAimCreate() {
  * @returns {String}
  */
 function strokeMarkerAimTooltip(): string {
-    const distanceOptions = { to_unit: displayUnits, precision: 1, include_unit: true }
+    const distanceOptions = { to_unit: displayUnits, include_unit: true }
     const aimDistance = formatDistance(getDistance(activeStroke.start, activeStroke.aim), distanceOptions);
     const pinDistance = formatDistance(getDistance(activeStroke.aim, currentHole.pin), distanceOptions);
     let text = `${aimDistance} to aim<br> ${pinDistance} to pin`;
@@ -454,7 +454,7 @@ function strokeSgGridID(stroke: Stroke): string {
  */
 function strokeTooltipText(stroke: Stroke) {
     const club = stroke.club;
-    const distanceOptions = { to_unit: displayUnits, precision: 1, include_unit: true }
+    const distanceOptions = { to_unit: displayUnits, include_unit: true }
     const distance = formatDistance(strokeDistance(stroke), distanceOptions);
     return `${club} (${distance})`
 }

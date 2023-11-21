@@ -24,21 +24,25 @@ export interface formatDistanceOptions {
     precision?: number,
     include_unit?: boolean,
 }
-export function formatDistance(distance: number | string, options?: formatDistanceOptions): string {
+export function formatDistance(distance: number | string, options: formatDistanceOptions = {}): string {
     let opt = {
         from_unit: "meters",
         to_unit: "meters",
-        precision: 1,
         with_unit: false,
-    }
-    if (options) {
-        opt = { ...opt, ...options }
+        ...options
     }
     if (typeof (distance) == "string") {
         distance = parseFloat(distance);
     }
     const converted = distance / unitConversions[opt["from_unit"]] * unitConversions[opt["to_unit"]];
-    const trimmed = converted.toFixed(opt["precision"]);
+
+    let trimmed;
+    if (!("precision" in opt) && converted < 10) {
+        // Maintain 1 sigfig
+        trimmed = converted.toFixed(1);
+    } else {
+        trimmed = converted.toFixed(opt["precision"]);
+    }
     if (opt["include_unit"]) {
         const unit = distanceAbbreviation(options["to_unit"]);
         return trimmed + unit;
