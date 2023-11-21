@@ -4,7 +4,7 @@ import {
 } from "./rounds";
 import { getJSON, remove, setJSON } from "./cache";
 import type { FeatureCollection } from "geojson";
-import { GolfClub, getUserClubs, saveUserClubs } from "./clubs";
+import { GolfClub, getUserClubs, saveUserClubs, resetUserClubs } from "./clubs";
 /**
  * Updates the round data displayed on the page.
  */
@@ -97,7 +97,7 @@ function courseListViewUpdate(): void {
     courseList.replaceChildren(...courses);
 }
 
-function addRow(tableBody: HTMLTableSectionElement, data?: GolfClub) {
+function addClubRow(tableBody: HTMLTableSectionElement, data?: GolfClub) {
     if (!data) {
         data = new GolfClub();
     }
@@ -117,16 +117,16 @@ function addRow(tableBody: HTMLTableSectionElement, data?: GolfClub) {
 
 function deleteRow(tableBody: HTMLTableSectionElement, index) {
     tableBody.deleteRow(index);
-    reIndexRows(tableBody);
+    reindexRows(tableBody);
 }
 
-function reIndexRows(tableBody: HTMLTableSectionElement) {
+function reindexRows(tableBody: HTMLTableSectionElement) {
     Array.from(tableBody.rows).forEach((row, index) => {
         row.cells[0].innerText = (index + 1).toString();
     });
 }
 
-function persistData(tableBody: HTMLTableSectionElement) {
+function persistClubData(tableBody: HTMLTableSectionElement) {
     const clubs = Array.from(tableBody.rows).map(row => ({
         id: (row.cells[1].children[1] as HTMLInputElement).value,
         name: (row.cells[1].children[0] as HTMLInputElement).value,
@@ -135,14 +135,28 @@ function persistData(tableBody: HTMLTableSectionElement) {
     saveUserClubs(clubs);
 }
 
-function createClubTable(el: HTMLElement): void {
+function resetClubData(tableBody: HTMLTableSectionElement): void {
+    if (confirm("Are you sure you want to reset clubs to default?")) {
+        resetUserClubs();
+        clubTableViewUpdate(tableBody);
+    }
+}
+
+function clubTableViewUpdate(tableBody: HTMLTableSectionElement) {
     const clubs = getUserClubs();
+    tableBody.innerHTML = "";
+    clubs.forEach(item => addClubRow(tableBody, item));
+}
+
+function createClubTable(el: HTMLElement): void {
     const tableBody = el.getElementsByTagName('tbody')[0];
     const addRowButton = el.parentElement.querySelector('#add-row-btn');
     const saveButton = el.parentElement.querySelector('#save-btn');
-    addRowButton.addEventListener('click', () => addRow(tableBody));
-    saveButton.addEventListener('click', () => persistData(tableBody));
-    clubs.forEach(item => addRow(tableBody, item));
+    const resetButton = el.parentElement.querySelector('#reset-clubs-btn');
+    addRowButton.addEventListener('click', () => addClubRow(tableBody));
+    saveButton.addEventListener('click', () => persistClubData(tableBody));
+    resetButton.addEventListener('click', () => resetClubData(tableBody));
+    clubTableViewUpdate(tableBody);
 }
 
 /**

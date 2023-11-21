@@ -69,3 +69,7 @@ export function saveUserClubs(clubs: GolfClub[]) {
     const settings = { ...oldSettings, clubs }
     cache.setJSON("settings", settings);
 }
+
+export function resetUserClubs() {
+    saveUserClubs(getDefaultClubs());
+}
