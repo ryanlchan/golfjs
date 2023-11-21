@@ -21,7 +21,9 @@ import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
 import { getUsableClubs } from "./clubs.js";
 
 // Static images
-import circleMarkerImg from "../img/circle-ypad.png";
+import circleMarkerImg from "../img/unselected-2x.png";
+import selectedMarkerImg from "../img/selected-2x.png";
+import targetImg from "../img/targeted-2x.png";
 import flagImg from "../img/flag.png";
 
 // Variables
@@ -268,18 +270,28 @@ function strokeMarkerActivate(marker: L.Marker) {
     let opt = <any>marker.options
 
     // Set current hole to this one if missing
+    let stroke = round.holes[opt["holeIndex"]].strokes[opt["strokeIndex"]];
     if (!currentHole || !currentStrokeIndex) {
-        let stroke = round.holes[opt["holeIndex"]].strokes[opt["strokeIndex"]];
         holeSelect(opt["holeIndex"]);
         marker = layerRead(strokeMarkerID(stroke));
     }
 
     // Deactivate the currently active marker if there is one
+    let alreadySelected = activeStroke == stroke;
     if (activeStroke) {
         strokeMarkerDeactivate();
     }
+    if (alreadySelected) {
+        return
+    }
 
     // Activate the clicked marker
+    const activeIcon = L.icon({
+        iconUrl: selectedMarkerImg, // replace with the path to your flag icon
+        iconSize: [30, 45], // size of the icon
+        iconAnchor: [15, 30]
+    });
+    marker.setIcon(activeIcon);
     marker.getElement().classList.add('active-marker');
     activeStroke = currentHole.strokes[opt.strokeIndex];
 
@@ -309,6 +321,12 @@ function strokeMarkerDeactivate(e?) {
     if (activeStroke) {
         let activeStrokeMarker = layerRead(strokeMarkerID(activeStroke));
         activeStrokeMarker.getElement().classList.remove('active-marker');
+        const inactiveIcon = L.icon({
+            iconUrl: circleMarkerImg, // replace with the path to your flag icon
+            iconSize: [30, 45], // size of the icon
+            iconAnchor: [15, 30]
+        });
+        activeStrokeMarker.setIcon(inactiveIcon);
         activeStroke = null;
 
         // Hide the "Set aim" button and remove the aim marker
@@ -336,7 +354,19 @@ function strokeMarkerAimCreate() {
     }
 
     let aim = { ...activeStroke.aim };
-    let marker = markerCreate("active_aim", aim);
+    const aimIcon = L.icon({
+        iconUrl: targetImg, // replace with the path to your flag icon
+        iconSize: [30, 45], // size of the icon
+        iconAnchor: [15, 30],
+        tooltipAnchor: [15, -15]
+    });
+    const options = {
+        draggable: true,
+        icon: aimIcon,
+        title: "Aim point",
+        zIndexOffset: 1000
+    };
+    let marker = markerCreate("active_aim", aim, options);
     marker.bindTooltip(strokeMarkerAimTooltip, { permanent: true, direction: "top", offset: [-15, 0] })
     marker.once('drag', () => activeStroke.aim = aim);
     let ring = L.circle(marker.getLatLng(), { radius: activeStroke.dispersion, color: "#fff", opacity: 0.5, weight: 2 })
@@ -751,6 +781,7 @@ function pinMarkerCreate(hole: Hole) {
         draggable: true,
         icon: flagIcon,
         title: String(holeIndex),
+        zIndexOffset: -10
     };
     const id = holePinID(hole);
     markerCreate(id, coordinate, options);
