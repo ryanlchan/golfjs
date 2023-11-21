@@ -152,16 +152,8 @@ function strokeMove(holeIndex: number, strokeIndex: number, offset: number) {
  * @param {Stroke} stroke
  */
 function strokeDistance(stroke: Stroke): number {
-    let distance = 0;
-    const hole = round.holes[stroke.holeIndex]
-    const following = hole.strokes[stroke.index + 1]
-    if (following) {
-        distance = getDistance(stroke.start, following.start);
-    } else if (hole.pin) {
-        distance = getDistance(stroke.start, hole.pin);
-    }
-
-    return distance
+    const nextStart = strokeNextStart(stroke)
+    return getDistance(stroke.start, nextStart);
 }
 
 /**
@@ -177,7 +169,7 @@ function strokeDispersion(stroke: Stroke, val?: number | string): number {
     } else if (typeof (val) == "string") {
         return stroke.dispersion = formatDistanceAsNumber(val, distOpts);
     } else if (typeof (val) == "number") {
-        touch(stroke, getStrokeHole(stroke), round);
+        touch(stroke, strokeHole(stroke), round);
         return stroke.dispersion = val;
     } else {
         throw new Error("Dispersion must be set to a number or string");
@@ -191,7 +183,7 @@ function strokeDispersion(stroke: Stroke, val?: number | string): number {
  */
 function strokeAimReset(stroke: Stroke): Stroke {
     undoCreate("strokeAimReset");
-    const hole = getStrokeHole(stroke);
+    const hole = strokeHole(stroke);
     stroke.aim = hole.pin;
     touch(stroke, hole, round);
     return stroke;
@@ -202,8 +194,60 @@ function strokeAimReset(stroke: Stroke): Stroke {
  * @param stroke the stroke to get the hole for
  * @returns the hole for the stroe
  */
-function getStrokeHole(stroke: Stroke): Hole {
+function strokeHole(stroke: Stroke): Hole {
     return round.holes[stroke.holeIndex];
+}
+
+function strokeNextStroke(stroke: Stroke): Stroke {
+    let hole = strokeHole(stroke);
+    if (stroke.index == hole.strokes.length) {
+        return undefined;
+    }
+    return hole.strokes[stroke.index + 1];
+}
+
+function strokeLastStroke(stroke: Stroke): Stroke {
+    let hole = strokeHole(stroke);
+    if (stroke.index == 0) {
+        return undefined;
+    }
+    return hole.strokes[stroke.index - 1];
+}
+
+function strokeNextStart(stroke: Stroke): Coordinate {
+    let nextStroke = strokeNextStroke(stroke);
+    if (nextStroke) {
+        return nextStroke.start;
+    }
+    return strokeHole(stroke).pin;
+}
+
+function strokeLastStart(stroke: Stroke): Coordinate {
+    let lastStroke = strokeLastStroke(stroke);
+    if (lastStroke) {
+        return lastStroke.start;
+    }
+    return undefined;
+}
+
+function strokeClosestStroke(stroke: Stroke): Stroke {
+    let lastStroke = strokeLastStroke(stroke);
+    let nextStroke = strokeNextStroke(stroke);
+    if (!lastStroke && !nextStroke) {
+        return undefined
+    } else if (!lastStroke) {
+        return nextStroke;
+    } else if (!nextStroke) {
+        return lastStroke;
+    }
+
+    let lastDist = getDistance(stroke.start, lastStroke.start);
+    let nextDist = getDistance(stroke.start, nextStroke.start);
+    if (lastDist < nextDist) {
+        return lastStroke;
+    } else {
+        return nextStroke;
+    }
 }
 
 /**
@@ -227,9 +271,16 @@ function strokeMarkerCreate(stroke: Stroke, options?: object) {
     }
     let id = strokeMarkerID(stroke)
     let marker = markerCreate(id, coordinate, opt);
+    let direction: L.Direction = "right";
+    let offset: L.PointExpression = [10, 0];
+    let closestStroke = strokeClosestStroke(stroke);
+    if (closestStroke && closestStroke.start.x > stroke.start.x) {
+        direction = "left";
+        offset = [-10, 0];
+    }
     marker.bindTooltip(
         (function () { return strokeTooltipText(stroke) }),
-        { permanent: true, direction: "right", offset: [10, 0] })
+        { permanent: true, direction: direction, offset: offset })
     marker.on('click', strokeMarkerActivateCallback(marker));
 }
 
