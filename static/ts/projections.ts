@@ -37,7 +37,7 @@ export function formatDistance(distance: number | string, options: formatDistanc
     const converted = distance / unitConversions[opt["from_unit"]] * unitConversions[opt["to_unit"]];
 
     let trimmed;
-    if (!("precision" in opt) && converted < 10) {
+    if (!("precision" in opt) && Math.abs(converted) < 10) {
         // Maintain 1 sigfig
         trimmed = converted.toFixed(1);
     } else {
