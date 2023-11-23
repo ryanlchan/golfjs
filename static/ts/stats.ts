@@ -582,7 +582,9 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
         'Hole', 'Stroke', 'Club', 'Terrain', `To Aim (${distanceOptions.to_unit})`,
         `To Actual  (${distanceOptions.to_unit})`, 'SG',
         'SG Predicted', 'SG Percentile',
-        'Proximity to Aim Percentile'
+        'Proximity',
+        'Proximity Offline',
+        'Proximity Percentile'
     ];
 
     // Add table headers to the thead
@@ -637,6 +639,8 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
             stats.strokesGained,
             stats.strokesGainedPredicted,
             stats.strokesGainedPercentile,
+            formatDistance(stats.proximityActualToAim.proximity, distanceOptions),
+            formatDistance(stats.proximityActualToAim.proximityCrossTrack, distanceOptions),
             stats.proximityActualToAim.proximityPercentile
         ];
     })
