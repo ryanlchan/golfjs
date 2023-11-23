@@ -387,6 +387,13 @@ table#strokeStatsTable th:nth-child(-n+3) {
     overflow-wrap: break-word;
 }
 
+table#strokeStatsTable td:nth-child(4),
+table#strokeStatsTable th:nth-child(4) {
+    width: 6em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
 table#strokeStatsTable td:nth-child(n+5),
 table#strokeStatsTable th:nth-child(n+5) {
     width: 4em;

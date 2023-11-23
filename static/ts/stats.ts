@@ -607,19 +607,23 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
     let totalStrokesGained = 0;
     let totalStrokesGainedPredicted = 0;
     let totalStrokesGainedPercentile = 0;
+    let totalProximity = 0;
+    let totalProximityCrossTrack = 0;
     let totalProximityPercentile = 0;
 
     const data = strokes.map((stats) => {
+        let formattedTerrain = stats.terrain.replaceAll("_", " ");
+
         if (clubCount[stats.club]) {
             clubCount[stats.club]++;
         } else {
             clubCount[stats.club] = 1
         }
 
-        if (terrainCount[stats.terrain]) {
-            terrainCount[stats.terrain]++;
+        if (terrainCount[formattedTerrain]) {
+            terrainCount[formattedTerrain]++;
         } else {
-            terrainCount[stats.terrain] = 1
+            terrainCount[formattedTerrain] = 1
         }
 
         totalDistanceToAim += stats.distanceToAim;
@@ -633,7 +637,7 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
             (stats.holeIndex + 1).toString(),
             (stats.index + 1).toString(),
             stats.club,
-            stats.terrain,
+            formattedTerrain,
             formatDistance(stats.distanceToAim, distanceOptions),
             formatDistance(stats.distanceToActual, distanceOptions),
             stats.strokesGained,
