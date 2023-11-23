@@ -373,6 +373,27 @@ body.stats table {
     margin-bottom: 15px;
 }
 
+table#statsViewTable td:not(:first-child),
+table#statsViewTable th:not(:first-child) {
+    width: 4em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+table#strokeStatsTable td:nth-child(-n+3),
+table#strokeStatsTable th:nth-child(-n+3) {
+    width: 1em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+table#strokeStatsTable td:nth-child(n+5),
+table#strokeStatsTable th:nth-child(n+5) {
+    width: 4em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
 td.negative {
     color: red;
 }

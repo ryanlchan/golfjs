@@ -52,6 +52,8 @@ interface StrokesSummary extends HasUpdateDates {
     strokesGained: number,
     strokesGainedPredicted: number,
     strokesGainedPercentile: number,
+    proximity?: number,
+    proximityCrossTrack?: number,
     proximityPercentile: number
 }
 
@@ -314,19 +316,23 @@ function summarizeStrokes(strokes: StrokeStats[]): StrokesSummary {
         strokesGained: [],
         strokesGainedPredicted: [],
         strokesGainedPercentile: [],
-        proximityPercentile: []
+        proximity: [],
+        proximityCrossTrack: [],
+        proximityPercentile: [],
     }
     const summFunc = {
         strokesGained: sum,
         strokesGainedPredicted: sum,
         strokesGainedPercentile: average,
+        proximity: average,
+        proximityCrossTrack: average,
         proximityPercentile: average
     }
 
     // Iterate through strokes and map relevant stats
     strokes.forEach((el: StrokeStats) => {
         for (let key in strokeAcc) {
-            if (key == "proximityPercentile") {
+            if (key.startsWith("proximity")) {
                 strokeAcc[key].push(el.proximityActualToAim[key])
             } else {
                 strokeAcc[key].push(el[key])
@@ -474,7 +480,19 @@ export function createStatsView(cache: RoundStatsCache, unit?: string): HTMLElem
 
     // Add table headers
     const headerRow = document.createElement('tr');
-    const headers = ['Type', 'Strokes', 'Strokes Gained', 'Strokes Gained Predicted', 'Strokes Gained Percentile', 'Proximity Percentile']
+    const transforms = {
+        'Type': (type: string, stats: StrokesSummary) => type,
+        'Strokes': (type: string, stats: StrokesSummary) => stats.strokes.toString(),
+        'SG (total)': (type: string, stats: StrokesSummary) => stats.strokesGained,
+        'SG (avg)': (type: string, stats: StrokesSummary) => stats.strokesGained / stats.strokes,
+        'SG Predicted (total)': (type: string, stats: StrokesSummary) => stats.strokesGainedPredicted,
+        'SG Predicted (avg)': (type: string, stats: StrokesSummary) => stats.strokesGainedPredicted / stats.strokes,
+        'SG Percentile': (type: string, stats: StrokesSummary) => stats.strokesGainedPercentile,
+        'Proximity': (type: string, stats: StrokesSummary) => stats.proximity,
+        'Proximity Offline': (type: string, stats: StrokesSummary) => stats.proximityCrossTrack,
+        'Proximity Percentile': (type: string, stats: StrokesSummary) => stats.proximityPercentile,
+    }
+    const headers = Object.keys(transforms);
     headers.forEach(text => {
         const th = document.createElement('th');
         th.textContent = text;
@@ -487,14 +505,11 @@ export function createStatsView(cache: RoundStatsCache, unit?: string): HTMLElem
     let data = [];
     for (const [key, value] of Object.entries(stats)) {
         if (!value) continue
-        data.push([
-            key,
-            value.strokes.toString(),
-            value.strokesGained,
-            value.strokesGainedPredicted,
-            value.strokesGainedPercentile,
-            value.proximityPercentile,
-        ])
+        let row = [];
+        for (let col in transforms) {
+            row.push(transforms[col](key, value));
+        }
+        data.push(row);
     }
 
     // Create min/max scales
@@ -524,17 +539,21 @@ export function createStatsView(cache: RoundStatsCache, unit?: string): HTMLElem
         for (let [ix, value] of values.entries()) {
             const td = document.createElement('td');
             td.textContent = typeof value === 'number' ? value.toFixed(3) : value;
-            if (headers[ix].includes('Percentile')) {
+
+            if (["Type", "Strokes"].some((el) => el == headers[ix])) {
+                // Color scaling exclusions
+            } else if (headers[ix].includes('Percentile')) {
                 td.style.color = percScale(value);
-            } else if (headers[ix].includes('Strokes Gained') && scales[ix]) {
+            } else if (scales[ix]) {
                 td.style.color = scales[ix](value);
             }
+
             row.appendChild(td);
         };
 
         // If a user clicks a row, show only those strokes in the breakdowns
         row.onclick = () => {
-            const strokeTable = document.getElementById("StrokeStatsTable");
+            const strokeTable = document.getElementById("strokeStatsTable");
             const strokeList = createStrokeStatsTable(breakdowns[values[0]]);
             strokeTable.replaceWith(strokeList);
         }
@@ -561,8 +580,8 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
     // Define table headers
     const headers = [
         'Hole', 'Stroke', 'Club', 'Terrain', `To Aim (${distanceOptions.to_unit})`,
-        `To Actual  (${distanceOptions.to_unit})`, 'Strokes Gained',
-        'Strokes Gained Predicted', 'Strokes Gained Percentile',
+        `To Actual  (${distanceOptions.to_unit})`, 'SG',
+        'SG Predicted', 'SG Percentile',
         'Proximity to Aim Percentile'
     ];
 
@@ -630,7 +649,7 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
             td.textContent = typeof value === 'number' ? value.toFixed(3) : value;
             if (headers[ix].includes('Percentile')) {
                 td.style.color = percScale(value);
-            } else if (headers[ix].includes('Strokes Gained')) {
+            } else if (headers[ix].includes('SG')) {
                 td.style.color = sgScale(value);
             }
             return td;
@@ -677,7 +696,7 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
     })
     row.replaceChildren(...tds);
     tbody.appendChild(row);
-    table.id = "StrokeStatsTable";
+    table.id = "strokeStatsTable";
 
     return table;
 }
