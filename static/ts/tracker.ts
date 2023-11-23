@@ -19,6 +19,7 @@ import * as cache from "./cache";
 import { roundCreate, roundCourseParams } from "./rounds.js";
 import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
 import { getUsableClubs } from "./clubs.js";
+import { getUnitsSetting } from "./utils.js";
 
 // Static images
 import circleMarkerImg from "../img/unselected-2x.png";
@@ -37,7 +38,7 @@ let currentPosition: GeolocationPosition;
 let currentPositionEnabled: boolean;
 let holeSelector: HTMLElement;
 let activeStroke: Stroke;
-let displayUnits = "yards";
+let displayUnits = getUnitsSetting();
 
 /**
  * ===========

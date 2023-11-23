@@ -2,9 +2,12 @@ import {
     roundDeleteArchive, roundLoad, roundLoadArchive,
     roundSwap, roundCreate, roundUpdateWithData, roundSave
 } from "./rounds";
-import { getJSON, remove, setJSON } from "./cache";
+import { getJSON, remove } from "./cache";
 import type { FeatureCollection } from "geojson";
 import { GolfClub, getUserClubs, saveUserClubs, resetUserClubs } from "./clubs";
+import { formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "./projections";
+import { getUnitsSetting, setSetting } from "./utils";
+
 /**
  * Updates the round data displayed on the page.
  */
@@ -101,12 +104,13 @@ function addClubRow(tableBody: HTMLTableSectionElement, data?: GolfClub) {
     if (!data) {
         data = new GolfClub();
     }
+    const distOpts: formatDistanceOptions = { to_unit: getUnitsSetting() }
     if (tableBody.rows.length < 14) {
         const index = tableBody.rows.length + 1;
         const row = tableBody.insertRow();
         row.insertCell().innerText = index.toString();
         row.insertCell().innerHTML = `<input type="text" value="${data.name || ""}" placeholder="Club type" /> <input type="hidden" value="${data.id}" />`;
-        row.insertCell().innerHTML = `<input type="text" value="${data.dispersion || ""}" placeholder="Dispersion in meters"/>`;
+        row.insertCell().innerHTML = `<input type="text" value="${formatDistance(data.dispersion, distOpts) || ""}" placeholder="Dispersion"/>`;
         const deleteBtn = document.createElement('button');
         deleteBtn.innerHTML = "&#215;";
         deleteBtn.classList.add("linkCircleButton", "danger");
@@ -127,10 +131,11 @@ function reindexRows(tableBody: HTMLTableSectionElement) {
 }
 
 function persistClubData(tableBody: HTMLTableSectionElement) {
+    const distOpts: formatDistanceOptions = { from_unit: getUnitsSetting(), to_unit: "meters", precision: 2 }
     const clubs = Array.from(tableBody.rows).map(row => ({
         id: (row.cells[1].children[1] as HTMLInputElement).value,
         name: (row.cells[1].children[0] as HTMLInputElement).value,
-        dispersion: parseFloat((row.cells[2].children[0] as HTMLInputElement).value)
+        dispersion: formatDistanceAsNumber((row.cells[2].children[0] as HTMLInputElement).value, distOpts)
     }));
     saveUserClubs(clubs);
 }
@@ -157,6 +162,23 @@ function createClubTable(el: HTMLElement): void {
     saveButton.addEventListener('click', () => persistClubData(tableBody));
     resetButton.addEventListener('click', () => resetClubData(tableBody));
     clubTableViewUpdate(tableBody);
+}
+
+function changeUnit(unit: string): void {
+    setSetting('unit', unit);
+}
+
+function unitSelectViewUpdate() {
+    const el = document.getElementById("unitSelect");
+    const unit = getUnitsSetting();
+    for (let element of el.querySelectorAll('option')) {
+        if (element.value == unit) element.selected = true;
+    };
+}
+
+function handleUnitChange() {
+    changeUnit(this.value);
+    createClubTable(document.getElementById('player-clubs'));
 }
 
 /**
@@ -230,10 +252,12 @@ function handleLoad() {
     jsonViewUpdate();
     roundListViewUpdate();
     courseListViewUpdate();
+    unitSelectViewUpdate();
     createClubTable(document.getElementById('player-clubs'));
 }
 
 window.onload = handleLoad;
 document.getElementById("showRoundInfo").addEventListener('click', handleShowRoundClick);
 document.getElementById("copyToClipboard").addEventListener('click', handleCopyToClipboardClick);
-document.getElementById("jsonOutput").addEventListener('click', handleCodeClick)
+document.getElementById("jsonOutput").addEventListener('click', handleCodeClick);
+document.getElementById("unitSelect").addEventListener('change', handleUnitChange);

@@ -1,3 +1,5 @@
+import { getJSON, setJSON } from "./cache";
+
 /**
  * Utility to have a wait promise
  * @param ms - The number of milliseconds to wait
@@ -36,15 +38,30 @@ export function hideError(): void {
     el.classList.add("inactive");
 }
 
-export function touch(...objs: hasUpdateDates[]): hasUpdateDates[] {
+export function touch(...objs: HasUpdateDates[]): HasUpdateDates[] {
     for (let obj of objs) {
         obj.updatedAt = new Date().toISOString();
     }
     return objs;
 }
 
-export function set(obj: hasUpdateDates, key: string, val: any): hasUpdateDates {
+export function set(obj: HasUpdateDates, key: string, val: any): HasUpdateDates {
     obj[key] = val;
     touch(obj);
     return obj;
+}
+
+export function getSetting(setting: string): any {
+    let settings = getJSON('settings') || {};
+    return settings[setting];
+}
+
+export function setSetting(setting: string, value: any): void {
+    let settings = getJSON('settings') || {};
+    settings[setting] = value;
+    setJSON('settings', settings);
+}
+
+export function getUnitsSetting(): string {
+    return getSetting('unit') || "yards";
 }

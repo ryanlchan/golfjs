@@ -3,10 +3,11 @@ import { point, distance, bearing, FeatureCollection } from '@turf/turf';
 import * as chroma from "chroma-js";
 
 import { cdf, sgGrid } from './grids';
-import { coordToPoint, getDistance, formatDistance } from './projections';
+import { coordToPoint, getDistance, formatDistance, formatDistanceAsNumber } from './projections';
 import { roundID, roundLoad } from './rounds';
 import { touch } from './utils';
 import * as cacheUtils from "./cache";
+import { getUnitsSetting } from "./utils";
 
 interface RoundStatsCache extends HasUpdateDates {
     round: RoundStats,
@@ -258,7 +259,7 @@ export function calculateRoundStatsCache(round: Round, cache?: RoundStatsCache):
     return cache;
 }
 
-function breakdownStrokes(cache: RoundStatsCache, unit?: string): object {
+function breakdownStrokes(cache: RoundStatsCache): object {
     // Create stats breakdown caches
     let putts = [];
     let chips = [];
@@ -266,10 +267,10 @@ function breakdownStrokes(cache: RoundStatsCache, unit?: string): object {
     let drives = [];
 
     // Configurations and helpers
-    const distanceOptions = { to_unit: unit || "yds", include_unit: false }
+    const distanceOptions = { to_unit: getUnitsSetting(), include_unit: false }
 
     cache.strokes.forEach((stroke) => {
-        const distanceToAimInUnits = parseFloat(formatDistance(stroke.distanceToAim, distanceOptions));
+        const distanceToAimInUnits = formatDistanceAsNumber(stroke.distanceToAim, distanceOptions);
         const hole = getHoleStats(cache, stroke.holeIndex);
 
         if (stroke.club == "P" || stroke.terrain == "green") {
@@ -466,11 +467,11 @@ function defaultStrokesSummary(): StrokesSummary {
  */
 
 
-export function createStatsView(cache: RoundStatsCache, unit?: string): HTMLElement {
+export function createStatsView(cache: RoundStatsCache): HTMLElement {
     const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
 
     // Calculate breakdowns
-    const breakdowns = breakdownStrokes(cache, unit);
+    const breakdowns = breakdownStrokes(cache);
     const stats = summarizeStrokeGroups(breakdowns);
 
     // Create the table and table head
@@ -565,10 +566,10 @@ export function createStatsView(cache: RoundStatsCache, unit?: string): HTMLElem
     return table;
 }
 
-function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElement {
+function createStrokeStatsTable(strokes: StrokeStats[]): HTMLElement {
     const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
     const sgScale = chroma.scale(['red', 'black', 'green']).domain([-0.5, 0, 0.3]);
-    const distanceOptions = { to_unit: unit ? unit : "yards", include_unit: false }
+    const distanceOptions = { to_unit: getUnitsSetting(), include_unit: false }
 
     // Create the table, table head, and table body
     const table = document.createElement('table');
@@ -725,7 +726,6 @@ function explodeCounts(obj: object): string {
 }
 
 function generateView() {
-    const unit = cacheUtils.get("displayUnit") ? cacheUtils.get("displayUnit") : "yards";
     const output = document.getElementById("breakdownTables");
     const round = roundLoad();
 
@@ -746,7 +746,7 @@ function generateView() {
     }
 
     // Generate breakdowns data
-    const table = createStatsView(cache, unit);
+    const table = createStatsView(cache);
     const strokeList = createStrokeStatsTable(cache.strokes);
     output.replaceChildren(table, strokeList);
 }

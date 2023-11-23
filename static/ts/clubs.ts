@@ -1,5 +1,6 @@
 import * as cache from "./cache";
 import { typeid } from "typeid-js";
+import { getSetting, setSetting } from "./utils";
 
 export class GolfClub {
     id: string;
@@ -41,9 +42,7 @@ function getDefaultClubs(): GolfClub[] {
  * @returns {GolfClub[]} An array of all user-set golf clubs
  */
 export function getUserClubs(): GolfClub[] {
-    let settings = cache.getJSON('settings') || {};
-    let clubs = settings["clubs"];
-    return clubs || [];
+    return getSetting('clubs') || [];
 }
 
 /**
@@ -65,9 +64,7 @@ export function getUsableClubs(): GolfClub[] {
  * @param {GolfClub[]} clubs an array of golf club objects
  */
 export function saveUserClubs(clubs: GolfClub[]) {
-    const oldSettings = cache.getJSON('settings') || {};
-    const settings = { ...oldSettings, clubs }
-    cache.setJSON("settings", settings);
+    setSetting('clubs', clubs);
 }
 
 export function resetUserClubs() {
