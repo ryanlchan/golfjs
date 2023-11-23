@@ -579,8 +579,8 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
 
     // Define table headers
     const headers = [
-        'Hole', 'Stroke', 'Club', 'Terrain', `To Aim (${distanceOptions.to_unit})`,
-        `To Actual  (${distanceOptions.to_unit})`, 'SG',
+        'Hole', 'Stroke', 'Club', 'Terrain', `To Aim`,
+        `To Actual`, 'SG',
         'SG Predicted', 'SG Percentile',
         'Proximity',
         'Proximity Offline',
@@ -632,6 +632,8 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
         totalStrokesGainedPredicted += stats.strokesGainedPredicted;
         totalStrokesGainedPercentile += stats.strokesGainedPercentile;
         totalProximityPercentile += stats.proximityActualToAim.proximityPercentile;
+        totalProximity += stats.proximityActualToAim.proximity;
+        totalProximityCrossTrack += stats.proximityActualToAim.proximityCrossTrack;
 
         return [
             (stats.holeIndex + 1).toString(),
@@ -676,12 +678,15 @@ function createStrokeStatsTable(strokes: StrokeStats[], unit?: string): HTMLElem
     totalStrokesGainedPredicted = totalStrokesGainedPredicted / data.length;
     totalStrokesGainedPercentile = totalStrokesGainedPercentile / data.length;
     totalProximityPercentile = totalProximityPercentile / data.length;
+    totalProximity = totalProximity / data.length;
+    totalProximityCrossTrack = totalProximityCrossTrack / data.length;
 
     const totals = ["Total", "", clubCount, terrainCount,
         formatDistance(totalDistanceToAim, distanceOptions),
         formatDistance(totalDistanceToActual, distanceOptions),
         totalStrokesGained, totalStrokesGainedPredicted,
-        totalStrokesGainedPercentile, totalProximityPercentile
+        totalStrokesGainedPercentile, totalProximity,
+        totalProximityCrossTrack, totalProximityPercentile
     ]
     const row = document.createElement('tr');
     const tds = totals.map((value, ix) => {
