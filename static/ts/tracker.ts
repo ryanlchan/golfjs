@@ -936,6 +936,7 @@ function clubStrokeCreate(position: GeolocationPositionIsh, club: Club) {
         club: club.name,
         dispersion: club.dispersion,
     }
+    if (club.name == "Penalty") options['terrain'] = "penalty";
     strokeCreate(position, options)
 }
 
