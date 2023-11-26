@@ -3,7 +3,7 @@ import { point, distance, bearing, FeatureCollection } from '@turf/turf';
 import * as chroma from "chroma-js";
 
 import { cdf, sgGrid } from './grids';
-import { coordToPoint, getDistance, formatDistance, formatDistanceAsNumber } from './projections';
+import { coordToPoint, getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOptions } from './projections';
 import { roundID, roundLoad } from './rounds';
 import { touch } from './utils';
 import * as cacheUtils from "./cache";
@@ -45,7 +45,8 @@ interface StrokeStats extends HasUpdateDates {
     strokesGainedPercentile: number,
     bearingAim: number,
     bearingPin: number,
-    bearingActual: number
+    bearingActual: number,
+    category: string,
 }
 
 interface StrokesSummary extends HasUpdateDates {
@@ -73,6 +74,145 @@ interface BreakdownStats {
     approaches: StrokesSummary,
     drives: StrokesSummary,
     total?: StrokesSummary
+}
+
+interface GroupedStrokesSummary {
+    [index: string]: StrokesSummary
+}
+
+interface GroupedStrokeStats {
+    [index: string]: StrokeStats[];
+}
+
+function defaultRoundStats(filter?: string): RoundStats {
+    return {
+        strokes: 0,
+        par: 0,
+        strokesRemaining: 0,
+        strokesGained: 0,
+        strokesGainedPredicted: 0,
+        strokesGainedPercentile: 0,
+        proximityPercentile: 0,
+        filter: filter ? filter : undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+}
+
+function defaultHoleStats(hole: Hole): HoleStats {
+    return {
+        index: hole.index,
+        par: hole.par,
+        strokes: hole.strokes.length,
+        strokesRemaining: 0,
+        strokesGained: 0,
+        strokesGainedPredicted: 0,
+        strokesGainedPercentile: 0,
+        proximityPercentile: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    }
+}
+
+function defaultStrokesSummary(): StrokesSummary {
+    return {
+        strokes: 0,
+        strokesGained: 0,
+        strokesGainedPredicted: 0,
+        strokesGainedPercentile: 0,
+        proximityPercentile: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    }
+}
+
+class BaseFormatter {
+    column: any[];
+    domain: [number, number];
+    options: object;
+
+    constructor(column: any[], options: object = {}) {
+        this.column = column;
+        this.options = options;
+    }
+
+    // Format each row of the StatsColumn as text
+    format = (value) => {
+        if (typeof value === 'number') {
+            return value.toFixed(3);
+        } else if (typeof value === 'string') {
+            return value;
+        } else if (typeof value === 'object') {
+            return explodeCounts(value);
+        } else {
+            return JSON.stringify(value);
+        }
+    };
+
+    // Color each row of the StatsColumn, if necessary
+    color = (row) => "";
+
+    // Output row as formatted HTML TD object
+    rowToTD = (row): HTMLTableCellElement => {
+        let td = document.createElement('td');
+        td.innerHTML = this.format(row);
+        td.style.color = this.color(row);
+        return td;
+    }
+
+    // Output column as formatted HTML TD objects
+    toTDs = (): HTMLTableCellElement[] => this.column.map(this.rowToTD);
+}
+
+class StringFormatter extends BaseFormatter {
+    format = (row) => row.toString();
+}
+
+class ColorScaleFormatter extends BaseFormatter {
+    colorScale: any;
+
+    constructor(column: number[]) {
+        super(column);
+        this.domain = this.calcDomain();
+        this.colorScale = chroma.scale(['red', 'black', 'green']).domain(this.domain);
+    }
+
+    // Get the min/max values for this StatsColumn
+    calcDomain = (): [number, number] => [Math.min(...this.column), Math.max(...this.column)];
+
+    color = (row) => this.colorScale(row);
+    format = (value) => typeof value === 'number' ? value.toFixed(3) : value;
+}
+
+class InvertedColorScaleFormatter extends ColorScaleFormatter {
+    constructor(column: number[]) {
+        super(column);
+        this.colorScale = chroma.scale(['green', 'black', 'red']).domain(this.domain);
+    }
+}
+
+class PercentileScaleFormatter extends ColorScaleFormatter {
+    calcDomain = (): [number, number] => [0.2, 0.8];
+}
+
+class DistanceFormatter extends BaseFormatter {
+    distOpts: formatDistanceOptions;
+
+    constructor(column: number[]) {
+        super(column);
+        this.distOpts = { to_unit: getUnitsSetting(), include_unit: true }
+    }
+    format = (row) => formatDistance(row, this.distOpts);
+}
+
+class InvertedDistanceFormatter extends InvertedColorScaleFormatter {
+    distOpts: formatDistanceOptions;
+
+    constructor(column: number[]) {
+        super(column);
+        this.distOpts = { to_unit: getUnitsSetting(), include_unit: true }
+    }
+    format = (row) => formatDistance(row, this.distOpts);
 }
 
 /**
@@ -154,94 +294,11 @@ export function calculateRoundStatsCache(round: Round, cache?: RoundStatsCache):
     }
 
     // Create config entries
-    const roundCourseParams = { 'name': round.course, 'id': round.courseId }
+    const courseParams = { 'name': round.course, 'id': round.courseId }
 
     // Iterate over round holes forward, 1-18
     for (let hole of round.holes) {
-        const pin = hole.pin;
-        let hstats: HoleStats = defaultHoleStats(hole);
-
-        // Within each hole, calculate strokes gained from last stroke backwards
-        let holeAcc = hole.strokes.reduceRight((acc: any, stroke: Stroke) => {
-            let stats: StrokeStats = getStrokeStats(cache, stroke.holeIndex, stroke.index);
-            if (!stats || (stats.updatedAt < stroke.updatedAt)) {
-                const srnext = acc.srnext;
-                const strokeEnd = acc.strokeEnd;
-                const grid = sgGrid(
-                    [stroke.start.y, stroke.start.x],
-                    [stroke.aim.y, stroke.aim.x],
-                    [pin.y, pin.x],
-                    stroke.dispersion,
-                    roundCourseParams,
-                    stroke.terrain
-                );
-                const index = stroke.index;
-                const holeIndex = stroke.holeIndex;
-                const terrain = grid.properties.terrain;
-                const distanceToAim = getDistance(stroke.start, stroke.aim);
-                const distanceToPin = getDistance(stroke.start, pin);
-                const distanceToActual = getDistance(stroke.start, strokeEnd);
-                const proximityActualToAim = ProximityStatsActualToAim(stroke, round, strokeEnd);
-                const proximityActualToPin = ProximityStatsActualToPin(stroke, round, grid, pin);
-                const strokesRemaining = grid.properties.strokesRemainingStart;
-                const strokesGained = grid.properties.strokesRemainingStart - srnext - 1;
-                const strokesGainedPredicted = grid.properties.weightedStrokesGained;
-                const strokesGainedOverPredicted = strokesGained - strokesGainedPredicted;
-                const strokesGainedPercentile = grid.features.reduce(
-                    (prior, el) => prior + (el.properties.strokesGained <= strokesGained ? el.properties.probability : 0),
-                    0
-                );
-                const bearingAim = bearing(coordToPoint(stroke.start), coordToPoint(stroke.aim));
-                const bearingPin = bearing(coordToPoint(stroke.start), coordToPoint(pin));
-                const bearingActual = bearing(coordToPoint(stroke.start), coordToPoint(strokeEnd));
-
-                stats = {
-                    index: index,
-                    holeIndex: holeIndex,
-                    club: stroke.club,
-                    terrain: terrain,
-                    distanceToAim: distanceToAim,
-                    distanceToPin: distanceToPin,
-                    distanceToActual: distanceToActual,
-                    proximityActualToAim: proximityActualToAim,
-                    proximityActualToPin: proximityActualToPin,
-                    strokesRemaining: strokesRemaining,
-                    strokesGained: strokesGained,
-                    strokesGainedPredicted: strokesGainedPredicted,
-                    strokesGainedOverPredicted: strokesGainedOverPredicted,
-                    strokesGainedPercentile: strokesGainedPercentile,
-                    bearingAim: bearingAim,
-                    bearingPin: bearingPin,
-                    bearingActual: bearingActual,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                }
-
-                // Add strokes to respective caches
-                setStrokeStats(cache, stats);
-            }
-
-            // Calculate hole stats
-            if (stroke.index == 0) {
-                hstats.strokesRemaining = stats.strokesRemaining;
-            }
-            if ((stroke.index == 0) && (hstats.par === undefined)) {
-                hstats.par = Math.round(stats.strokesRemaining);
-            }
-
-            // Update acc and return
-            acc.srnext = stats.strokesRemaining;
-            acc.strokeEnd = stroke.start;
-            acc.strokes.push(stats);
-            return acc;
-        }, { srnext: 0, strokes: [], strokeEnd: pin });
-
-        // Calculate the rest of the hole stats
-        let hsummary = summarizeStrokes(holeAcc.strokes);
-        hstats = { ...hstats, ...hsummary };
-
-        // Add hole to cache
-        setHoleStats(cache, hstats);
+        calcHoleStats(hole, courseParams, cache);
     }
 
     // Calculate round stats after holes are all done
@@ -259,95 +316,108 @@ export function calculateRoundStatsCache(round: Round, cache?: RoundStatsCache):
     return cache;
 }
 
-function breakdownStrokes(cache: RoundStatsCache): object {
-    // Create stats breakdown caches
-    let putts = [];
-    let chips = [];
-    let approaches = [];
-    let drives = [];
+function calcHoleStats(hole: Hole, courseParams: Course, cache: RoundStatsCache) {
+    let hstats: HoleStats = defaultHoleStats(hole);
 
-    // Configurations and helpers
-    const distanceOptions = { to_unit: getUnitsSetting(), include_unit: false }
+    // Within each hole, calculate strokes gained from last stroke backwards
+    let nextStroke;
+    let priorStats = [];
+    for (let strokeIndex = hole.strokes.length - 1; strokeIndex >= 0; strokeIndex--) {
+        let stroke = hole.strokes[strokeIndex];
+        let stats = calcStrokeStats(stroke, hole, courseParams, nextStroke, priorStats.at(-1), cache);
 
-    cache.strokes.forEach((stroke) => {
-        const distanceToAimInUnits = formatDistanceAsNumber(stroke.distanceToAim, distanceOptions);
-        const hole = getHoleStats(cache, stroke.holeIndex);
-
-        if (stroke.club == "P" || stroke.terrain == "green") {
-            putts.push(stroke);
-        } else if (distanceToAimInUnits <= 100) {
-            chips.push(stroke);
-        } else if (stroke.index == 0 && (hole.par && hole.par > 3)) {
-            drives.push(stroke);
-        } else {
-            approaches.push(stroke);
+        // Calculate hole stats
+        if (stroke.index == 0) {
+            hstats.strokesRemaining = stats.strokesRemaining;
         }
-    });
+        if ((stroke.index == 0) && (hstats.par === undefined)) {
+            hstats.par = Math.round(stats.strokesRemaining);
+        }
 
-    return { putts: putts, chips: chips, approaches: approaches, drives: drives, total: cache.strokes }
+        // Update iterators/references
+        nextStroke = stroke;
+        priorStats.push(stats);
+    }
+
+    // Calculate the rest of the hole stats
+    let hsummary = summarizeStrokes(priorStats);
+    hstats = { ...hstats, ...hsummary };
+
+    // Add hole to cache
+    setHoleStats(cache, hstats);
+    return hstats;
 }
 
-/**
- * Summarizes a group of stroke breakdowns
- * @param {object<string, StrokeStats[]>} groups an object with string keys and an array of StrokeStats,
- *  Should mimic outpt of breakdownStrokes()
- * @returns {BreakdownStats} stats summarized by keys
- */
-export function summarizeStrokeGroups(groups: object): BreakdownStats {
-    let out = {}
-    for (let [key, value] of Object.entries(groups)) {
-        out[key] = summarizeStrokes(value);
+function calcStrokeStats(stroke: Stroke, hole: Hole, courseParams: Course,
+    nextStroke: Stroke, nextStats: StrokeStats, cache: RoundStatsCache): StrokeStats {
+    const pin = hole.pin;
+    let srnext = 0;
+    if (nextStats) srnext = nextStats.strokesRemaining;
+    let strokeEnd = pin;
+    if (nextStroke) strokeEnd = nextStroke.start;
+
+    const grid = sgGrid(
+        [stroke.start.y, stroke.start.x],
+        [stroke.aim.y, stroke.aim.x],
+        [pin.y, pin.x],
+        stroke.dispersion,
+        courseParams,
+        stroke.terrain
+    );
+    const index = stroke.index;
+    const holeIndex = stroke.holeIndex;
+    const terrain = grid.properties.terrain;
+    const distanceToAim = getDistance(stroke.start, stroke.aim);
+    const distanceToPin = getDistance(stroke.start, pin);
+    const distanceToActual = getDistance(stroke.start, strokeEnd);
+    const proximityActualToAim = ProximityStatsActualToAim(stroke, strokeEnd);
+    const proximityActualToPin = ProximityStatsActualToPin(stroke, strokeEnd, pin, grid);
+    const strokesRemaining = grid.properties.strokesRemainingStart;
+    const strokesGained = grid.properties.strokesRemainingStart - srnext - 1;
+    const strokesGainedPredicted = grid.properties.weightedStrokesGained;
+    const strokesGainedOverPredicted = strokesGained - strokesGainedPredicted;
+    const strokesGainedPercentile = grid.features.reduce(
+        (prior, el) => prior + (el.properties.strokesGained <= strokesGained ? el.properties.probability : 0),
+        0
+    );
+    const bearingAim = bearing(coordToPoint(stroke.start), coordToPoint(stroke.aim));
+    const bearingPin = bearing(coordToPoint(stroke.start), coordToPoint(pin));
+    const bearingActual = bearing(coordToPoint(stroke.start), coordToPoint(strokeEnd));
+    let category;
+    if (stroke.club == "P" || terrain == "green") {
+        category = "putts";
+    } else if (distanceToAim <= 90) {
+        category = "chips";
+    } else if (index == 0 && strokesRemaining > 3.4) {
+        category = "drives";
+    } else {
+        category = "approaches";
     }
-    return out as BreakdownStats;
-}
 
-// Create some summarization functions
-const sum = (list: number[]) => list.reduce((acc, el) => acc + el);
-const average = (list: number[]) => sum(list) / list.length;
-
-/**
- * Create summaries for an array of StrokeStats
- * @param strokes an array of StrokeStats to summarize
- * @returns {StrokesSummary} a summary cache of stats
- */
-function summarizeStrokes(strokes: StrokeStats[]): StrokesSummary {
-    if (strokes.length == 0) return
-    let summary = defaultStrokesSummary();
-    let strokeAcc = {
-        strokesGained: [],
-        strokesGainedPredicted: [],
-        strokesGainedPercentile: [],
-        proximity: [],
-        proximityCrossTrack: [],
-        proximityPercentile: [],
+    const stats = {
+        index: index,
+        holeIndex: holeIndex,
+        club: stroke.club,
+        terrain: terrain,
+        distanceToAim: distanceToAim,
+        distanceToPin: distanceToPin,
+        distanceToActual: distanceToActual,
+        proximityActualToAim: proximityActualToAim,
+        proximityActualToPin: proximityActualToPin,
+        strokesRemaining: strokesRemaining,
+        strokesGained: strokesGained,
+        strokesGainedPredicted: strokesGainedPredicted,
+        strokesGainedOverPredicted: strokesGainedOverPredicted,
+        strokesGainedPercentile: strokesGainedPercentile,
+        bearingAim: bearingAim,
+        bearingPin: bearingPin,
+        bearingActual: bearingActual,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        category: category
     }
-    const summFunc = {
-        strokesGained: sum,
-        strokesGainedPredicted: sum,
-        strokesGainedPercentile: average,
-        proximity: average,
-        proximityCrossTrack: average,
-        proximityPercentile: average
-    }
-
-    // Iterate through strokes and map relevant stats
-    strokes.forEach((el: StrokeStats) => {
-        for (let key in strokeAcc) {
-            if (key.startsWith("proximity")) {
-                strokeAcc[key].push(el.proximityActualToAim[key])
-            } else {
-                strokeAcc[key].push(el[key])
-            }
-        }
-    });
-
-    // Reduce into summary
-    for (let key in strokeAcc) {
-        summary[key] = summFunc[key](strokeAcc[key]);
-    }
-    summary.strokes = strokes.length;
-
-    return summary;
+    setStrokeStats(cache, stats);
+    return stats
 }
 
 function xyProximities(start: Coordinate, aim: Coordinate, end: Coordinate): [number, number] {
@@ -379,10 +449,7 @@ function xyProximities(start: Coordinate, aim: Coordinate, end: Coordinate): [nu
     return [dXt, dAim - dAt];
 }
 
-function ProximityStatsActualToAim(stroke: Stroke, round: Round, end?: Coordinate): ProximityStats {
-    if (!end) {
-        end = getStrokeEndFromRound(round, stroke);
-    }
+function ProximityStatsActualToAim(stroke: Stroke, end: Coordinate): ProximityStats {
     const proximity = getDistance(stroke.aim, end);
     const dispersion = stroke.dispersion > 0 ? stroke.dispersion : -stroke.dispersion * getDistance(stroke.aim, stroke.start);;
     const [pX, pA] = xyProximities(stroke.start, stroke.aim, end);
@@ -399,13 +466,9 @@ function ProximityStatsActualToAim(stroke: Stroke, round: Round, end?: Coordinat
     }
 }
 
-function ProximityStatsActualToPin(stroke: Stroke, round: Round, grid: FeatureCollection, pin?: Coordinate): ProximityStats {
-    if (!pin) {
-        pin = getHolePinFromRound(round, stroke.holeIndex);
-    }
-    const end = getStrokeEndFromRound(round, stroke);
-    const proximity = getDistance(end, pin);
-    const [pX, pA] = xyProximities(stroke.start, pin, end);
+function ProximityStatsActualToPin(stroke: Stroke, actual: Coordinate, pin: Coordinate, grid: FeatureCollection): ProximityStats {
+    const proximity = getDistance(actual, pin);
+    const [pX, pA] = xyProximities(stroke.start, pin, actual);
     const proximityPerc = grid.features.reduce(
         (acc, el) => acc + (el.properties.distanceToHole > proximity ? el.properties.probability : 0),
         0);
@@ -419,61 +482,170 @@ function ProximityStatsActualToPin(stroke: Stroke, round: Round, grid: FeatureCo
     }
 }
 
-function defaultRoundStats(filter?: string): RoundStats {
-    return {
-        strokes: 0,
-        par: 0,
-        strokesRemaining: 0,
-        strokesGained: 0,
-        strokesGainedPredicted: 0,
-        strokesGainedPercentile: 0,
-        proximityPercentile: 0,
-        filter: filter ? filter : undefined,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    };
+/*
+ * Summarizations
+ */
+function groupBy(list: StrokeStats[], propOrFunction: string | Function): GroupedStrokeStats {
+    let output = {};
+    let sortKeyFunc = (propOrFunction instanceof Function) ? propOrFunction : (el) => el[propOrFunction];
+    list.forEach((el) => {
+        let key = sortKeyFunc(el) || "";
+        if (!output[key]) output[key] = [];
+        output[key].push(el);
+    });
+    return output;
 }
 
-function defaultHoleStats(hole: Hole): HoleStats {
-    return {
-        index: hole.index,
-        par: hole.par,
-        strokes: hole.strokes.length,
-        strokesRemaining: 0,
-        strokesGained: 0,
-        strokesGainedPredicted: 0,
-        strokesGainedPercentile: 0,
-        proximityPercentile: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    }
+function breakdownStrokes(cache: RoundStatsCache): GroupedStrokeStats {
+    const grouped = groupBy(cache.strokes, "category");
+    return { putts: grouped.putts, chips: grouped.chips, approaches: grouped.approaches, drives: grouped.drives };
 }
 
-function defaultStrokesSummary(): StrokesSummary {
-    return {
-        strokes: 0,
-        strokesGained: 0,
-        strokesGainedPredicted: 0,
-        strokesGainedPercentile: 0,
-        proximityPercentile: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+/**
+ * Summarizes a group of stroke breakdowns
+ * @param {GroupedStrokeStats} groups an object with string keys and an array of StrokeStats,
+ *  Should mimic outpt of breakdownStrokes()
+ * @returns {GroupedStrokesSummary} stats summarized by keys
+ */
+function summarizeStrokeGroups(groups: object): GroupedStrokesSummary {
+    let out = {}
+    for (let [key, value] of Object.entries(groups)) {
+        out[key] = summarizeStrokes(value);
     }
+    return out as GroupedStrokesSummary;
+}
+
+// Create some summarization functions
+const sum = (list: number[]) => list.reduce((acc, el) => acc + el);
+const average = (list: number[]) => sum(list) / list.length;
+const count = (list: any[]) => list.length.toString();
+const countUnique = (list: any[]) => {
+    let counts = {};
+    list.forEach(el => counts[el] = 1 + (counts[el] || 0));
+    return counts;
+}
+
+const summaryMetrics = {
+    'category': {
+        header: 'Type',
+        mapFunc: (stats: StrokeStats): any => stats.category,
+        reduceFunc: countUnique,
+        formatter: BaseFormatter
+    }, 'strokes': {
+        header: 'Strokes',
+        mapFunc: (stats: StrokeStats) => 1,
+        reduceFunc: count,
+        formatter: InvertedColorScaleFormatter
+    }, 'strokesGained': {
+        header: 'SG',
+        mapFunc: (stats: StrokeStats) => stats.strokesGained,
+        reduceFunc: sum,
+        formatter: ColorScaleFormatter
+    }, 'strokesGainedAvg': {
+        header: 'SG (avg)',
+        mapFunc: (stats: StrokeStats) => stats.strokesGained,
+        reduceFunc: average,
+        formatter: ColorScaleFormatter
+    }, 'strokesGainedPredicted': {
+        header: 'SG Predicted',
+        mapFunc: (stats: StrokeStats) => stats.strokesGainedPredicted,
+        reduceFunc: sum,
+        formatter: ColorScaleFormatter
+    }, 'strokesGainedPredictedAvg': {
+        header: 'SG Predicted (avg)',
+        mapFunc: (stats: StrokeStats) => stats.strokesGainedPredicted,
+        reduceFunc: average,
+        formatter: ColorScaleFormatter
+    }, 'strokesGainedPercentile': {
+        header: 'SG Percentile',
+        mapFunc: (stats: StrokeStats) => stats.strokesGainedPercentile,
+        reduceFunc: average,
+        formatter: PercentileScaleFormatter
+    }, 'proximity': {
+        header: 'Proximity',
+        mapFunc: (stats: StrokeStats) => stats.proximityActualToAim.proximity,
+        reduceFunc: average,
+        formatter: InvertedDistanceFormatter
+    }, 'proximityCrossTrack': {
+        header: 'Proximity Offline',
+        mapFunc: (stats: StrokeStats) => stats.proximityActualToAim.proximityCrossTrack,
+        reduceFunc: average,
+        formatter: ColorScaleFormatter
+    }, 'proximityPercentile': {
+        header: 'Proximity Percentile',
+        mapFunc: (stats: StrokeStats) => stats.proximityActualToAim.proximityPercentile,
+        reduceFunc: average,
+        formatter: PercentileScaleFormatter
+    }, 'distanceToAim': {
+        header: 'To Aim',
+        mapFunc: (stats: StrokeStats) => stats.distanceToAim,
+        reduceFunc: average,
+        formatter: DistanceFormatter
+    }, 'distanceToActual': {
+        header: 'To Actual',
+        mapFunc: (stats: StrokeStats) => stats.distanceToActual,
+        reduceFunc: average,
+        formatter: DistanceFormatter
+    }, 'terrain': {
+        header: 'terrain',
+        mapFunc: (stats: StrokeStats) => stats.terrain,
+        reduceFunc: countUnique,
+        formatter: BaseFormatter
+    }, 'club': {
+        header: 'Club',
+        mapFunc: (stats: StrokeStats) => stats.club,
+        reduceFunc: countUnique,
+        formatter: BaseFormatter
+    }, 'hole': {
+        header: 'Hole',
+        mapFunc: (stats: StrokeStats) => (stats.holeIndex + 1).toString(),
+        reduceFunc: countUnique,
+        formatter: BaseFormatter
+    }, 'index': {
+        header: 'Stroke',
+        mapFunc: (stats: StrokeStats) => (stats.index + 1).toString(),
+        reduceFunc: countUnique,
+        formatter: BaseFormatter
+    },
+}
+
+/**
+ * Create summaries for an array of StrokeStats
+ * @param strokes an array of StrokeStats to summarize
+ * @returns {StrokesSummary} a summary cache of stats
+ */
+function summarizeStrokes(strokes: StrokeStats[]): StrokesSummary {
+    if (strokes.length == 0) return
+    let summary = defaultStrokesSummary();
+    for (let [name, opts] of Object.entries(summaryMetrics)) {
+        let mapped = strokes.map(opts.mapFunc);
+        let reduced = opts.reduceFunc(mapped);
+        summary[name] = reduced;
+    }
+    return summary;
+}
+
+function columnizeStrokes(strokes: StrokeStats[], metrics: string[]): any[][] {
+    return metrics.map((colID) => strokes.map(summaryMetrics[colID].mapFunc));
+}
+
+function reduceStrokeColumns(dataFrame: any[][], metrics: string[]) {
+    let output = [];
+    for (let colIx = 0; colIx < dataFrame.length; colIx++) {
+        let colID = metrics[colIx];
+        output.push(summaryMetrics[colID].reduceFunc(dataFrame));
+    }
+    return output;
 }
 
 
 /**
  * Views
  */
+const defaultStrokeStatsMetrics = ['hole', 'index', 'club', 'terrain', 'distanceToAim', 'distanceToActual', 'strokesGained', 'strokesGainedPredicted', 'strokesGainedPercentile', 'proximity', 'proximityCrossTrack', 'proximityPercentile'];
+const defaultSummaryStatsMetrics = ['strokes', 'strokesGained', 'strokesGainedAvg', 'strokesGainedPredicted', 'strokesGainedPredictedAvg', 'strokesGainedPercentile', 'proximity', 'proximityCrossTrack', 'proximityPercentile'];
 
-
-export function createStatsView(cache: RoundStatsCache): HTMLElement {
-    const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
-
-    // Calculate breakdowns
-    const breakdowns = breakdownStrokes(cache);
-    const stats = summarizeStrokeGroups(breakdowns);
-
+function createColumnTable(headers: string[], columns: HTMLTableCellElement[][]): HTMLTableElement {
     // Create the table and table head
     const table = document.createElement('table');
     const thead = document.createElement('thead');
@@ -481,237 +653,100 @@ export function createStatsView(cache: RoundStatsCache): HTMLElement {
 
     // Add table headers
     const headerRow = document.createElement('tr');
-    const transforms = {
-        'Type': (type: string, stats: StrokesSummary) => type,
-        'Strokes': (type: string, stats: StrokesSummary) => stats.strokes.toString(),
-        'SG (total)': (type: string, stats: StrokesSummary) => stats.strokesGained,
-        'SG (avg)': (type: string, stats: StrokesSummary) => stats.strokesGained / stats.strokes,
-        'SG Predicted (total)': (type: string, stats: StrokesSummary) => stats.strokesGainedPredicted,
-        'SG Predicted (avg)': (type: string, stats: StrokesSummary) => stats.strokesGainedPredicted / stats.strokes,
-        'SG Percentile': (type: string, stats: StrokesSummary) => stats.strokesGainedPercentile,
-        'Proximity': (type: string, stats: StrokesSummary) => stats.proximity,
-        'Proximity Offline': (type: string, stats: StrokesSummary) => stats.proximityCrossTrack,
-        'Proximity Percentile': (type: string, stats: StrokesSummary) => stats.proximityPercentile,
-    }
-    const headers = Object.keys(transforms);
-    headers.forEach(text => {
+    for (let header of headers) {
         const th = document.createElement('th');
-        th.textContent = text;
+        th.textContent = header;
         headerRow.appendChild(th);
-    });
+    }
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Extract data from stats
-    let data = [];
-    for (const [key, value] of Object.entries(stats)) {
-        if (!value) continue
-        let row = [];
-        for (let col in transforms) {
-            row.push(transforms[col](key, value));
-        }
-        data.push(row);
-    }
-
-    // Create min/max scales
-    let domains = [];
-    let scales = [];
-    for (let row of data) {
-        if (row[0] == "total") continue
-        for (let [ix, col] of row.entries()) {
-            if (typeof col !== 'number') continue
-            if (domains[ix] == undefined) {
-                domains[ix] = [col, col];
-            } else if (col < domains[ix][0]) {
-                domains[ix][0] = col;
-            } else if (col > domains[ix][1]) {
-                domains[ix][1] = col;
-            }
-        }
-    };
-    for (let [ix, el] of domains.entries()) {
-        if (typeof el === 'undefined') continue
-        scales[ix] = chroma.scale(['red', 'black', 'green']).domain(el);
-    };
-
-    //push to the table body
-    for (let values of data) {
+    // Pivot columns into rows and add to tbody
+    for (let rowIx = 0; rowIx < columns[0].length; rowIx++) {
         const row = document.createElement('tr');
-        for (let [ix, value] of values.entries()) {
-            const td = document.createElement('td');
-            td.textContent = typeof value === 'number' ? value.toFixed(3) : value;
-
-            if (["Type", "Strokes"].some((el) => el == headers[ix])) {
-                // Color scaling exclusions
-            } else if (headers[ix].includes('Percentile')) {
-                td.style.color = percScale(value);
-            } else if (scales[ix]) {
-                td.style.color = scales[ix](value);
-            }
-
-            row.appendChild(td);
-        };
-
-        // If a user clicks a row, show only those strokes in the breakdowns
-        row.onclick = () => {
-            const strokeTable = document.getElementById("strokeStatsTable");
-            const strokeList = createStrokeStatsTable(breakdowns[values[0]]);
-            strokeTable.replaceWith(strokeList);
+        for (let dataCol of columns) {
+            row.append(dataCol[rowIx]);
         }
         tbody.appendChild(row);
-    };
+    }
     table.appendChild(tbody);
-    table.id = "statsViewTable";
+    return table;
+}
+
+function createStatsTable(input: StrokeStats[], metrics = defaultStrokeStatsMetrics, includeTotals = true): HTMLTableElement {
+    const headers = metrics.map((col) => summaryMetrics[col]['header']);
+    let dataFrame = [];
+    for (let colID of metrics) {
+        const column = input.map(summaryMetrics[colID]['mapFunc']);
+        const formatter = new summaryMetrics[colID]['formatter'](column);
+        let tds = formatter.toTDs();
+        if (includeTotals) {
+            let total = summaryMetrics[colID]['reduceFunc'](column);
+            let td = formatter.rowToTD(total);
+            tds.push(td);
+        }
+        dataFrame.push(tds);
+    }
+    let table = createColumnTable(headers, dataFrame);
+    table.classList.add("statsTable");
+    return table;
+}
+
+function createStrokeStatsTable(strokes: StrokeStats[]): HTMLTableElement {
+    const sortedStrokes = [...strokes].sort((a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index);
+    const table = createStatsTable(sortedStrokes, defaultStrokeStatsMetrics, true);
+    table.id = "strokeStatsTable";
+    return table;
+}
+
+function createStatsTotalRow(input: StrokeStats[], metrics = defaultSummaryStatsMetrics): HTMLTableRowElement {
+    const summary = summarizeStrokes(input);
+    const column = ["Total", ...metrics.map((colID) => summary[colID])];
+    const formatter = new BaseFormatter(column);
+    const row = document.createElement('tr');
+    const tds = formatter.toTDs();
+    row.append(...tds);
+    return row;
+}
+
+export function createGroupedPivotTable(groups: GroupedStrokeStats,
+    metrics = defaultSummaryStatsMetrics) {
+    // Group and summarize input
+    let groupSummaries = summarizeStrokeGroups(groups);
+
+    let headers = ["Group", ...metrics.map((col) => summaryMetrics[col]['header'])];
+
+    // Create TD's per column
+    const groupKeys = Object.keys(groups);
+    const groupFormatter = new BaseFormatter(groupKeys);
+    let dataFrame = [groupFormatter.toTDs()];
+    for (let colID of metrics) {
+        let column = Object.values(groupSummaries).map((summary) => summary[colID]);
+        let formatter = new summaryMetrics[colID]['formatter'](column);
+        let tds = formatter.toTDs();
+        dataFrame.push(tds);
+    }
+    let table = createColumnTable(headers, dataFrame);
+    table.classList.add("statsPivotTable");
 
     return table;
 }
 
-function createStrokeStatsTable(strokes: StrokeStats[]): HTMLElement {
-    const percScale = chroma.scale(['red', 'black', 'green']).domain([0.2, 0.5, 0.8]);
-    const sgScale = chroma.scale(['red', 'black', 'green']).domain([-0.5, 0, 0.3]);
-    const distanceOptions = { to_unit: getUnitsSetting(), include_unit: false }
+function createBreakdownTable(cache: RoundStatsCache): HTMLElement {
+    const breakdowns = breakdownStrokes(cache);
+    const strokes = cache.strokes;
+    const table = createGroupedPivotTable(breakdowns);
+    const totalRow = createStatsTotalRow(strokes);
+    table.querySelector('tbody').append(totalRow);
 
-    // Create the table, table head, and table body
-    const table = document.createElement('table');
-    const thead = document.createElement('thead');
-    const tbody = document.createElement('tbody');
-    table.appendChild(thead);
-    table.appendChild(tbody);
-
-    // Define table headers
-    const headers = [
-        'Hole', 'Stroke', 'Club', 'Terrain', `To Aim`,
-        `To Actual`, 'SG',
-        'SG Predicted', 'SG Percentile',
-        'Proximity',
-        'Proximity Offline',
-        'Proximity Percentile'
-    ];
-
-    // Add table headers to the thead
-    const headerRow = document.createElement('tr');
-    headers.forEach(text => {
-        const th = document.createElement('th');
-        th.textContent = text;
-        headerRow.appendChild(th);
-    });
-    thead.appendChild(headerRow);
-
-    // Iterate over strokes to populate tbody
-    strokes = [...strokes].sort((a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index);
-
-    // Extract desired data from the current StrokeStats object
-    const clubCount = {};
-    const terrainCount = {};
-    let totalDistanceToAim = 0;
-    let totalDistanceToActual = 0;
-    let totalStrokesGained = 0;
-    let totalStrokesGainedPredicted = 0;
-    let totalStrokesGainedPercentile = 0;
-    let totalProximity = 0;
-    let totalProximityCrossTrack = 0;
-    let totalProximityPercentile = 0;
-
-    const data = strokes.map((stats) => {
-        let formattedTerrain = stats.terrain.replaceAll("_", " ");
-
-        if (clubCount[stats.club]) {
-            clubCount[stats.club]++;
-        } else {
-            clubCount[stats.club] = 1
-        }
-
-        if (terrainCount[formattedTerrain]) {
-            terrainCount[formattedTerrain]++;
-        } else {
-            terrainCount[formattedTerrain] = 1
-        }
-
-        totalDistanceToAim += stats.distanceToAim;
-        totalDistanceToActual += stats.distanceToActual;
-        totalStrokesGained += stats.strokesGained;
-        totalStrokesGainedPredicted += stats.strokesGainedPredicted;
-        totalStrokesGainedPercentile += stats.strokesGainedPercentile;
-        totalProximityPercentile += stats.proximityActualToAim.proximityPercentile;
-        totalProximity += stats.proximityActualToAim.proximity;
-        totalProximityCrossTrack += stats.proximityActualToAim.proximityCrossTrack;
-
-        return [
-            (stats.holeIndex + 1).toString(),
-            (stats.index + 1).toString(),
-            stats.club,
-            formattedTerrain,
-            formatDistance(stats.distanceToAim, distanceOptions),
-            formatDistance(stats.distanceToActual, distanceOptions),
-            stats.strokesGained,
-            stats.strokesGainedPredicted,
-            stats.strokesGainedPercentile,
-            formatDistance(stats.proximityActualToAim.proximity, distanceOptions),
-            formatDistance(stats.proximityActualToAim.proximityCrossTrack, distanceOptions),
-            stats.proximityActualToAim.proximityPercentile
-        ];
-    })
-
-    // Populate the current row with data
-    const rows = data.map((values) => {
-        const row = document.createElement('tr');
-        const tds = values.map((value, ix) => {
-            const td = document.createElement('td');
-            td.textContent = typeof value === 'number' ? value.toFixed(3) : value;
-            if (headers[ix].includes('Percentile')) {
-                td.style.color = percScale(value);
-            } else if (headers[ix].includes('SG')) {
-                td.style.color = sgScale(value);
-            }
-            return td;
-        })
-        row.replaceChildren(...tds);
-        return row;
-    });
-
-    // Append the current row to the tbody
-    tbody.replaceChildren(...rows);
-
-    // Add Totals row
-    totalDistanceToAim = totalDistanceToAim / data.length;
-    totalDistanceToActual = totalDistanceToActual / data.length;
-    totalStrokesGained = totalStrokesGained / data.length;
-    totalStrokesGainedPredicted = totalStrokesGainedPredicted / data.length;
-    totalStrokesGainedPercentile = totalStrokesGainedPercentile / data.length;
-    totalProximityPercentile = totalProximityPercentile / data.length;
-    totalProximity = totalProximity / data.length;
-    totalProximityCrossTrack = totalProximityCrossTrack / data.length;
-
-    const totals = ["Total", "", clubCount, terrainCount,
-        formatDistance(totalDistanceToAim, distanceOptions),
-        formatDistance(totalDistanceToActual, distanceOptions),
-        totalStrokesGained, totalStrokesGainedPredicted,
-        totalStrokesGainedPercentile, totalProximity,
-        totalProximityCrossTrack, totalProximityPercentile
-    ]
-    const row = document.createElement('tr');
-    const tds = totals.map((value, ix) => {
-        const td = document.createElement('td');
-        if (typeof value === 'number') {
-            td.textContent = value.toFixed(3);
-        } else if (typeof value === 'string') {
-            td.textContent = value;
-        } else if (typeof value === 'object') {
-            td.innerHTML = explodeCounts(value);
-        } else {
-            td.textContent = JSON.stringify(value);
-        }
-        if (headers[ix].includes('Percentile')) {
-            td.style.color = percScale(value);
-        } else if (headers[ix].includes('Strokes Gained')) {
-            td.style.color = sgScale(value);
-        }
-        return td;
-    })
-    row.replaceChildren(...tds);
-    tbody.appendChild(row);
-    table.id = "strokeStatsTable";
-
+    // If a user clicks a row, show only those strokes in the breakdowns
+    let trs = table.querySelectorAll('tbody tr');
+    for (let rowIx = 0; rowIx < trs.length; rowIx++) {
+        let row = trs[rowIx] as HTMLTableRowElement;
+        const strokeList = createStrokeStatsTable(Object.values(breakdowns)[rowIx] || strokes);
+        row.onclick = () => document.getElementById("strokeStatsTable").replaceWith(strokeList);
+    }
+    table.id = "statsViewTable";
     return table;
 }
 
@@ -720,7 +755,7 @@ function explodeCounts(obj: object): string {
     let counts = Object.entries(obj);
     counts.sort((a, b) => a[1] - b[1]);
     for (let [key, count] of counts) {
-        out = out.concat(`${count} ${key},<br/>`)
+        out = out.concat(`${key}: ${count},<br/>`)
     }
     return out
 }
@@ -746,7 +781,7 @@ function generateView() {
     }
 
     // Generate breakdowns data
-    const table = createStatsView(cache);
+    const table = createBreakdownTable(cache);
     const strokeList = createStrokeStatsTable(cache.strokes);
     output.replaceChildren(table, strokeList);
 }
