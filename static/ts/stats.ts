@@ -748,7 +748,8 @@ function createGroupedPivotTable(input: StrokeStats[], groupByPropOrFunction: st
     table.classList.add("statsPivotTable", "statsTable");
 
     if (options.includeTotals) {
-        const totals = reduceStrokeColumns(columns, metrics);
+        const totalColumns = columnizeStrokes(input, metrics);
+        const totals = reduceStrokeColumns(totalColumns, metrics);
         const totalRow = document.createElement('tr');
         const rowHeader = document.createElement('td');
         rowHeader.textContent = 'Totals';
