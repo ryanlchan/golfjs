@@ -689,35 +689,39 @@ function createColumnTable(headers: string[], columns: HTMLTableCellElement[][])
     // Pivot columns into rows and add to tbody
     for (let rowIx = 0; rowIx < columns[0].length; rowIx++) {
         const row = document.createElement('tr');
-        for (let dataCol of columns) {
-            row.append(dataCol[rowIx]);
-        }
+        row.append(...columns.map((col) => col[rowIx]));
         tbody.appendChild(row);
     }
     table.appendChild(tbody);
     return table;
 }
 
-function createStatsTable(input: StrokeStats[], metrics = defaultStrokeStatsMetrics, includeTotals = true): HTMLTableElement {
+interface StatsTableMetrics { metrics: string[], sortBy: (a, b) => number, includeTotals: boolean }
+function createStatsTable(input: StrokeStats[], options?: StatsTableMetrics): HTMLTableElement {
+    options = {
+        metrics: defaultStrokeStatsMetrics, sortBy: (a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index, includeTotals: true,
+        ...options
+    }
+    const metrics = options.metrics;
     const headers = metrics.map((col) => summaryMetrics[col]['header']);
     const columns = columnizeStrokes(input, metrics);
     const formatters = metrics.map((colId, colIx) => new summaryMetrics[colId]['formatter'](columns[colIx], { class: colId }));
     const dataFrame = formatters.map((formatter) => formatter.toTDs());
     const table = createColumnTable(headers, dataFrame);
-    if (includeTotals) {
+    table.classList.add("statsTable");
+
+    if (options.includeTotals) {
         const totals = reduceStrokeColumns(columns, metrics);
         const totalRow = document.createElement('tr');
         totalRow.append(...formatters.map((formatter, colIx) => formatter.rowToTD(totals[colIx])));
         totalRow.classList.add('totals');
         table.querySelector('tbody').append(totalRow);
     }
-    table.classList.add("statsTable");
     return table;
 }
 
-function createStrokeStatsTable(strokes: StrokeStats[]): HTMLTableElement {
-    const sortedStrokes = [...strokes].sort((a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index);
-    const table = createStatsTable(sortedStrokes, defaultStrokeStatsMetrics, true);
+function createSortedStatsTable(strokes: StrokeStats[]): HTMLTableElement {
+    const table = createStatsTable(strokes);
     table.id = "strokeStatsTable";
     return table;
 }
@@ -764,7 +768,7 @@ function createGroupedPivotTable(input: StrokeStats[], groupByPropOrFunction: st
         let expansions = groupKeys.map((key) => groups[key]);
         if (options.includeTotals) expansions.push(input);
         trs.forEach((row: HTMLElement, rowIx: number) => {
-            row.onclick = () => handleExpansionRowClick(row, createStrokeStatsTable(expansions[rowIx]));
+            row.onclick = () => handleExpansionRowClick(row, createSortedStatsTable(expansions[rowIx]));
         })
     }
     return table;
