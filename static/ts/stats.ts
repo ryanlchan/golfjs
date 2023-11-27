@@ -784,8 +784,8 @@ function createHoleTable(cache: RoundStatsCache): HTMLElement {
 }
 
 function handleExpansionRowClick(row: HTMLElement, table: HTMLElement) {
+    hideExpansionTable();
     if (row.classList.contains('selected')) {
-        hideExpansionTable();
         row.classList.remove('selected');
         return
     }
@@ -809,8 +809,8 @@ function showExpansionTable(table: HTMLElement, sibling: HTMLElement) {
 }
 
 function hideExpansionTable() {
-    const table = document.getElementById("expansionTableRow") || document.getElementById("strokeStatsTable");
-    return table.remove();
+    const table = document.querySelectorAll("tr#expansionTableRow") || document.querySelectorAll("table#strokeStatsTable");
+    return table.forEach((el) => el.remove());
 }
 
 function explodeCounts(obj: object): string {
