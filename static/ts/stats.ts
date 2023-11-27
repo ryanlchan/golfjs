@@ -628,7 +628,12 @@ const summaryMetrics = {
         mapFunc: (stats: StrokeStats) => (stats.index + 1).toString(),
         reduceFunc: countUnique,
         formatter: BaseFormatter
-    },
+    }, 'strokesRemaining': {
+        header: 'Strokes predicted',
+        mapFunc: (stats: StrokeStats) => stats.strokesRemaining,
+        reduceFunc: (stats) => Math.max(...stats),
+        formatter: ColorScaleFormatter
+    }
 }
 
 /**
