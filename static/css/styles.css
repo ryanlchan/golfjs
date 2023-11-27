@@ -376,7 +376,7 @@ body.stats table {
     margin-bottom: 15px;
 }
 
-a#regenerate {
+a.undecorated {
     text-decoration: none;
 }
 

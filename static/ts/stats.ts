@@ -834,6 +834,48 @@ function explodeCounts(obj: object): string {
     return out
 }
 
+function jsonToCSV(input: any[]): string {
+    const replacer = (_: any, value: any) => value === null ? '' : value;
+    const csvRows: string[] = [];
+
+    const extractData = (obj: any, parentKey = '', row: any = null) => {
+        let rowData = row || {};
+        for (const key in obj) {
+            if (!obj.hasOwnProperty(key)) {
+                continue;
+            }
+            const fullKey = parentKey ? `${parentKey}.${key}` : key;
+            if (typeof obj[key] === 'object' && obj[key] !== null) {
+                rowData = extractData(obj[key], fullKey, rowData);
+            } else {
+                rowData[fullKey] = JSON.stringify(obj[key], replacer);
+            }
+        }
+        return rowData;
+    };
+
+    const rowData = input.map((obj) => extractData(obj));
+    const headers = Object.keys(rowData[0]);
+    csvRows.push(headers.join(','));
+    rowData.forEach(rowData => {
+        const row = headers.map(header => rowData[header] || '');
+        csvRows.push(row.join(','));
+    });
+
+    return csvRows.join('\r\n');
+}
+
+function downloadCSV(jsonArray: any[], filename: string = 'data.csv'): void {
+    const csvData = jsonToCSV(jsonArray);
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 function generateView() {
     const round = roundLoad();
 
@@ -868,6 +910,12 @@ function generateView() {
     const holeDiv = document.getElementById("holeTables");
     const holeTable = createHoleTable(cache);
     holeDiv.replaceChildren(holeTable);
+
+    // Attach download handler
+    const downloader = document.getElementById('downloadAsCSV');
+    const roundDateString = [roundDate.getFullYear(), roundDate.getMonth(), roundDate.getDate(), roundDate.getHours(), roundDate.getMinutes()].join('');
+    const filename = `${round.course}_${roundDateString}.csv`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    downloader.addEventListener('click', () => downloadCSV(cache.strokes, filename));
 }
 
 function regenerateView() {
