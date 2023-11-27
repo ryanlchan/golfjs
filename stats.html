@@ -15,12 +15,17 @@
     </div>
     <div class="bodyContainer">
         <div id="roundTitleContainer">
-            <h3 id="roundTitle"></h3>
+            <h1>
+                <span id="roundTitle"></span>
+                <a id="regenerate" href="#" title="Regenerate stats">&orarr;</a>
+            </h1>
         </div>
-        <div class="buttonRow">
-            <button id="regenerate" class="success">Regenerate Stats</button>
+        <h2>Strokes Gained by Type</h2>
+        <div id="breakdownTables" class="generateOutput">
+            <progress></progress>
         </div>
-        <div id="breakdownTables">
+        <h2>Strokes Gained by Hole</h2>
+        <div id="holeTables" class="generateOutput">
             <progress></progress>
         </div>
     </div>

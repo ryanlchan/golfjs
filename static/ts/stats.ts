@@ -134,11 +134,14 @@ class BaseFormatter {
     constructor(column: any[], options: object = {}) {
         this.column = column;
         this.options = options;
+        this.rowToTD = this.rowToTD.bind(this);
     }
 
     // Format each row of the StatsColumn as text
-    format = (value) => {
-        if (typeof value === 'number') {
+    format(value) {
+        if (Number.isInteger(value)) {
+            return value.toFixed(0);
+        } else if (typeof value === 'number') {
             return value.toFixed(3);
         } else if (typeof value === 'string') {
             return value;
@@ -150,69 +153,70 @@ class BaseFormatter {
     };
 
     // Color each row of the StatsColumn, if necessary
-    color = (row) => "";
+    color(row) { return "" };
 
     // Output row as formatted HTML TD object
-    rowToTD = (row): HTMLTableCellElement => {
+    rowToTD(row): HTMLTableCellElement {
         let td = document.createElement('td');
         td.innerHTML = this.format(row);
         td.style.color = this.color(row);
+        if ('class' in this.options) td.classList.add(this.options.class as string);
         return td;
     }
 
     // Output column as formatted HTML TD objects
-    toTDs = (): HTMLTableCellElement[] => this.column.map(this.rowToTD);
+    toTDs(): HTMLTableCellElement[] { return this.column.map(this.rowToTD) };
 }
 
 class StringFormatter extends BaseFormatter {
-    format = (row) => row.toString();
+    format(row) { return row.toString() };
 }
 
 class ColorScaleFormatter extends BaseFormatter {
     colorScale: any;
 
-    constructor(column: number[]) {
-        super(column);
+    constructor(column: number[], options: object = {}) {
+        super(column, options);
         this.domain = this.calcDomain();
         this.colorScale = chroma.scale(['red', 'black', 'green']).domain(this.domain);
     }
 
     // Get the min/max values for this StatsColumn
-    calcDomain = (): [number, number] => [Math.min(...this.column), Math.max(...this.column)];
+    calcDomain(): [number, number] { return [Math.min(...this.column), Math.max(...this.column)] };
 
-    color = (row) => this.colorScale(row);
-    format = (value) => typeof value === 'number' ? value.toFixed(3) : value;
+    color(row) { return this.colorScale(row) };
 }
 
 class InvertedColorScaleFormatter extends ColorScaleFormatter {
-    constructor(column: number[]) {
-        super(column);
+    constructor(column: number[], options: object = {}) {
+        super(column, options);
         this.colorScale = chroma.scale(['green', 'black', 'red']).domain(this.domain);
     }
 }
 
 class PercentileScaleFormatter extends ColorScaleFormatter {
-    calcDomain = (): [number, number] => [0.2, 0.8];
+    calcDomain(): [number, number] { return [0.2, 0.8] };
+    format(row) { return row.toFixed(3); }
 }
 
 class DistanceFormatter extends BaseFormatter {
     distOpts: formatDistanceOptions;
 
-    constructor(column: number[]) {
-        super(column);
+    constructor(column: number[], options: object = {}) {
+        super(column, options);
         this.distOpts = { to_unit: getUnitsSetting(), include_unit: true }
     }
-    format = (row) => formatDistance(row, this.distOpts);
+    format(row) { return formatDistance(row, this.distOpts) };
 }
 
 class InvertedDistanceFormatter extends InvertedColorScaleFormatter {
     distOpts: formatDistanceOptions;
 
-    constructor(column: number[]) {
-        super(column);
+    constructor(column: number[], options: object = {}) {
+        super(column, options);
         this.distOpts = { to_unit: getUnitsSetting(), include_unit: true }
     }
-    format = (row) => formatDistance(row, this.distOpts);
+    format(row) { return formatDistance(row, this.distOpts) };
 }
 
 /**
@@ -489,7 +493,7 @@ function groupBy(list: StrokeStats[], propOrFunction: string | Function): Groupe
     let output = {};
     let sortKeyFunc = (propOrFunction instanceof Function) ? propOrFunction : (el) => el[propOrFunction];
     list.forEach((el) => {
-        let key = sortKeyFunc(el) || "";
+        let key = sortKeyFunc(el);
         if (!output[key]) output[key] = [];
         output[key].push(el);
     });
@@ -534,7 +538,7 @@ const summaryMetrics = {
     }, 'strokes': {
         header: 'Strokes',
         mapFunc: (stats: StrokeStats) => 1,
-        reduceFunc: count,
+        reduceFunc: sum,
         formatter: InvertedColorScaleFormatter
     }, 'strokesGained': {
         header: 'SG',
@@ -630,12 +634,10 @@ function columnizeStrokes(strokes: StrokeStats[], metrics: string[]): any[][] {
 }
 
 function reduceStrokeColumns(dataFrame: any[][], metrics: string[]) {
-    let output = [];
-    for (let colIx = 0; colIx < dataFrame.length; colIx++) {
+    return dataFrame.map((column, colIx) => {
         let colID = metrics[colIx];
-        output.push(summaryMetrics[colID].reduceFunc(dataFrame));
-    }
-    return output;
+        return summaryMetrics[colID].reduceFunc(column);
+    });
 }
 
 
@@ -675,19 +677,17 @@ function createColumnTable(headers: string[], columns: HTMLTableCellElement[][])
 
 function createStatsTable(input: StrokeStats[], metrics = defaultStrokeStatsMetrics, includeTotals = true): HTMLTableElement {
     const headers = metrics.map((col) => summaryMetrics[col]['header']);
-    let dataFrame = [];
-    for (let colID of metrics) {
-        const column = input.map(summaryMetrics[colID]['mapFunc']);
-        const formatter = new summaryMetrics[colID]['formatter'](column);
-        let tds = formatter.toTDs();
-        if (includeTotals) {
-            let total = summaryMetrics[colID]['reduceFunc'](column);
-            let td = formatter.rowToTD(total);
-            tds.push(td);
-        }
-        dataFrame.push(tds);
+    const columns = columnizeStrokes(input, metrics);
+    const formatters = metrics.map((colId, colIx) => new summaryMetrics[colId]['formatter'](columns[colIx], { class: colId }));
+    const dataFrame = formatters.map((formatter) => formatter.toTDs());
+    const table = createColumnTable(headers, dataFrame);
+    if (includeTotals) {
+        const totals = reduceStrokeColumns(columns, metrics);
+        const totalRow = document.createElement('tr');
+        totalRow.append(...formatters.map((formatter, colIx) => formatter.rowToTD(totals[colIx])));
+        totalRow.classList.add('totals');
+        table.querySelector('tbody').append(totalRow);
     }
-    let table = createColumnTable(headers, dataFrame);
     table.classList.add("statsTable");
     return table;
 }
@@ -699,55 +699,100 @@ function createStrokeStatsTable(strokes: StrokeStats[]): HTMLTableElement {
     return table;
 }
 
-function createStatsTotalRow(input: StrokeStats[], metrics = defaultSummaryStatsMetrics): HTMLTableRowElement {
-    const summary = summarizeStrokes(input);
-    const column = ["Total", ...metrics.map((colID) => summary[colID])];
-    const formatter = new BaseFormatter(column);
-    const row = document.createElement('tr');
-    const tds = formatter.toTDs();
-    row.append(...tds);
-    return row;
+interface GroupedPivotTableOptions {
+    metrics?: string[],
+    sortBy?: (a, b) => number,
+    includeTotals?: boolean,
+    expandable?: boolean,
+    groupName?: string
 }
-
-export function createGroupedPivotTable(groups: GroupedStrokeStats,
-    metrics = defaultSummaryStatsMetrics) {
-    // Group and summarize input
-    let groupSummaries = summarizeStrokeGroups(groups);
-
-    let headers = ["Group", ...metrics.map((col) => summaryMetrics[col]['header'])];
-
-    // Create TD's per column
-    const groupKeys = Object.keys(groups);
-    const groupFormatter = new BaseFormatter(groupKeys);
-    let dataFrame = [groupFormatter.toTDs()];
-    for (let colID of metrics) {
-        let column = Object.values(groupSummaries).map((summary) => summary[colID]);
-        let formatter = new summaryMetrics[colID]['formatter'](column);
-        let tds = formatter.toTDs();
-        dataFrame.push(tds);
+function createGroupedPivotTable(input: StrokeStats[], groupByPropOrFunction: string | Function, options: GroupedPivotTableOptions = {}) {
+    options = {
+        metrics: defaultSummaryStatsMetrics, sortBy: (a, b) => a - b, includeTotals: true, expandable: true, groupName: "Group",
+        ...options
     }
-    let table = createColumnTable(headers, dataFrame);
-    table.classList.add("statsPivotTable");
+    const metrics = options.metrics;
+    const groups = groupBy(input, groupByPropOrFunction);
+    const groupKeys = Object.keys(groups).sort(options.sortBy);
+    const groupSummaries = summarizeStrokeGroups(groups);
+    const groupSummariesArray = groupKeys.map((key) => groupSummaries[key]);
+    const groupFormatter = new BaseFormatter(groupKeys, { class: "groupBy" });
+    const headers = [options.groupName, ...metrics.map((col) => summaryMetrics[col]['header'])];
+    const columns = metrics.map((colID) => groupSummariesArray.map((summary) => summary[colID]));
+    const formatters = columns.map((col, colIx) => new summaryMetrics[metrics[colIx]]['formatter'](col, { class: metrics[colIx] }));
+    const dataFrame = [groupFormatter.toTDs(), ...formatters.map((fmt) => fmt.toTDs())];
+    const table = createColumnTable(headers, dataFrame);
+    table.classList.add("statsPivotTable", "statsTable");
 
+    if (options.includeTotals) {
+        const totals = reduceStrokeColumns(columns, metrics);
+        const totalRow = document.createElement('tr');
+        const rowHeader = document.createElement('td');
+        rowHeader.textContent = 'Totals';
+        totalRow.append(rowHeader);
+        totalRow.append(...formatters.map((formatter, colIx) => formatter.rowToTD(totals[colIx])));
+        totalRow.classList.add('totals');
+        table.querySelector('tbody').append(totalRow);
+    }
+
+    if (options.expandable) {
+        const trs = Array.from(table.querySelectorAll('tbody tr'));
+        let expansions = groupKeys.map((key) => groups[key]);
+        if (options.includeTotals) expansions.push(input);
+        trs.forEach((row: HTMLElement, rowIx: number) => {
+            row.onclick = () => handleExpansionRowClick(row, createStrokeStatsTable(expansions[rowIx]));
+        })
+    }
     return table;
 }
 
 function createBreakdownTable(cache: RoundStatsCache): HTMLElement {
-    const breakdowns = breakdownStrokes(cache);
     const strokes = cache.strokes;
-    const table = createGroupedPivotTable(breakdowns);
-    const totalRow = createStatsTotalRow(strokes);
-    table.querySelector('tbody').append(totalRow);
-
-    // If a user clicks a row, show only those strokes in the breakdowns
-    let trs = table.querySelectorAll('tbody tr');
-    for (let rowIx = 0; rowIx < trs.length; rowIx++) {
-        let row = trs[rowIx] as HTMLTableRowElement;
-        const strokeList = createStrokeStatsTable(Object.values(breakdowns)[rowIx] || strokes);
-        row.onclick = () => document.getElementById("strokeStatsTable").replaceWith(strokeList);
-    }
-    table.id = "statsViewTable";
+    const summaryOrder = ["putts", "chips", "approaches", "drives"];
+    const categoryOrder = (el) => summaryOrder.findIndex((ref) => ref === el);
+    const sortBy = (a, b) => categoryOrder(a) - categoryOrder(b);
+    const options = { sortBy, groupName: "Type" } as GroupedPivotTableOptions;
+    const table = createGroupedPivotTable(strokes, "category", options);
+    table.id = "breakdownViewTable";
     return table;
+}
+
+function createHoleTable(cache: RoundStatsCache): HTMLElement {
+    const options = { groupName: "Hole" }
+    const groupByFunc = (ss) => ss.holeIndex + 1;
+    const holeTable = createGroupedPivotTable(cache.strokes, groupByFunc, options);
+    holeTable.id = "holeViewTable";
+    return holeTable;
+}
+
+function handleExpansionRowClick(row: HTMLElement, table: HTMLElement) {
+    if (row.classList.contains('selected')) {
+        hideExpansionTable();
+        row.classList.remove('selected');
+        return
+    }
+    const rootTable = row.closest('table');
+    const trs = rootTable.querySelectorAll('tbody tr');
+    trs.forEach((el: HTMLElement) => el.classList.remove('selected'));
+    showExpansionTable(table, row);
+    row.classList.add('selected');
+}
+
+function showExpansionTable(table: HTMLElement, sibling: HTMLElement) {
+    const existing = document.getElementById("strokeStatsTable");
+    if (existing) existing.remove();
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 1000; // Stub for all rows
+    td.append(table);
+    tr.append(td);
+    tr.id = 'expansionTableRow';
+    sibling.insertAdjacentElement('afterend', tr);
+}
+
+function hideExpansionTable() {
+    const table = document.getElementById("expansionTableRow") || document.getElementById("strokeStatsTable");
+    return table.remove();
 }
 
 function explodeCounts(obj: object): string {
@@ -755,22 +800,27 @@ function explodeCounts(obj: object): string {
     let counts = Object.entries(obj);
     counts.sort((a, b) => a[1] - b[1]);
     for (let [key, count] of counts) {
-        out = out.concat(`${key}: ${count},<br/>`)
+        out = out.concat(`${key}:&nbsp;${count}, `)
     }
     return out
 }
 
 function generateView() {
-    const output = document.getElementById("breakdownTables");
     const round = roundLoad();
 
     // Output round metadata
     const header = document.getElementById("roundTitle");
-    header.innerText = `${round.course} - ${round.date}`;
+    const roundDate = new Date(round.date);
+    header.innerText = `${round.course} - ${roundDate.toLocaleString()}`;
+
+    // Attach refresh handler
+    const reloader = document.getElementById('regenerate');
+    reloader.addEventListener('click', regenerateView);
 
     // Create loading bar
+    const outputs = document.querySelectorAll(".generatedOutput");
     const prog = document.createElement('progress');
-    output.replaceChildren(prog);
+    outputs.forEach((el) => el.replaceChildren(prog));
 
     // Generate or load cache
     const key = statsCacheKey(round);
@@ -781,9 +831,14 @@ function generateView() {
     }
 
     // Generate breakdowns data
+    const breakdownDiv = document.getElementById("breakdownTables");
     const table = createBreakdownTable(cache);
-    const strokeList = createStrokeStatsTable(cache.strokes);
-    output.replaceChildren(table, strokeList);
+    breakdownDiv.replaceChildren(table);
+
+    // Create hole tables
+    const holeDiv = document.getElementById("holeTables");
+    const holeTable = createHoleTable(cache);
+    holeDiv.replaceChildren(holeTable);
 }
 
 function regenerateView() {
@@ -797,4 +852,3 @@ function handleLoad() {
     new Promise(() => generateView());
 }
 window.onload = handleLoad;
-document.getElementById("regenerate").addEventListener('click', regenerateView);

@@ -157,9 +157,12 @@ button {
 }
 
 body {
-    margin: 0;
     font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
     font-size: 14px;
+}
+
+body.fullbleed {
+    margin: 0;
 }
 
 .bodyContainer {
@@ -189,17 +192,21 @@ table td {
     border-bottom: 1px solid #ddd;
 }
 
-/* Alternate row background color for better readability */
 table tbody tr:nth-child(even) {
     background-color: #f2f2f2;
 }
 
-/* Alternate row background color for better readability */
-table tbody tr:last-child {
+table tbody tr.bold,
+table tbody td.bold {
     font-weight: 700;
 }
 
-/* Add some hover effect to the rows */
+table tbody tr.totals td,
+table tbody td.totals {
+    font-weight: 700;
+    border-top: 1px solid #6d6d6d;
+}
+
 table tbody tr:hover {
     background-color: #e5e5e5;
 }
@@ -304,10 +311,6 @@ pre code {
     padding-left: 1em;
 }
 
-#strokeStats .strokeStatContainer {
-    /* moved to .listCell */
-}
-
 .strokeControls {
     display: flex;
     flex-wrap: wrap;
@@ -373,29 +376,11 @@ body.stats table {
     margin-bottom: 15px;
 }
 
-table#statsViewTable td:not(:first-child),
-table#statsViewTable th:not(:first-child) {
-    width: 4em;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+a#regenerate {
+    text-decoration: none;
 }
 
-table#strokeStatsTable td:nth-child(-n+3),
-table#strokeStatsTable th:nth-child(-n+3) {
-    width: 1em;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-table#strokeStatsTable td:nth-child(4),
-table#strokeStatsTable th:nth-child(4) {
-    width: 6em;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-table#strokeStatsTable td:nth-child(n+5),
-table#strokeStatsTable th:nth-child(n+5) {
+table.statsTable td {
     width: 4em;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -403,6 +388,28 @@ table#strokeStatsTable th:nth-child(n+5) {
 
 td.negative {
     color: red;
+}
+
+table tbody tr.selected {
+    background-color: #FFFACD;
+}
+
+tr#expansionTableRow {
+    background-color: #fff;
+}
+
+tr#expansionTableRow table {
+    position: relative;
+    margin: 0 2em 1em;
+    border: 1px solid #ddd;
+}
+
+tr#expansionTableRow table::before {
+    position: absolute;
+    content: '\021B3';
+    top: -0.25em;
+    left: -1.5em;
+    font-size: 20px;
 }
 
 /*

@@ -1932,6 +1932,7 @@ function scorecardViewElement(round: Round): HTMLElement {
 
     // Create totals row
     const row = document.createElement('tr');
+    row.classList.add('totals');
 
     // Create cells for Hole Number
     const holeNumberCell = document.createElement('td');
