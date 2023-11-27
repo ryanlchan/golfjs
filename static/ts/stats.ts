@@ -128,7 +128,7 @@ function defaultStrokesSummary(): StrokesSummary {
 
 class BaseFormatter {
     column: any[];
-    domain: [number, number];
+    domain: number[];
     options: object;
 
     constructor(column: any[], options: object = {}) {
@@ -217,6 +217,24 @@ class InvertedDistanceFormatter extends InvertedColorScaleFormatter {
         this.distOpts = { to_unit: getUnitsSetting(), include_unit: true }
     }
     format(row) { return formatDistance(row, this.distOpts) };
+}
+
+class CenteredDistanceFormatter extends DistanceFormatter {
+    colorScale: any;
+
+    constructor(column: number[], options: object = {}) {
+        super(column, options);
+        this.domain = this.calcDomain();
+        this.colorScale = chroma.scale(['red', 'black', 'green', 'black', 'red']).domain(this.domain);
+    }
+
+    // Get the min/max values for this StatsColumn
+    calcDomain(): number[] {
+        let max = Math.max(...this.column.map(Math.abs));
+        return [-max, 0, max];
+    };
+
+    color(row) { return this.colorScale(row) };
 }
 
 /**
@@ -574,7 +592,7 @@ const summaryMetrics = {
         header: 'Proximity Offline',
         mapFunc: (stats: StrokeStats) => stats.proximityActualToAim.proximityCrossTrack,
         reduceFunc: average,
-        formatter: ColorScaleFormatter
+        formatter: CenteredDistanceFormatter
     }, 'proximityPercentile': {
         header: 'Proximity Percentile',
         mapFunc: (stats: StrokeStats) => stats.proximityActualToAim.proximityPercentile,
