@@ -354,7 +354,7 @@ function strokeMarkerActivate(marker: L.Marker) {
     mapView.addEventListener("click", strokeMarkerDeactivate)
 
     // Rerender stroke list
-    holeStatsUpdate();
+    strokeListUpdate();
     strokeTerrainSelectUpdate();
 }
 
@@ -385,7 +385,7 @@ function strokeMarkerDeactivate(e?) {
         mapView.removeEventListener("click", strokeMarkerDeactivate);
 
         // Update stroke list
-        holeStatsUpdate();
+        strokeListUpdate();
     }
 }
 
@@ -1448,7 +1448,6 @@ function positionMarkerPopupText(layer: L.Marker) {
  */
 function holeStatsUpdate() {
     const holeElement = document.getElementById("holeStats");
-    const strokeElement = document.getElementById("strokeStats");
     if (currentHole) {
         let text = `| ${currentHole.strokes.length} Strokes`;
         if (currentHole.par) {
@@ -1458,15 +1457,18 @@ function holeStatsUpdate() {
             text += ` | Hcp ${currentHole.handicap}`
         }
         holeElement.innerText = text
-        strokeElement.innerHTML = "";
-        currentHole.strokes.forEach(function (stroke) {
-            strokeElement.appendChild(strokeStatsListItem(stroke));
-        });
     } else {
         // No current hole, assume overview
-        strokeElement.innerHTML = "";
         holeElement.innerHTML = `| ${round.course}`;
     }
+}
+
+function strokeListUpdate() {
+    const strokeElement = document.getElementById("strokeList");
+    strokeElement.innerHTML = "";
+    if (currentHole) {
+        strokeElement.append(...currentHole.strokes.map((stroke) => strokeStatsListItem(stroke)));
+    };
 }
 
 /**
@@ -1754,6 +1756,7 @@ function rerender(type?: string) {
         strokeMarkerUpdate();
         strokeMarkerAimUpdate();
         holeStatsUpdate();
+        strokeListUpdate();
         saveData();
     }
 

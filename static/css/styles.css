@@ -158,7 +158,7 @@ button {
 
 body {
     font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 body.fullbleed {
@@ -167,6 +167,26 @@ body.fullbleed {
 
 .bodyContainer {
     margin: 8px;
+}
+
+input[type="color"],
+input[type="date"],
+input[type="datetime"],
+input[type="datetime-local"],
+input[type="email"],
+input[type="month"],
+input[type="number"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="text"],
+input[type="time"],
+input[type="url"],
+input[type="week"],
+select,
+select:focus,
+textarea {
+    font-size: inherit;
 }
 
 /*
