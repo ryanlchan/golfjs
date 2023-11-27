@@ -703,8 +703,9 @@ function createStatsTable(input: StrokeStats[], options?: StatsTableMetrics): HT
         ...options
     }
     const metrics = options.metrics;
+    const sortedInput = [...input].sort(options.sortBy);
     const headers = metrics.map((col) => summaryMetrics[col]['header']);
-    const columns = columnizeStrokes(input, metrics);
+    const columns = columnizeStrokes(sortedInput, metrics);
     const formatters = metrics.map((colId, colIx) => new summaryMetrics[colId]['formatter'](columns[colIx], { class: colId }));
     const dataFrame = formatters.map((formatter) => formatter.toTDs());
     const table = createColumnTable(headers, dataFrame);
