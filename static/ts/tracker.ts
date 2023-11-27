@@ -12,7 +12,7 @@ import { typeid } from "typeid-js";
 
 // Modules
 import * as grids from "./grids";
-import { getDistance, formatDistance, formatDistanceAsNumber } from "./projections";
+import { getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "./projections";
 import { PositionError } from "./errors";
 import { showError, hideError, wait, touch } from "./utils";
 import * as cache from "./cache";
@@ -158,23 +158,15 @@ function strokeDistance(stroke: Stroke): number {
 }
 
 /**
- * Get or set the dispersion for a stroke
+ * Set the dispersion for a stroke
  * @param {Stroke} stroke the stroke
  * @param {number | string} [val] the value to set the dispersion to
  * @returns {number} the dispersion of this stroke
  */
-function strokeDispersion(stroke: Stroke, val?: number | string): number {
-    const distOpts = { from_unit: displayUnits, to_unit: "meters", output: "number" }
-    if (!val) {
-        return stroke.dispersion;
-    } else if (typeof (val) == "string") {
-        return stroke.dispersion = formatDistanceAsNumber(val, distOpts);
-    } else if (typeof (val) == "number") {
-        touch(stroke, strokeHole(stroke), round);
-        return stroke.dispersion = val;
-    } else {
-        throw new Error("Dispersion must be set to a number or string");
-    }
+function convertAndSetStrokeDispersion(stroke: Stroke, val: number | string): number {
+    const distOpts = { from_unit: displayUnits, to_unit: "meters", output: "number", precision: 3 } as formatDistanceOptions;
+    touch(stroke, strokeHole(stroke), round);
+    return stroke.dispersion = formatDistanceAsNumber(val, distOpts);
 }
 
 /**
@@ -1479,26 +1471,15 @@ function strokeListUpdate() {
 function strokeStatsListItem(stroke: Stroke): HTMLElement {
     const distOptions = { to_unit: displayUnits, precision: 1, include_unit: true }
     const distance = formatDistance(strokeDistance(stroke), distOptions);
-    const dispersion = formatDistance(stroke.dispersion, distOptions);
 
     const listItem = document.createElement("li");
     const container = document.createElement("div");
     container.classList.add("strokeStatContainer", "listCell");
 
     const text = document.createElement("div");
-    const dispersionLink = document.createElement("a");
     text.classList.add("strokeDetails");
     text.innerHTML = `${stroke.club} (${distance}) | &#xb1;`;
-    dispersionLink.setAttribute("href", `#stroke_${stroke.index}_dispersion`);
-    dispersionLink.innerText = `${dispersion}`;
-    dispersionLink.addEventListener("click", () => {
-        let disp = prompt("Enter a dispersion:");
-        if (disp != null) {
-            strokeDispersion(stroke, disp);
-            rerender("full");
-        }
-        // Force a rerender of the grid
-    });
+    const dispersionLink = dispersionLinkCreate(stroke, distOptions);
     text.appendChild(dispersionLink);
 
     const buttons = document.createElement("div");
@@ -1514,6 +1495,23 @@ function strokeStatsListItem(stroke: Stroke): HTMLElement {
     container.append(buttons);
     listItem.append(container);
     return listItem;
+}
+
+function dispersionLinkCreate(stroke: Stroke, distOptions?: formatDistanceOptions): HTMLElement {
+    distOptions = distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
+    const link = document.createElement("a");
+    link.setAttribute("href", `#stroke_${stroke.index}_dispersion`);
+    link.innerText = formatDistance(stroke.dispersion, distOptions);
+    link.addEventListener("click", () => strokeDistancePrompt(stroke));
+    return link;
+}
+
+async function strokeDistancePrompt(stroke: Stroke) {
+    let disp = Number.parseFloat(prompt("Enter a dispersion:"));
+    if (!Number.isFinite(disp)) return showError("Invalid dispersion");
+    const dispersion = convertAndSetStrokeDispersion(stroke, disp);
+    rerender("full");
+    return dispersion;
 }
 
 /**
@@ -1546,9 +1544,9 @@ function aimStatsUpdate() {
     stats.innerText = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
 
     // Update dispersion
-    const disp = <HTMLInputElement>document.getElementById("dispersionInput");
-    const dOpt = { to_unit: displayUnits, precision: 1 }
-    disp.value = formatDistance(stroke.dispersion, dOpt);
+    const link = dispersionLinkCreate(activeStroke);
+    link.id = "dispersionInput";
+    document.getElementById("dispersionInput").replaceWith(link);
 
     // Add Content
     el.replaceChildren(stats);
@@ -2052,7 +2050,7 @@ function handleRecenterClick() {
 function handleDispersionInput() {
     const val = this.value;
     try {
-        strokeDispersion(activeStroke, val);
+        convertAndSetStrokeDispersion(activeStroke, val);
         rerender("full");
     } catch (e) {
         // Dispersion is probably invalid
