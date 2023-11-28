@@ -424,11 +424,7 @@ function hexGridCreate(feature, options?) {
 
     let grid_options = { units: 'kilometers' };
     let grid = turf.hexGrid(bbox, x, grid_options);
-    if (options?.maxDistance) {
-        const center = turf.center(feature);
-        const cells = grid.features.filter(hex => turf.distance(center, turf.center(hex)) <= options.maxDistance)
-        grid = turf.featureCollection(cells)
-    }
+    grid = featureWithin(grid, feature);
     return grid;
 }
 
@@ -654,7 +650,7 @@ export function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersio
 
 
     // Create a grid
-    let hexGrid = hexGridCreate(aimWindow, { maxDistance: 3 * dispersionNumber / 1000 });
+    let hexGrid = hexGridCreate(aimWindow);
 
     // Get probabilities
     probabilityGrid(hexGrid, aimPoint, dispersionNumber);
