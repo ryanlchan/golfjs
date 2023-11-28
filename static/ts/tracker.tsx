@@ -1276,7 +1276,7 @@ function holeSelectViewUpdate() {
     if (!holeSelector) return;
     const handleSelect = (e) => holeSelect(parseInt(e.target.value));
     const value = Number.isFinite(currentHole?.index) ? currentHole.index : -1;
-    const selector = (<select id="holeSelector" value={value} onChange={handleSelect}>
+    const selector = (<select id="holeSelector" value={value} onInput={handleSelect}>
         <option value="-1">Overview</option>
         {round.holes.map((hole) => <option value={hole.index} key={hole.id}>{`Hole ${hole.index + 1}`}</option>)}
     </select>);
@@ -1731,13 +1731,12 @@ function clubStrokeViewToggle() {
 
 /**
  * Create a scorecard as table
- * @param round a round to create a scorecard for
- * @returns {HTMLElement} a table containing the scorecard
-        */
-function scorecardViewElement(round: Round) {
+ */
+function Scorecard(props) {
+    const scoringRound = props.round;
     let metrics = ['Hole', 'Hdcp', 'Par', 'Score'];
-    const disableHandicap = !round.holes[0].handicap;
-    const disablePar = !round.holes[0].par;
+    const disableHandicap = !scoringRound.holes[0].handicap;
+    const disablePar = !scoringRound.holes[0].par;
     if (disableHandicap) metrics = metrics.filter((el) => el != 'Hdcp');
     if (disablePar) metrics = metrics.filter((el) => el != 'Par');
 
@@ -1767,52 +1766,14 @@ function scorecardViewElement(round: Round) {
         </tr>)
     }
     // Create the table element
-    const tab = (<table className="scorecard">
+    const classes = ["scorecard", currentHole ? "inactive" : "active"].join(' ');
+    const tab = (<table className={classes}>
         <thead><tr>{metrics.map((metric) => <th key={metric}>{metric}</th>)}</tr></thead>
         <tbody>
-            {round.holes.map((hole) => holeRow(hole, metrics))}
+            {scoringRound.holes.map((hole) => holeRow(hole, metrics))}
         </tbody>
     </table>)
     return tab;
-
-    //     // Create rows for each hole
-    //     data.forEach((holeData, holeIx) => {
-    //         const row = document.createElement('tr');
-    //         row.onclick = () => holeSelect(holeIx);
-
-    //         headers.forEach((col, colIx) => {
-    //             const td = document.createElement('td');
-    //             let text = data[holeIx][colIx];
-    //             td.textContent = text;
-    //             if (col == "Score") {
-    //                 const strokes = hole.strokes.length;
-    //                 const par = hole.par || 0;
-    //                 const relative = strokes - par;
-    //                 text = `${strokes} (${relative >= 0 ? "+" : ""}${relative})`;
-    //                 td.classList.add(scoreClass(relative));
-    //             }
-    //             row.append(td);
-    //         });
-    //         // Append the row to the table
-    //         tbody.append(row);
-    //     });
-
-    //     // Create totals row
-    //     // Initialize total counts
-    //     let totalStrokes = 0;
-    //     let totalPar = 0;
-    //     const totalRow = document.createElement('tr');
-    //     totalRow.classList.add('totals');
-    //     if (col == "Score") {
-    //         const relative = totalStrokes - totalPar;
-    //         text = `${totalStrokes} (${relative >= 0 ? "+" : ""}${relative})`;
-    //         td.classList.add(scoreClass(relative));
-    //     }
-    //     totalRow.append(td);
-    // });
-    // tbody.append(totalRow);
-
-    // return table;
 }
 
 /**
@@ -1820,12 +1781,7 @@ function scorecardViewElement(round: Round) {
  */
 function scorecardViewUpdate(): void {
     const scorecard = document.getElementById("overviewStats");
-    if (currentHole) {
-        scorecard.classList.add("inactive");
-    } else {
-        scorecard.classList.remove("inactive");
-        render(scorecardViewElement(round), scorecard);
-    }
+    render(<Scorecard round={round} />, scorecard);
 }
 
 /**
