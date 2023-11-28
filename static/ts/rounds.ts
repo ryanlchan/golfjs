@@ -15,10 +15,10 @@ export function roundSave(round: Round) {
  * @returns {object | undefined} the loaded round or undefined
  */
 export function roundLoad(): Round {
-    const loadedData = cache.getJSON("golfData") as Round;
-    if (loadedData) {
-        console.log("Rehydrating round from localStorage")
-        return loadedData;
+    const loaded = cache.getJSON("golfData") as Round;
+    if (loaded) {
+        console.log(`Rehydrating round ${loaded.course} ${loaded.date} from localStorage`)
+        return loaded;
     }
     return undefined;
 }

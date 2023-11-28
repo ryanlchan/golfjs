@@ -16,7 +16,7 @@ import { getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOpti
 import { PositionError } from "./errors";
 import { showError, hideError, wait, touch } from "./utils";
 import * as cache from "./cache";
-import { roundCreate, roundCourseParams } from "./rounds.js";
+import { roundCreate, roundCourseParams, roundLoad, roundSave } from "./rounds.js";
 import { STROKES_REMAINING_COEFFS } from "./coeffs20230705";
 import { getUsableClubs } from "./clubs.js";
 import { getUnitsSetting } from "./utils.js";
@@ -52,9 +52,6 @@ let displayUnits = getUnitsSetting();
  * @param {object} options - any additional options to set on Stroke
  */
 function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
-    // set an undo point
-    undoCreate("strokeCreate");
-
     // handle no current hole
     if (currentHole == undefined || currentStrokeIndex == undefined) {
         currentHole = round.holes.reduce((latest, hole) => {
@@ -100,8 +97,6 @@ function strokeDelete(holeIndex, strokeIndex: number) {
     console.debug(`Deleting stroke i${strokeIndex} from hole i${holeIndex}`)
     let hole = round.holes.find(h => h.index === holeIndex);
     if (hole) {
-        undoCreate("strokeDelete");
-
         // Delete from data layer
         hole.strokes.splice(strokeIndex, 1);
 
@@ -129,7 +124,6 @@ function strokeDelete(holeIndex, strokeIndex: number) {
  */
 function strokeMove(holeIndex: number, strokeIndex: number, offset: number) {
     console.debug(`Moving stroke i${strokeIndex} from hole i${holeIndex} by ${offset}`)
-    undoCreate("strokeMove");
     const hole = round.holes[holeIndex]
     const mover = hole.strokes[strokeIndex]
     if (offset < 0) {
@@ -175,7 +169,6 @@ function convertAndSetStrokeDispersion(stroke: Stroke, val: number | string): nu
  * @returns the updated stroke
  */
 function strokeAimReset(stroke: Stroke): Stroke {
-    undoCreate("strokeAimReset");
     const hole = strokeHole(stroke);
     stroke.aim = hole.pin;
     touch(stroke, hole, round);
@@ -714,15 +707,6 @@ function strokelineUpdate() {
 }
 
 /**
- * Clears the current polylines connecting markers
- */
-function strokelineDeleteAll() {
-    for (const hole of round.holes) {
-        layerDelete(strokelineID(hole))
-    }
-}
-
-/**
  * Helper function just to generate point arrays for a hole
  * @param {Hole} hole
  * @returns {L.LatLng[]}
@@ -855,21 +839,6 @@ function holeLineCreate(hole: Hole) {
 }
 
 /**
- * Delete a hole's line, or all hole lines
- * @param {Hole} hole the Hole interface object, optional. If not given, delete
- * all hole lines
- */
-function holeLineDelete(hole: Hole) {
-    if (hole) {
-        layerDelete(holeLineId(hole));
-    } else {
-        for (let hole of round.holes) {
-            layerDelete(holeLineId(hole));
-        }
-    }
-}
-
-/**
  * Return a unique ID for a hole line layer
  * @param {Hole} hole the Hole interface object
  * @returns {String} a unique ID
@@ -931,15 +900,12 @@ function clubStrokeCreate(position: GeolocationPositionIsh, club: Club) {
  * Saving/Loading
  * ==============
  */
-/**
- * Saves the current data to localStorage.
- */
 
 /**
  * Save round data to localstorage
  */
 function saveData() {
-    cache.setJSON("golfData", { ...round });
+    roundSave(round);
 }
 
 /**
@@ -947,12 +913,10 @@ function saveData() {
  * @returns {Round} the loaded round or undefined
  */
 function loadData(): Round {
-    const loadedData = cache.getJSON("golfData") as Round;
-    if (loadedData) {
-        round = loadedData;
-        return round;
-    }
-    return undefined;
+    const loaded = roundLoad();
+    if (!loaded) return;
+    round = loaded;
+    return round;
 }
 
 /**
@@ -973,7 +937,6 @@ function markerCreate(name: string, coordinate: Coordinate, options?: object): L
     const marker = L.marker([coordinate.y, coordinate.x], options);
     marker.on("drag", handleMarkerDrag(marker, coordinate));
     marker.on("dragend", (() => rerender("dragend")));
-    marker.on("dragstart", () => undoCreate("markerMove"));
     layerCreate(name, marker)
     strokelineUpdate();
     return marker
@@ -990,66 +953,6 @@ function handleMarkerDrag(marker: L.Marker, coordinate) {
         coordinate.y = position.lat;
         rerender();
     });
-}
-
-/**
- * ==================
- * Undo functionaltiy
- * ==================
- */
-
-/**
- * Handles the click event for undoing the last action.
- */
-function handleUndoActionClick() {
-    undoRun();
-}
-
-/**
- * Set an undo point that you can return to
- * @param {String} action
- */
-function undoCreate(action: string) {
-    // Limit undo stack to 5
-    if (actionStack.length > 5) {
-        actionStack = actionStack.slice(0, 5);
-    }
-
-    // Create undo point
-    actionStack.push({
-        action,
-        round: structuredClone(round),
-        currentHoleIndex: currentHole ? currentHole.index : undefined,
-        currentStrokeIndex,
-        activeStroke: structuredClone(activeStroke)
-    });
-    console.debug(`Created a new undo point for action#${action}`)
-}
-
-/**
- * Undo off the top of the action stack
- */
-function undoRun() {
-    if (actionStack.length > 0) {
-        console.debug("Undoing last action");
-
-        // Calculate values
-        const previousAction = actionStack.pop();
-        const holeIndex = previousAction.currentHoleIndex ? previousAction.currentHoleIndex : -1;
-        const strokeIndex = previousAction.currentStrokeIndex ? previousAction.currentStrokeIndex : undefined;
-
-        // Do the actual reset
-        round = previousAction.round;
-        currentHole = holeIndex === undefined ? undefined : round.holes[holeIndex];
-        currentStrokeIndex = strokeIndex;
-        activeStroke = previousAction.activeStroke;
-
-        // Reset displays post-reset
-        rerender("full");
-    } else {
-        showError(new Error("No action to undo."));
-        console.error("No action to undo.");
-    }
 }
 
 /**
@@ -2141,7 +2044,6 @@ let strokeMarkerAimCreateButton = document.getElementById("strokeMarkerAimCreate
 window.onload = handleLoad;
 document.getElementById("strokeAdd").addEventListener("click", handleStrokeAddClick);
 document.getElementById("clubStrokeCreateContainerClose").addEventListener("click", clubStrokeViewToggle);
-document.getElementById("undoAction").addEventListener("click", handleUndoActionClick);
 document.getElementById("recenter").addEventListener("click", handleRecenterClick);
 strokeMarkerAimCreateButton.addEventListener('click', handleStrokeMarkerAimCreateClick);
 document.getElementById("dispersionInput").addEventListener("change", handleDispersionInput);
