@@ -9,7 +9,7 @@ import chroma from "chroma-js";
 import { Loader } from "@googlemaps/js-api-loader";
 import "./googlemutant.js";
 import { typeid } from "typeid-js";
-import { render } from 'preact';
+import { render, VNode } from 'preact';
 
 // Modules
 import * as grids from "./grids.js";
@@ -1340,67 +1340,61 @@ function holeStatsUpdate() {
 
 function strokeListUpdate() {
     const strokeElement = document.getElementById("strokeList");
-    strokeElement.innerHTML = "";
-    if (currentHole) {
-        strokeElement.append(...currentHole.strokes.map((stroke) => strokeStatsListItem(stroke)));
-    };
+    render(<StrokeStatsList strokes={currentHole?.strokes} />, strokeElement);
+}
+
+/**
+ * Generate a list of strokes with controls to adjust them
+ * @param {Stroke[]} props.strokes
+ */
+interface StrokeStatsListProps { strokes: Stroke[] }
+function StrokeStatsList(props: StrokeStatsListProps) {
+    return (<ol>
+        {props.strokes?.map((stroke) => <StrokeStatsListItem stroke={stroke} />)}
+    </ol>);
 }
 
 /**
  * Create a list item for the Stroke Stats list
- * @param {Stroke} stroke
-                                            * @returns {HTMLElement} the li element for the list
-                                            */
-function strokeStatsListItem(stroke: Stroke): HTMLElement {
+ * @param {Stroke} props.stroke
+ * @returns {HTMLElement} the li element for the list
+ */
+interface StrokeStatsListItemProps { stroke: Stroke }
+function StrokeStatsListItem(props: StrokeStatsListItemProps) {
+    const stroke = props.stroke;
     const distOptions = { to_unit: displayUnits, precision: 1, include_unit: true }
     const distance = formatDistance(strokeDistance(stroke), distOptions);
-
-    const listItem = document.createElement("li");
-    const container = document.createElement("div");
     const selectedClass = 'strokeStatsListItemSelected';
-    container.classList.add("strokeStatsListItem", "listCell");
-    if (activeStroke && activeStroke == stroke) container.classList.add(selectedClass);
-    container.id = stroke.id;
-
-    const text = document.createElement("div");
-    text.classList.add("strokeDetails");
-    text.innerHTML = `${stroke.index + 1}.  ${stroke.club} (${distance}) | &#xb1;`;
-    const dispersionLink = dispersionLinkCreate(stroke, distOptions);
-    text.appendChild(dispersionLink);
-
-    const buttons = document.createElement("div");
-    buttons.classList.add("strokeControls");
-    buttons.append(
-        strokeMoveViewCreate(stroke, -1),
-        strokeMoveViewCreate(stroke, 1),
-        strokeDeleteViewCreate(stroke)
-    );
-
-    listItem.addEventListener('click', () => {
-        const selected = container.classList.contains(selectedClass);
-        if (selected) {
+    const clickHandler = () => {
+        if (activeStroke == stroke) {
             strokeMarkerDeactivate();
-            container.classList.remove(selectedClass);
-            return;
+        } else {
+            strokeMarkerActivate(layerRead(strokeMarkerID(stroke)));
         }
+    };
+    let classes = ["strokeStatsListItem", "listCell"];
+    if (activeStroke && activeStroke == stroke) classes.push(selectedClass);
+    const item = (<li key={stroke.id}><div className={classes.join(' ')} id={stroke.id} onClick={clickHandler}>
+        <div className="strokeDetails">
+            {`${stroke.index + 1}.  ${stroke.club} (${distance})`} | &#xb1;
+            <DispersionLink stroke={stroke} distOptions={distOptions} />
+        </div>
+        <div className="strokeControls">
+            <StrokeMoveButton stroke={stroke} offset={-1} />
+            <StrokeMoveButton stroke={stroke} offset={1} />
+            <StrokeDeleteButton stroke={stroke} />
+        </div>
+    </div></li>)
 
-        strokeMarkerActivate(layerRead(strokeMarkerID(stroke)));
-        container.classList.add(selectedClass);
-    });
-
-    container.append(text);
-    container.append(buttons);
-    listItem.append(container);
-    return listItem;
+    return item;
 }
 
-function dispersionLinkCreate(stroke: Stroke, distOptions?: formatDistanceOptions): HTMLElement {
-    distOptions = distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
-    const link = document.createElement("a");
-    link.setAttribute("href", `#stroke_${stroke.index}_dispersion`);
-    link.innerText = formatDistance(stroke.dispersion, distOptions);
-    link.addEventListener("click", () => strokeDistancePrompt(stroke));
-    return link;
+interface DispersionLinkProps { stroke: Stroke, distOptions?: formatDistanceOptions }
+function DispersionLink(props: DispersionLinkProps): VNode {
+    const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
+    const formattedDistance = formatDistance(props.stroke.dispersion, distOptions);
+    const clickHandler = () => strokeDistancePrompt(props.stroke);
+    return (<a href="#" onClick={clickHandler}>{formattedDistance}</a>);
 }
 
 function strokeDistancePrompt(stroke: Stroke) {
@@ -1565,34 +1559,33 @@ function strokeTerrainSelectUpdate() {
 /**
  * Create a link that deletes this stroke
  * @param {Stroke} stroke
-        * @returns {HTMLElement}
-        */
-function strokeDeleteViewCreate(stroke: Stroke): HTMLElement {
-    let link = document.createElement("button");
-    link.innerHTML = "&#215;";
-    link.id = `stroke_${stroke.index}_delete`
-    link.classList.add("danger");
-    link.addEventListener("click", (() => {
-        strokeDelete(stroke.holeIndex, stroke.index);
-    }));
-    return link
+ * @returns {HTMLElement}
+ */
+interface StrokeDeleteButtonProps { stroke: Stroke }
+function StrokeDeleteButton(props: StrokeDeleteButtonProps): VNode {
+    const icon = <span>&#215;</span>;
+    const clickHandler = (e) => {
+        strokeDelete(props.stroke?.holeIndex, props.stroke?.index);
+        e.stopPropagation();
+    }
+    return <button className="danger" onClick={clickHandler}>{icon}</button>
 }
 
 /**
  * Create a link that moves this stroke
  * @param {Stroke} stroke the stroke to move
-        * @param {Number} offset the offset for the stroke index
-        * @returns {HTMLElement}
-        */
-function strokeMoveViewCreate(stroke: Stroke, offset: number): HTMLElement {
-    let link = document.createElement("button");
-    let icon = (offset > 0 ? "&#8595;" : "&#8593;")
-    link.innerHTML = icon;
-    link.id = `stroke_${stroke.index}_move_${offset}`
-    link.addEventListener("click", (() => {
-        strokeMove(stroke.holeIndex, stroke.index, offset);
-    }));
-    return link
+ * @param {Number} offset the offset for the stroke index
+ * @returns {HTMLElement}
+ */
+interface StrokeMoveButtonProps { stroke: Stroke, offset: number }
+function StrokeMoveButton(props: StrokeMoveButtonProps): VNode {
+    const stroke = props.stroke;
+    const icon = (props.offset > 0 ? <span>&#8595;</span> : <span>&#8593;</span>)
+    const clickHandler = (e) => {
+        strokeMove(stroke.holeIndex, stroke.index, props.offset);
+        e.stopPropagation();
+    }
+    return <button onClick={clickHandler}>{icon}</button>
 }
 
 function distanceToPinViewUpdate(id: string = "distanceToPin"): void {
