@@ -1518,8 +1518,8 @@ function Scorecard(props: ScorecardProps) {
 
     const mappers = {
         "Hole": (hole) => <td key={[hole.id, "Hole"].join()}>{(hole.index + 1)}</td>,
-        "Hdcp": (hole) => <td key={[hole.id, "Hdcp"].join()}>{hole.handicap}</td>,
-        "Par": (hole) => <td key={[hole.id, "Par"].join()}>{hole.par}</td>,
+        "Hdcp": (hole) => <td key={[hole.id, "Hdcp"].join()}>{hole.handicap || ""}</td>,
+        "Par": (hole) => <td key={[hole.id, "Par"].join()}>{hole.par || ""}</td>,
         "Score": (hole) => {
             const strokes = hole.strokes.length;
             let text = strokes;
@@ -1533,20 +1533,35 @@ function Scorecard(props: ScorecardProps) {
             }
         },
     }
-    const holeTd = (hole, metric) => {
-        return mappers[metric](hole);
+    const totals = {
+        "Hole": <td key="hole-total">Total</td>,
+        "Hdcp": <td key="hdcp-total"></td>,
+        "Par": <td key="par-total">{round.holes.reduce((acc, hole) => acc + hole.par, 0)}</td>,
     }
+    const strokes = round.holes.reduce((acc, hole) => acc + hole.strokes.length, 0);
+    if (!disablePar) {
+        const par = round.holes.reduce((acc, hole) => acc + hole.par, 0);
+        const relative = strokes - par;
+        const text = `${strokes} (${relative >= 0 ? "+" : ""}${relative})`;
+        totals["Score"] = <td key="score-total" className={scoreClass(relative)}>{text}</td>
+    } else {
+        totals["Score"] = <td key="score-total">{strokes}</td>
+    }
+
+    const holeTd = (hole, metric) => mappers[metric](hole)
     const holeRow = (hole, metrics) => {
         return (<tr key={['row', hole.id].join()} onClick={() => holeSelect(hole.index)}>
             {metrics.map((metric) => holeTd(hole, metric))}
         </tr>)
     }
+    const totalRow = <tr class="totals">{metrics.map(metric => totals[metric])}</tr>
     // Create the table element
     const classes = ["scorecard", currentHole ? "inactive" : "active"].join(' ');
     const tab = (<table className={classes}>
         <thead><tr>{metrics.map((metric) => <th key={metric}>{metric}</th>)}</tr></thead>
         <tbody>
             {scoringRound.holes.map((hole) => holeRow(hole, metrics))}
+            {totalRow}
         </tbody>
     </table>)
     return tab;
