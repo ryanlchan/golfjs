@@ -1252,29 +1252,30 @@ function holeViewDelete() {
 /**
  * Create a hole selector given a select element
  * @param {HTMLElement} element a select element that we will populate with options
-                                            */
+ */
 function holeSelectViewCreate(element: HTMLElement) {
-    //Register this element as the current hole selector
     holeSelector = element;
-
-    // Populate the select with options
     holeSelectViewUpdate();
+}
+
+function holeSelectViewUpdate() {
+    render(<HoleSelector currentHoleIndex={currentHole?.index} holes={round.holes} />, holeSelector);
 }
 
 /**
  * Update a given select element with current hole options
+ * @param {number} props.currentHoleIndex
+ * @param {Hole[]} props.holes
  */
-function holeSelectViewUpdate() {
-    if (!holeSelector) return;
+interface HoleSelectorProps { currentHoleIndex: number, holes: Hole[] }
+function HoleSelector(props: HoleSelectorProps) {
     const handleSelect = (e) => holeSelect(parseInt(e.target.value));
-    const value = Number.isFinite(currentHole?.index) ? currentHole.index : -1;
+    const value = Number.isFinite(props.currentHoleIndex) ? props.currentHoleIndex : -1;
     const selector = (<select id="holeSelector" value={value} onInput={handleSelect}>
         <option value="-1">Overview</option>
-        {round.holes.map((hole) => <option value={hole.index} key={hole.id}>{`Hole ${hole.index + 1}`}</option>)}
+        {props.holes.map((hole) => <option value={hole.index} key={hole.id}>{`Hole ${hole.index + 1}`}</option>)}
     </select>);
-
-    render(selector, holeSelector);
-
+    return selector;
 }
 
 /**
