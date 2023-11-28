@@ -58,6 +58,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
     }
 
     // Create the stroke object
+    const course = roundCourseParams(round);
     const stroke: Stroke = {
         id: typeid("stroke").toString(),
         index: currentHole.strokes.length,
@@ -67,6 +68,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
             y: position.coords.latitude,
             crs: "EPSG:4326",
         },
+        terrain: grids.getGolfTerrainAt(course, [position.coords.latitude, position.coords.longitude]),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...options
@@ -155,6 +157,13 @@ function convertAndSetStrokeDispersion(stroke: Stroke, val: number | string): nu
     touch(stroke, strokeHole(stroke), round);
     stroke.dispersion = formatDistanceAsNumber(val, distOpts);
     return stroke.dispersion;
+}
+
+function strokeUpdateTerrain(stroke: Stroke, strokeRound?: Round) {
+    if (!strokeRound) strokeRound = round;
+    const course = roundCourseParams(strokeRound);
+    stroke.terrain = grids.getGolfTerrainAt(course, [stroke.start.y, stroke.start.x])
+    touch(stroke);
 }
 
 /**
@@ -262,6 +271,7 @@ function strokeMarkerCreate(stroke: Stroke, options?: object) {
         (function () { return strokeTooltipText(stroke) }),
         { permanent: true, direction: direction, offset: offset });
     marker.on('click', strokeMarkerActivateCallback(marker));
+    marker.on('dragend', () => strokeUpdateTerrain(stroke));
 }
 
 /**
