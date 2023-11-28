@@ -1900,7 +1900,7 @@ function showPositionError(error: PositionError) {
 // Event listeners
 let strokeMarkerAimCreateButton = document.getElementById("strokeMarkerAimCreate")
 
-window.onload = handleLoad;
+window.addEventListener('load', handleLoad);
 document.getElementById("strokeAdd").addEventListener("click", handleStrokeAddClick);
 document.getElementById("clubStrokeCreateContainerClose").addEventListener("click", clubStrokeViewToggle);
 document.getElementById("recenter").addEventListener("click", handleRecenterClick);
@@ -1909,3 +1909,4 @@ document.getElementById("dispersionInput").addEventListener("change", handleDisp
 document.getElementById("terrainInput").addEventListener("change", handleTerrainInput);
 document.getElementById("holeSelectNext").addEventListener("click", () => handleHoleIncrement(1));
 document.getElementById("holeSelectBack").addEventListener("click", () => handleHoleIncrement(-1));
+document.getElementById("panicButton").addEventListener("click", () => { throw new Error("PANIC!!!") });

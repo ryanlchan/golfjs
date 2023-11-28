@@ -16,5 +16,5 @@ export default defineConfig({
             }
         }
     },
-    plugins: [preact()]
+    plugins: [preact({ prefreshEnabled: false })]
 })
