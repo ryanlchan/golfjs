@@ -1398,12 +1398,16 @@ interface DispersionLinkProps { stroke: Stroke, distOptions?: formatDistanceOpti
 function DispersionLink(props: DispersionLinkProps): VNode {
     const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
     const formattedDistance = formatDistance(props.stroke.dispersion, distOptions);
-    const clickHandler = () => strokeDistancePrompt(props.stroke);
-    return (<a href="#" onClick={clickHandler}>{formattedDistance}</a>);
+    const clickHandler = (e) => {
+        strokeDistancePrompt(props.stroke);
+        e.stopPropagation();
+    }
+    return (<a href="#" onClick={clickHandler} id={props.id}>{formattedDistance}</a>);
 }
 
 function strokeDistancePrompt(stroke: Stroke) {
-    let disp = parseFloat(prompt("Enter a dispersion:"));
+    let disp = prompt("Enter a dispersion:");
+    if (disp === null || disp === "") return;
     if (!Number.isFinite(disp)) return showError("Invalid dispersion");
     const dispersion = convertAndSetStrokeDispersion(stroke, disp);
     rerender("full");
