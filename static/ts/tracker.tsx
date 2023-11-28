@@ -181,7 +181,7 @@ function strokeHole(stroke: Stroke): Hole {
 
 function strokeNextStroke(stroke: Stroke): Stroke {
     let hole = strokeHole(stroke);
-    if (stroke.index == hole.strokes.length) {
+    if (!hole || stroke.index == hole.strokes.length) {
         return undefined;
     }
     return hole.strokes[stroke.index + 1];
@@ -189,7 +189,7 @@ function strokeNextStroke(stroke: Stroke): Stroke {
 
 function strokeLastStroke(stroke: Stroke): Stroke {
     let hole = strokeHole(stroke);
-    if (stroke.index == 0) {
+    if (!hole || stroke.index == 0) {
         return undefined;
     }
     return hole.strokes[stroke.index - 1];
@@ -1137,6 +1137,7 @@ function currentCoordRead(maximumAge = 5000): Coordinate {
  * Initialize the leaflet map and satellite baselayer
  */
 function mapViewCreate(mapid) {
+    if (mapView) return; // Skip initialized map already
     const mapContainer = document.getElementById(mapid);
 
     // Calculate 80% of the available vertical space
