@@ -134,8 +134,6 @@ button {
     -webkit-touch-callout: none;
 }
 
-.active-marker {}
-
 /* 
 * Structural components
 */
@@ -250,7 +248,6 @@ pre code {
     color: #c25;
     background-color: #f7f7f9;
     border: 1px solid #e1e1e8;
-    border-radius: 3px;
 }
 
 .listCell {

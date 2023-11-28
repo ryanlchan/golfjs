@@ -25,6 +25,7 @@
     "leaflet.gridlayer.googlemutant": "^0.14.0"
   },
   "devDependencies": {
+    "@preact/preset-vite": "^2.7.0",
     "@turf/turf": "^6.5.0",
     "@types/geojson": "^7946.0.10",
     "chroma-js": "^2.4.2",
