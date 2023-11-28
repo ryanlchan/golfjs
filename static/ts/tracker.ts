@@ -348,6 +348,7 @@ function strokeMarkerActivate(marker: L.Marker) {
     // Rerender stroke list
     strokeListUpdate();
     strokeTerrainSelectUpdate();
+    gridTypeSelectUpdate();
 }
 
 /**
@@ -1625,6 +1626,13 @@ function handleGridTypeSelection() {
     });
 }
 
+function gridTypeSelectUpdate() {
+    let selector = document.getElementById('gridTypeSelect');
+    let activeGrid = layerRead('active_grid');
+    if (!(selector instanceof HTMLSelectElement) || !activeGrid) return
+    selector.value = activeGrid.options.grid.properties.type;
+}
+
 /**
  * Create the stroke terrain input options
  */
@@ -1745,42 +1753,51 @@ function distanceToPinViewUpdate(id: string = "distanceToPin"): void {
 
 /**
  * Rerender key views based on volatile data
- * @param {string} type the type of rerender to perform. Can be `full` or `dragend`
+ * @param {string} category the category of rerender to perform.
  */
-function rerender(type?: string) {
+function rerender(category: string = "map") {
     // Render calls that can occur any time, high perf
-    if (!type || type == "full") {
+    const lines = () => {
         strokelineUpdate();
+    }
+    const markers = () => {
         strokeMarkerUpdate();
         strokeMarkerAimUpdate();
+        if (currentHole) {
+            pinMarkerUpdate(currentHole);
+        }
+    }
+    const lists = () => {
         holeStatsUpdate();
         strokeListUpdate();
+        scorecardViewUpdate();
+        holeSelectViewUpdate();
         saveData();
     }
 
-    // Render calls that should happen only after drags finish
-    if ((type == "dragend" || type == "full") && activeStroke) {
+    const grids = () => {
+        if (!activeStroke) return
         gridUpdate().then(() => {
             aimStatsUpdate();
             strokeMarkerAimUpdate();
-        }, (error) => console.error(error));
+        }).catch((error) => console.error(error));
     }
 
-    // Rerender calls that should happen on full rerenders with active strokes
-    if (activeStroke && type == "full") {
+    const activeFull = () => {
+        if (!activeStroke) return
         strokeMarkerAimDelete();
         strokeMarkerAimCreate();
         strokeTerrainSelectUpdate();
+        gridTypeSelectUpdate();
     }
-    if (type == "full" && currentHole) {
-        pinMarkerUpdate(currentHole);
+    const categories = {
+        map: [lines, markers, lists],
+        dragend: [grids],
+        active: [grids, activeFull],
+        full: [lines, markers, lists, grids, activeFull]
     }
 
-    // Rerender everything
-    if (type == "full") {
-        scorecardViewUpdate();
-        holeSelectViewUpdate();
-    }
+    categories[category].forEach((action) => action());
 }
 
 /**
