@@ -1,6 +1,7 @@
 /** @type {import('vite').UserConfig} */
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
+import preact from "@preact/preset-vite";
 
 export default defineConfig({
     base: "/golfjs/",
@@ -14,5 +15,6 @@ export default defineConfig({
                 settings: resolve(__dirname, 'settings.html'),
             }
         }
-    }
+    },
+    plugins: [preact({ prefreshEnabled: false })]
 })

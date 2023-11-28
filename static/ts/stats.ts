@@ -3,11 +3,10 @@ import { point, distance, bearing, FeatureCollection } from '@turf/turf';
 import * as chroma from "chroma-js";
 
 import { cdf, sgGrid } from './grids';
-import { coordToPoint, getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOptions } from './projections';
+import { coordToPoint, getDistance, formatDistance, formatDistanceOptions } from './projections';
 import { roundID, roundLoad } from './rounds';
-import { touch } from './utils';
+import { touch, getUnitsSetting } from './utils';
 import * as cacheUtils from "./cache";
-import { getUnitsSetting } from "./utils";
 
 interface RoundStatsCache extends HasUpdateDates {
     round: RoundStats,
@@ -93,7 +92,7 @@ function defaultRoundStats(filter?: string): RoundStats {
         strokesGainedPredicted: 0,
         strokesGainedPercentile: 0,
         proximityPercentile: 0,
-        filter: filter ? filter : undefined,
+        filter: filter,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     };
@@ -922,10 +921,10 @@ function regenerateView() {
     const round = roundLoad();
     const key = statsCacheKey(round);
     cacheUtils.remove(key);
-    new Promise(() => generateView());
+    generateView();
 }
 
 function handleLoad() {
-    new Promise(() => generateView());
+    generateView();
 }
 window.onload = handleLoad;
