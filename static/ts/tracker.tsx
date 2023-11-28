@@ -31,9 +31,7 @@ import flagImg from "../img/flag.png";
 let mapView: any;
 let round: Round = roundCreate();
 let currentHole: Hole = round.holes.at(-1);
-let currentStrokeIndex: number = currentHole.strokes.length;
 let layers: object = {};
-let actionStack: Action[] = [];
 let currentPosition: GeolocationPosition;
 let currentPositionEnabled: boolean;
 let holeSelector: HTMLElement;
@@ -53,7 +51,7 @@ let displayUnits = getUnitsSetting();
  */
 function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
     // handle no current hole
-    if (currentHole == undefined || currentStrokeIndex == undefined) {
+    if (currentHole == undefined) {
         currentHole = round.holes.reduce((latest, hole) => {
             return hole.index > latest.index && hole.strokes.length > 0 ? hole : latest
         })
@@ -63,7 +61,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
     // Create the stroke object
     const stroke: Stroke = {
         id: typeid("stroke").toString(),
-        index: currentStrokeIndex,
+        index: currentHole.strokes.length,
         holeIndex: currentHole.index,
         start: {
             x: position.coords.longitude,
@@ -81,7 +79,6 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
     // Add the stroke to the data layer
     currentHole.strokes.push(stroke);
     touch(currentHole, round);
-    currentStrokeIndex++;
 
     // Add the stroke to the view
     strokeMarkerCreate(stroke);
@@ -102,9 +99,6 @@ function strokeDelete(holeIndex, strokeIndex: number) {
 
         // Reindex remaining strokes
         hole.strokes.forEach((stroke, index) => stroke.index = index);
-
-        // Reset stroke index
-        currentStrokeIndex = hole.strokes.length;
 
         // Update hole
         touch(hole, round);
@@ -308,7 +302,7 @@ function strokeMarkerActivate(marker: L.Marker) {
 
     // Set current hole to this one if missing
     const stroke = round.holes[opt["holeIndex"]].strokes[opt["strokeIndex"]];
-    if (!currentHole || !currentStrokeIndex) {
+    if (!currentHole) {
         holeSelect(opt["holeIndex"]);
         marker = layerRead(strokeMarkerID(stroke));
     }
@@ -755,14 +749,12 @@ function holeSelect(holeIndex: number) {
         });
 
         currentHole = undefined;
-        currentStrokeIndex = undefined;
         mapRecenter("course");
     } else if (!(round.holes[holeIndex])) {
         console.error(`Attempted to select hole i${holeIndex} but does not exist!`);
         return
     } else {
         currentHole = round.holes[holeIndex];
-        currentStrokeIndex = currentHole.strokes.length;
 
         // Delete all hole-specific layers and active states
         holeViewDelete();
@@ -872,7 +864,6 @@ function loadRoundData(): Promise<Round> {
             .then(() => loadRoundData());
     } else {
         currentHole = round.holes.at(0);
-        currentStrokeIndex = currentHole.strokes.length;
         return Promise.resolve(loaded);
     }
 }
