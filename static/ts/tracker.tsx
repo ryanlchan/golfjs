@@ -115,7 +115,7 @@ function strokeDelete(holeIndex, strokeIndex: number) {
  * @param {Number} strokeIndex the stroke index to reorder (0-indexed)
  * @param {Number} offset movment relative to the current strokeIndex
  */
-function strokeMove(holeIndex: number, strokeIndex: number, offset: number) {
+function strokeReorder(holeIndex: number, strokeIndex: number, offset: number) {
     console.debug(`Moving stroke i${strokeIndex} from hole i${holeIndex} by ${offset}`)
     const hole = round.holes[holeIndex]
     const mover = hole.strokes[strokeIndex]
@@ -1597,7 +1597,7 @@ function StrokeMoveButton(props: StrokeMoveButtonProps): VNode {
     const stroke = props.stroke;
     const icon = (props.offset > 0 ? <span>&#8595;</span> : <span>&#8593;</span>)
     const clickHandler = (e) => {
-        strokeMove(stroke.holeIndex, stroke.index, props.offset);
+        strokeReorder(stroke.holeIndex, stroke.index, props.offset);
         e.stopPropagation();
     }
     return <button onClick={clickHandler}>{icon}</button>
@@ -1756,7 +1756,7 @@ function handleStrokeAddClick() {
  * If the user is not in the current course, allow them to click the screen to
  * set a new stroke's location
  */
-function handleStrokeMarkerAimCreateClick() {
+function handleStrokeMarkerAimResetClick() {
     strokeAimReset(activeStroke);
     rerender("full");
 }
@@ -1806,15 +1806,11 @@ function showPositionError(error: PositionError) {
 }
 
 // Event listeners
-let strokeMarkerAimCreateButton = document.getElementById("strokeMarkerAimCreate")
+let strokeMarkerAimCreateButton = document.getElementById("strokeAimReset")
 
 window.addEventListener('load', handleLoad);
 document.getElementById("strokeAdd").addEventListener("click", handleStrokeAddClick);
 document.getElementById("clubStrokeCreateContainerClose").addEventListener("click", clubStrokeViewToggle);
 document.getElementById("recenter").addEventListener("click", handleRecenterClick);
-strokeMarkerAimCreateButton.addEventListener('click', handleStrokeMarkerAimCreateClick);
-document.getElementById("dispersionInput").addEventListener("change", handleDispersionInput);
-document.getElementById("terrainInput").addEventListener("change", handleTerrainInput);
-document.getElementById("holeSelectNext").addEventListener("click", () => handleHoleIncrement(1));
-document.getElementById("holeSelectBack").addEventListener("click", () => handleHoleIncrement(-1));
+strokeMarkerAimCreateButton.addEventListener('click', handleStrokeMarkerAimResetClick);
 document.getElementById("panicButton").addEventListener("click", () => { throw new Error("PANIC!!!") });
