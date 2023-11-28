@@ -36,13 +36,6 @@ button {
     display: none;
 }
 
-.insideLabel {
-    margin-left: -1.7em;
-    text-align: right;
-    overflow: visible;
-    color: rgb(80, 80, 80);
-}
-
 .linkButton {
     padding: 10px;
     border-radius: 5px;
@@ -293,6 +286,10 @@ pre code {
     display: inline-block;
 }
 
+.StrokeAndHoleControls label {
+    margin-right: 5px;
+}
+
 a.holeSelectNudge {
     margin: auto 2px;
     text-decoration: none;
@@ -364,10 +361,6 @@ div#strokeList ol {
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-#dispersionInput {
-    width: 5em;
 }
 
 /*

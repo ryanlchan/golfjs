@@ -34,7 +34,6 @@ let currentHole: Hole = round.holes.at(-1);
 let layers: object = {};
 let currentPosition: GeolocationPosition;
 let currentPositionEnabled: boolean;
-let holeSelector: HTMLElement;
 let activeStroke: Stroke;
 let displayUnits = getUnitsSetting();
 
@@ -358,8 +357,7 @@ function strokeMarkerDeactivate(e?) {
         // Delete deactivation clicks
         mapView.removeEventListener("click", strokeMarkerDeactivate);
 
-        // Update stroke list
-        strokeListUpdate();
+        rerender("map");
     }
 }
 
@@ -395,7 +393,6 @@ function strokeMarkerAimCreate() {
     layerCreate("active_aim_ring", ring);
     gridCreate();
     strokeMarkerAimUpdate();
-    activeStrokeStatsCreate();
 }
 
 /**
@@ -442,9 +439,6 @@ function strokeMarkerAimDelete() {
 
     // Hide any grid
     gridDelete();
-
-    // Hide active stats
-    activeStrokeStatsDelete();
 }
 
 /**
@@ -517,7 +511,6 @@ function gridCreate(type?: string) {
  * Delete the currently active grid type
  */
 function gridDelete() {
-    aimStatsDelete();
     layerDelete("active_grid");
 }
 
@@ -599,7 +592,6 @@ function sgGridCreate() {
                     | ${ptile.toFixed(1)}%ile`;
     });
     layerCreate("active_grid", gridLayer);
-    aimStatsCreate();
 }
 
 /**
@@ -649,7 +641,6 @@ function targetGridCreate() {
                     | vs Aim: ${rwsg.toFixed(3)}`
     });
     layerCreate("active_grid", gridLayer);
-    aimStatsCreate();
 }
 
 /**
@@ -1250,35 +1241,6 @@ function holeViewDelete() {
 }
 
 /**
- * Create a hole selector given a select element
- * @param {HTMLElement} element a select element that we will populate with options
- */
-function holeSelectViewCreate(element: HTMLElement) {
-    holeSelector = element;
-    holeSelectViewUpdate();
-}
-
-function holeSelectViewUpdate() {
-    render(<HoleSelector currentHoleIndex={currentHole?.index} holes={round.holes} />, holeSelector);
-}
-
-/**
- * Update a given select element with current hole options
- * @param {number} props.currentHoleIndex
- * @param {Hole[]} props.holes
- */
-interface HoleSelectorProps { currentHoleIndex: number, holes: Hole[] }
-function HoleSelector(props: HoleSelectorProps) {
-    const handleSelect = (e) => holeSelect(parseInt(e.target.value));
-    const value = Number.isFinite(props.currentHoleIndex) ? props.currentHoleIndex : -1;
-    const selector = (<select id="holeSelector" value={value} onInput={handleSelect}>
-        <option value="-1">Overview</option>
-        {props.holes.map((hole) => <option value={hole.index} key={hole.id}>{`Hole ${hole.index + 1}`}</option>)}
-    </select>);
-    return selector;
-}
-
-/**
  * Set up a marker on the map which tracks current user position and caches location
  */
 function currentPositionUpdate() {
@@ -1321,39 +1283,59 @@ function positionMarkerPopupText(layer: L.Marker) {
 }
 
 /**
- * Updates the statistics information on the page.
+ * View components
  */
-function holeStatsUpdate() {
-    const holeElement = document.getElementById("holeStats");
-    if (currentHole) {
-        let text = `| ${currentHole.strokes.length} Strokes`;
-        if (currentHole.par) {
-            text += ` | Par ${currentHole.par}`
-        }
-        if (currentHole.handicap) {
-            text += ` | Hcp ${currentHole.handicap}`
-        }
-        holeElement.innerText = text
-    } else {
-        // No current hole, assume overview
-        holeElement.innerHTML = `| ${round.course}`;
-    }
-}
 
-function strokeListUpdate() {
-    const strokeElement = document.getElementById("strokeList");
-    render(<StrokeStatsList strokes={currentHole?.strokes} />, strokeElement);
+interface HoleInfoProps { hole: Hole, round: Round }
+function HoleInfo(props: HoleInfoProps) {
+    const round = props.round
+    const hole = props.hole;
+    let stats = [];
+    if (hole) {
+        stats.push(`${currentHole.strokes.length} Strokes`);
+        if (hole.par) stats.push(`Par ${currentHole.par}`);
+        if (hole.handicap) stats.push(`Hcp ${currentHole.handicap}`);
+    } else {
+        stats.push(round.course);
+    }
+    let text = stats.join(' | ');
+    return <div id="holeStats"> | {text}</div>
 }
 
 /**
- * Generate a list of strokes with controls to adjust them
- * @param {Stroke[]} props.strokes
+ * Update a given select element with current hole options
+ * @param {number} props.currentHoleIndex
+ * @param {Hole[]} props.holes
  */
-interface StrokeStatsListProps { strokes: Stroke[] }
-function StrokeStatsList(props: StrokeStatsListProps) {
-    return (<ol>
-        {props.strokes?.map((stroke) => <StrokeStatsListItem stroke={stroke} />)}
-    </ol>);
+interface HoleSelectorProps { currentHoleIndex: number, holes: Hole[] }
+function HoleSelector(props: HoleSelectorProps) {
+    const handleSelect = (e) => holeSelect(parseInt(e.target.value));
+    const value = Number.isFinite(props.currentHoleIndex) ? props.currentHoleIndex : -1;
+    const selector = (<select id="holeSelector" value={value} onInput={handleSelect}>
+        <option value="-1">Overview</option>
+        {props.holes.map((hole) => <option value={hole.index} key={hole.id}>{`Hole ${hole.index + 1}`}</option>)}
+    </select>);
+    return selector;
+}
+
+function HoleChangeControl() {
+    const holeDec = () => handleHoleIncrement(-1);
+    const holeInc = () => handleHoleIncrement(1);
+    const element = <span className="holeControls">
+        <a href="#" id="holeSelectBack" className="holeSelectNudge" onClick={holeDec}>&lt;</a>
+        <HoleSelector currentHoleIndex={currentHole?.index} holes={round.holes} />
+        <a href="#" id="holeSelectNext" className="holeSelectNudge" onClick={holeInc}>&gt;</a>
+    </span>
+    return element
+}
+
+interface HoleControlsProps { hole: Hole, round: Round }
+function HoleControls(props: HoleControlsProps) {
+    const id = "holeControlsContainer"
+    return <div className="buttonRow" id={id}>
+        <HoleChangeControl />
+        <HoleInfo hole={props.hole} round={props.round} />
+    </div>
 }
 
 /**
@@ -1391,7 +1373,18 @@ function StrokeStatsListItem(props: StrokeStatsListItemProps) {
     return item;
 }
 
-interface DispersionLinkProps { stroke: Stroke, distOptions?: formatDistanceOptions }
+/**
+ * Generate a list of strokes with controls to adjust them
+ * @param {Stroke[]} props.strokes
+ */
+interface StrokeStatsListProps { strokes: Stroke[] }
+function StrokeStatsList(props: StrokeStatsListProps) {
+    return (<div id="strokeList"><ol>
+        {props.strokes?.map((stroke) => <StrokeStatsListItem stroke={stroke} />)}
+    </ol></div>);
+}
+
+interface DispersionLinkProps { stroke: Stroke, distOptions?: formatDistanceOptions, id?: string }
 function DispersionLink(props: DispersionLinkProps): VNode {
     const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
     const formattedDistance = formatDistance(props.stroke.dispersion, distOptions);
@@ -1407,16 +1400,8 @@ function strokeDistancePrompt(stroke: Stroke) {
     return dispersion;
 }
 
-/**
- * Update aim-specific advanced stats
- */
-function aimStatsUpdate() {
-    const el = document.getElementById("aimStats");
-    render(<AimStats activeStroke={activeStroke} round={round} />, el);
-}
-
 interface AimStatsProps { activeStroke: Stroke, round: Round }
-function AimStats(props) {
+function AimStats(props: AimStatsProps) {
     const layer = layerRead("active_grid")
     if (!layer) return; // No grid to load
     const stroke = props.activeStroke;
@@ -1438,120 +1423,152 @@ function AimStats(props) {
     const innerText = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
 
     // Update dispersion
-    return <div>{innerText}</div>
+    return <div id="aimStats" className="buttonRow">{innerText}</div>
 }
 
-/**
- * Show the Stats for a stroke
- */
-function activeStrokeStatsCreate() {
-    const el = document.getElementById("activeStrokeControls");
-    el.classList.remove("inactive");
-    aimStatsUpdate();
-}
-
-/**
- * Hide the Aim stats for a stroke
- */
-function activeStrokeStatsDelete() {
-    const el = document.getElementById("activeStrokeControls");
-    el.classList.add("inactive");
-
-}
-
-/**
- * Show the Aim Stats for a stroke
- */
-function aimStatsCreate() {
-    const el = document.getElementById("aimStats");
-    el.classList.remove("inactive");
-    aimStatsUpdate();
-}
-
-/**
- * Hide the Aim stats for a stroke
- */
-function aimStatsDelete() {
-    const el = document.getElementById("aimStats");
-    el.classList.add("inactive");
-
-}
-
-/**
- * Create a select element to choose the type of grid to render for this stroke
- */
-function gridTypeSelectCreate() {
-    // Create new selector
-    let selector = document.getElementById('gridTypeSelect');
-    if (!(selector instanceof HTMLSelectElement)) {
-        return
-    }
-    while (selector.firstChild) {
-        selector.removeChild(selector.firstChild);
-    }
-    for (let type in grids.gridTypes) {
-        let opt = document.createElement('option');
-        opt.value = grids.gridTypes[type];
-        opt.innerText = grids.gridTypes[type];
-        selector.appendChild(opt);
-    }
-    let activeGrid = layerRead('active_grid');
-    if (activeGrid) {
-        let type = activeGrid.options.grid.properties.type;
-        selector.value = type;
-    }
-    selector.addEventListener('change', handleGridTypeSelection);
-}
-
-/**
- * Handle when a new grid type is selected
- */
-function handleGridTypeSelection() {
-    gridDelete();
-    wait(10).then(() => {
-        gridCreate(this.value);
+function GridTypeControl() {
+    const activeGrid = layerRead('active_grid');
+    const activeType = activeGrid?.options.grid.properties.type;
+    const id = "gridTypeControlContainer";
+    const onInput = (e) => {
+        gridDelete();
+        gridCreate(e.target.value);
         strokeMarkerAimUpdate();
-    });
-}
-
-function gridTypeSelectUpdate() {
-    let selector = document.getElementById('gridTypeSelect');
-    let activeGrid = layerRead('active_grid');
-    if (!(selector instanceof HTMLSelectElement) || !activeGrid) return
-    selector.value = activeGrid.options.grid.properties.type;
-}
-
-/**
- * Create the stroke terrain input options
- */
-function strokeTerrainSelectCreate() {
-    const el = document.getElementById("terrainInput");
-    let types = [];
-    let op = document.createElement("option");
-    op.value = "";
-    op.text = "Default";
-    types.push(op)
-    for (let type in STROKES_REMAINING_COEFFS) {
-        let op = document.createElement("option");
-        op.value = type;
-        op.text = type;
-        types.push(op)
     }
-    el.replaceChildren(...types);
+    return <div className="buttonRow" id={id}>
+        <label for={id}>Grid type:</label>
+        <select id="gridTypeSelect" onInput={onInput} value={activeType}>
+            {Object.values(grids.gridTypes).map(name => <option value={name}>{name}</option>)}
+        </select>
+    </div>
+}
+
+interface DispersionControlProps { stroke: Stroke }
+function DispersionControl(props) {
+    const id = "dispersionControlContainer";
+    return <div className="buttonRow" id={id}>
+        <label for={id}>Dispersion:</label>
+        <DispersionLink stroke={props.stroke} id={id} />
+    </div>
+}
+
+interface TerrainControlProps { stroke: Stroke }
+function TerrainControl(props: TerrainControlProps) {
+    const containerID = "terrainControlContainer";
+    const selectID = "terrainControlSelect";
+    const currentTerrain = props.stroke?.terrain;
+    const hole = strokeHole(props.stroke);
+    const onChange = (e) => {
+        const val = e.target.value;
+        if (val == "" || val in STROKES_REMAINING_COEFFS) {
+            props.stroke.terrain = val;
+            touch(props.stroke, hole, round);
+            saveData();
+        } else {
+            showError(new PositionError("Terrain type not recognized", 4));
+            console.error(`Terrain type not recognized, got ${val}`);
+        }
+        rerender("dragend");
+    }
+    return <div className="buttonRow" id={containerID}>
+        <label for={containerID}>Terrain:</label>
+        <select type="text" id={selectID} value={currentTerrain} onChange={onChange}>
+            <option value="">unknown</option>
+            {Object.keys(STROKES_REMAINING_COEFFS).map((type) => <option value={type}>{type}</option>)}
+        </select>
+    </div>
+}
+
+interface ActiveStrokeControlsProps { activeStroke: Stroke, round: Round }
+function ActiveStrokeControls(props: ActiveStrokeControlsProps) {
+    if (!props.activeStroke) return;
+    return <div id="activeStrokeControls" className="buttonRow">
+        <AimStats activeStroke={activeStroke} round={round} />
+        <GridTypeControl />
+        <DispersionControl stroke={activeStroke} />
+        <TerrainControl stroke={activeStroke} />
+    </div>
 }
 
 /**
- * Update the stroke terrain selector with the current stroke's terrain
+ * Create a scorecard as table
  */
-function strokeTerrainSelectUpdate() {
-    if (!activeStroke) return
-    const el = document.getElementById("terrainInput") as HTMLSelectElement;
-    const currentTerrain = activeStroke.terrain;
-    if (currentTerrain === undefined) {
-        el.value = "";
+interface ScorecardProps { round: Round }
+function Scorecard(props: ScorecardProps) {
+    const scoringRound = props.round;
+    let metrics = ['Hole', 'Hdcp', 'Par', 'Score'];
+    const disableHandicap = !scoringRound.holes[0].handicap;
+    const disablePar = !scoringRound.holes[0].par;
+    if (disableHandicap) metrics = metrics.filter((el) => el != 'Hdcp');
+    if (disablePar) metrics = metrics.filter((el) => el != 'Par');
+
+    const mappers = {
+        "Hole": (hole) => <td key={[hole.id, "Hole"].join()}>{(hole.index + 1)}</td>,
+        "Hdcp": (hole) => <td key={[hole.id, "Hdcp"].join()}>{hole.handicap}</td>,
+        "Par": (hole) => <td key={[hole.id, "Par"].join()}>{hole.par}</td>,
+        "Score": (hole) => {
+            const strokes = hole.strokes.length;
+            let text = strokes;
+            if (!disablePar) {
+                const par = hole.par || 0;
+                const relative = strokes - par;
+                text = `${hole.strokes.length} (${relative >= 0 ? "+" : ""}${relative})`;
+                return <td key={[hole.id, "Score"].join()} className={scoreClass(relative)}>{text}</td>
+            } else {
+                return <td key={[hole.id, "Score"].join()}>{hole.strokes.length}</td>
+            }
+        },
+    }
+    const holeTd = (hole, metric) => {
+        return mappers[metric](hole);
+    }
+    const holeRow = (hole, metrics) => {
+        return (<tr key={['row', hole.id].join()} onClick={() => holeSelect(hole.index)}>
+            {metrics.map((metric) => holeTd(hole, metric))}
+        </tr>)
+    }
+    // Create the table element
+    const classes = ["scorecard", currentHole ? "inactive" : "active"].join(' ');
+    const tab = (<table className={classes}>
+        <thead><tr>{metrics.map((metric) => <th key={metric}>{metric}</th>)}</tr></thead>
+        <tbody>
+            {scoringRound.holes.map((hole) => holeRow(hole, metrics))}
+        </tbody>
+    </table>)
+    return tab;
+}
+
+/**
+ * Return the score class (birdie, bogey, etc)
+ * @param relativeScore the score relative to par
+ * @returns {string} the score class
+        */
+function scoreClass(relativeScore: number): string {
+    const s = Math.round(relativeScore);
+    if (s >= 2) {
+        return "double_bogey";
+    } else if (s == 1) {
+        return "bogey";
+    } else if (s == 0) {
+        return "par";
+    } else if (s == -1) {
+        return "birdie";
+    } else if (s == -2) {
+        return "eagle";
     } else {
-        el.value = currentTerrain;
+        return "albatross";
     }
+}
+
+interface StrokeAndHoleControlsProps { activeStroke: Stroke, hole: Hole, round: Round }
+function StrokeAndHoleControls(props: StrokeAndHoleControlsProps) {
+    return <div className="StrokeAndHoleControls">
+        <HoleControls hole={props.hole} round={props.round} />
+        <ActiveStrokeControls activeStroke={props.activeStroke} round={props.round} />
+        <hr />
+        <Scorecard round={props.round} />
+        <StrokeStatsList strokes={props.hole?.strokes} />
+    </div>
 }
 
 /**
@@ -1602,11 +1619,18 @@ function distanceToPinViewUpdate(id: string = "distanceToPin"): void {
 }
 
 /**
+ * Rerendering handlers
+ */
+function strokeAndHoleControlsUpdate() {
+    const el = document.getElementById("subMapControls");
+    render(<StrokeAndHoleControls activeStroke={activeStroke} hole={currentHole} round={round} />, el);
+}
+
+/**
  * Rerender key views based on volatile data
  * @param {string} category the category of rerender to perform.
         */
 function rerender(category: string = "map") {
-    // Render calls that can occur any time, high perf
     const lines = () => {
         strokelineUpdate();
     }
@@ -1617,34 +1641,27 @@ function rerender(category: string = "map") {
             pinMarkerUpdate(currentHole);
         }
     }
-    const lists = () => {
-        holeStatsUpdate();
-        strokeListUpdate();
-        scorecardViewUpdate();
-        holeSelectViewUpdate();
+    const controls = () => {
+        strokeAndHoleControlsUpdate();
         saveData();
     }
-
     const activeGrids = () => {
         if (!activeStroke) return
         gridUpdate().then(() => {
-            aimStatsUpdate();
             strokeMarkerAimUpdate();
+            strokeAndHoleControlsUpdate();
         }).catch((error) => console.error(error));
     }
-
     const activeStates = () => {
         if (!activeStroke) return
         strokeMarkerAimDelete();
         strokeMarkerAimCreate();
-        strokeTerrainSelectUpdate();
-        gridTypeSelectUpdate();
     }
     const categories = {
-        map: [lines, markers, lists],
+        map: [lines, markers, controls],
         dragend: [activeGrids],
-        active: [activeStates],
-        full: [lines, markers, lists, activeStates]
+        active: [activeStates, controls],
+        full: [lines, markers, controls, activeStates]
     }
 
     categories[category].forEach((action) => action());
@@ -1710,84 +1727,6 @@ function clubStrokeViewToggle() {
         currentPositionUpdate()
     }
 }
-
-/**
- * Create a scorecard as table
- */
-function Scorecard(props) {
-    const scoringRound = props.round;
-    let metrics = ['Hole', 'Hdcp', 'Par', 'Score'];
-    const disableHandicap = !scoringRound.holes[0].handicap;
-    const disablePar = !scoringRound.holes[0].par;
-    if (disableHandicap) metrics = metrics.filter((el) => el != 'Hdcp');
-    if (disablePar) metrics = metrics.filter((el) => el != 'Par');
-
-    const mappers = {
-        "Hole": (hole) => <td key={[hole.id, "Hole"].join()}>{(hole.index + 1)}</td>,
-        "Hdcp": (hole) => <td key={[hole.id, "Hdcp"].join()}>{hole.handicap}</td>,
-        "Par": (hole) => <td key={[hole.id, "Par"].join()}>{hole.par}</td>,
-        "Score": (hole) => {
-            const strokes = hole.strokes.length;
-            let text = strokes;
-            if (!disablePar) {
-                const par = hole.par || 0;
-                const relative = strokes - par;
-                text = `${hole.strokes.length} (${relative >= 0 ? "+" : ""}${relative})`;
-                return <td key={[hole.id, "Score"].join()} className={scoreClass(relative)}>{text}</td>
-            } else {
-                return <td key={[hole.id, "Score"].join()}>{hole.strokes.length}</td>
-            }
-        },
-    }
-    const holeTd = (hole, metric) => {
-        return mappers[metric](hole);
-    }
-    const holeRow = (hole, metrics) => {
-        return (<tr key={['row', hole.id].join()} onClick={() => holeSelect(hole.index)}>
-            {metrics.map((metric) => holeTd(hole, metric))}
-        </tr>)
-    }
-    // Create the table element
-    const classes = ["scorecard", currentHole ? "inactive" : "active"].join(' ');
-    const tab = (<table className={classes}>
-        <thead><tr>{metrics.map((metric) => <th key={metric}>{metric}</th>)}</tr></thead>
-        <tbody>
-            {scoringRound.holes.map((hole) => holeRow(hole, metrics))}
-        </tbody>
-    </table>)
-    return tab;
-}
-
-/**
- * Update the scorecard view with either a table or nothing
- */
-function scorecardViewUpdate(): void {
-    const scorecard = document.getElementById("overviewStats");
-    render(<Scorecard round={round} />, scorecard);
-}
-
-/**
- * Return the score class (birdie, bogey, etc)
- * @param relativeScore the score relative to par
- * @returns {string} the score class
-        */
-function scoreClass(relativeScore: number): string {
-    const s = Math.round(relativeScore);
-    if (s >= 2) {
-        return "double_bogey";
-    } else if (s == 1) {
-        return "bogey";
-    } else if (s == 0) {
-        return "par";
-    } else if (s == -1) {
-        return "birdie";
-    } else if (s == -2) {
-        return "eagle";
-    } else {
-        return "albatross";
-    }
-}
-
 /**
  * =========================
  * Handlers for click events
@@ -1801,9 +1740,6 @@ function handleLoad() {
     loadRoundData().then(() => {
         mapViewCreate("mapid");
         clubStrokeViewCreate(getUsableClubs(), document.getElementById("clubStrokeCreateContainer"));
-        gridTypeSelectCreate();
-        strokeTerrainSelectCreate();
-        holeSelectViewCreate(document.getElementById('holeSelector'));
         holeSelect(-1);
     });
 }
@@ -1830,36 +1766,6 @@ function handleStrokeMarkerAimCreateClick() {
  */
 function handleRecenterClick() {
     mapRecenter();
-}
-
-/**
- * Take a new dispersion input and update current stroke
- */
-function handleDispersionInput() {
-    const val = this.value;
-    try {
-        convertAndSetStrokeDispersion(activeStroke, val);
-        rerender("full");
-    } catch (e) {
-        // Dispersion is probably invalid
-        console.debug(e.message);
-    }
-}
-
-/**
- * Take a terrain input and update current stroke
- */
-function handleTerrainInput() {
-    const val = this.value;
-    if (val == "" || val in STROKES_REMAINING_COEFFS) {
-        activeStroke.terrain = val;
-        touch(activeStroke, currentHole, round);
-        saveData();
-    } else {
-        showError(new PositionError("Terrain type not recognized", 4));
-        console.error(`Terrain type not recognized, got ${val}`);
-    }
-    rerender("dragend");
 }
 
 function handleHoleIncrement(incr) {
