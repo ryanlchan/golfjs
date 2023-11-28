@@ -1259,47 +1259,30 @@ function holeViewDelete() {
 
 /**
  * Create a hole selector given a select element
- * @param {HTMLSelectElement} element a select element that we will populate with options
+ * @param {HTMLElement} element a select element that we will populate with options
                                             */
-function holeSelectViewCreate(element: HTMLSelectElement) {
+function holeSelectViewCreate(element: HTMLElement) {
     //Register this element as the current hole selector
     holeSelector = element;
 
     // Populate the select with options
     holeSelectViewUpdate();
-
-    // Add event listener to handle selection changes
-    element.addEventListener('change', function () {
-        let selectedHoleIndex = parseInt(this.value, 10);
-        holeSelect(selectedHoleIndex);
-    });
 }
 
 /**
  * Update a given select element with current hole options
  */
 function holeSelectViewUpdate() {
-    if (!holeSelector || !(holeSelector instanceof HTMLSelectElement)) {
-        return
-    }
+    if (!holeSelector) return;
+    const handleSelect = (e) => holeSelect(parseInt(e.target.value));
+    const value = Number.isFinite(currentHole?.index) ? currentHole.index : -1;
+    const selector = (<select id="holeSelector" value={value} onChange={handleSelect}>
+        <option value="-1">Overview</option>
+        {round.holes.map((hole) => <option value={hole.index} key={hole.id}>{`Hole ${hole.index + 1}`}</option>)}
+    </select>);
 
-    // Non-hole options
-    let overview = document.createElement('option');
-    overview.value = "-1";
-    overview.text = "Overview";
-    let options = [overview];
-    for (let hole of round.holes) {
-        if (!hole) {
-            // Sometimes polys return extra holes for whatever reason, skip them
-            break;
-        }
-        let option = document.createElement('option');
-        option.value = hole.index.toString();
-        option.text = `Hole ${hole.index + 1}`;
-        options.push(option)
-    }
-    holeSelector.replaceChildren(...options);
-    holeSelector.value = currentHole ? currentHole.index.toString() : "-1";
+    render(selector, holeSelector);
+
 }
 
 /**
@@ -1882,7 +1865,7 @@ function handleLoad() {
         clubStrokeViewCreate(getUsableClubs(), document.getElementById("clubStrokeCreateContainer"));
         gridTypeSelectCreate();
         strokeTerrainSelectCreate();
-        holeSelectViewCreate(document.getElementById('holeSelector') as HTMLSelectElement);
+        holeSelectViewCreate(document.getElementById('holeSelector'));
         holeSelect(-1);
     });
 }
