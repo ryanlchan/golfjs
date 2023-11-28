@@ -1410,37 +1410,33 @@ function strokeDistancePrompt(stroke: Stroke) {
  */
 function aimStatsUpdate() {
     const el = document.getElementById("aimStats");
-    const layer = layerRead("active_grid")
-    if (!layer) {
-        return; // No grid to load
-    }
-    const grid = layer.options.grid;
+    render(<AimStats activeStroke={activeStroke} round={round} />, el);
+}
 
-    // Calculate stats
-    const stats = document.createElement("div");
-    const stroke = activeStroke;
+interface AimStatsProps { activeStroke: Stroke, round: Round }
+function AimStats(props) {
+    const layer = layerRead("active_grid")
+    if (!layer) return; // No grid to load
+    const stroke = props.activeStroke;
+    const round = props.round;
+    const grid = layer.options.grid;
     const hole = round.holes[stroke.holeIndex];
     const wsg = grid.properties.weightedStrokesGained;
     const sr = grid.properties.strokesRemainingStart;
-    const sa = currentHole.strokes.length - stroke.index - 1;
+    const sa = hole.strokes.length - stroke.index - 1;
     let srn = 0;
     if (sa > 0) {
-        const nextStroke = currentHole.strokes[stroke.index + 1];
-        let nextStart = nextStroke.start;
-        let nextDistance = getDistance(nextStroke.start, hole.pin);
-        let nextTerrain = nextStroke.terrain || grids.getGolfTerrainAt(roundCourseParams(round), [nextStart.y, nextStart.x]);
+        const nextStroke = hole.strokes[stroke.index + 1];
+        const nextStart = nextStroke.start;
+        const nextDistance = getDistance(nextStroke.start, hole.pin);
+        const nextTerrain = nextStroke.terrain || grids.getGolfTerrainAt(roundCourseParams(round), [nextStart.y, nextStart.x]);
         srn = grids.strokesRemaining(nextDistance, nextTerrain);
     }
     const sga = sr - srn - 1;
-    stats.innerText = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
+    const innerText = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
 
     // Update dispersion
-    const link = dispersionLinkCreate(activeStroke);
-    link.id = "dispersionInput";
-    document.getElementById("dispersionInput").replaceWith(link);
-
-    // Add Content
-    el.replaceChildren(stats);
+    return <div>{innerText}</div>
 }
 
 /**
