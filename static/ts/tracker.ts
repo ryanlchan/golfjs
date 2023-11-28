@@ -1475,7 +1475,7 @@ function strokeStatsListItem(stroke: Stroke): HTMLElement {
 
     const text = document.createElement("div");
     text.classList.add("strokeDetails");
-    text.innerHTML = `${stroke.club} (${distance}) | &#xb1;`;
+    text.innerHTML = `${stroke.index + 1}.  ${stroke.club} (${distance}) | &#xb1;`;
     const dispersionLink = dispersionLinkCreate(stroke, distOptions);
     text.appendChild(dispersionLink);
 
