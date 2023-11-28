@@ -1593,43 +1593,6 @@ function strokeDeleteViewCreate(stroke: Stroke): HTMLElement {
 }
 
 /**
- * Create a link that selects this stroke
- * @param {Stroke} stroke
- * @returns {HTMLElement}
- */
-function strokeSelectViewCreate(stroke: Stroke): HTMLElement {
-    let link = document.createElement("button");
-    let icon;
-    let state;
-    let cls;
-    let func;
-    let arg;
-
-    if (stroke == activeStroke) {
-        icon = "&#x26AC;";
-        state = "deactivate";
-        cls = "secondary"
-        func = strokeMarkerDeactivate;
-        arg = null;
-    } else {
-        icon = "&#x2609;";
-        state = "activate";
-        cls = "success";
-        func = strokeMarkerActivate;
-        arg = layerRead(strokeMarkerID(stroke));
-    }
-
-    link.innerHTML = icon
-    link.id = `stroke_${stroke.index}_${state}`;
-    link.classList.add(cls);
-    link.addEventListener("click", (() => {
-        func(arg);
-        rerender();
-    }));
-    return link
-}
-
-/**
  * Create a link that moves this stroke
  * @param {Stroke} stroke the stroke to move
  * @param {Number} offset the offset for the stroke index
@@ -1784,37 +1747,24 @@ function scorecardViewElement(round: Round): HTMLElement {
     // Create the table header row
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    thead.appendChild(headerRow);
 
     // Create the header cells for Hole Numbers
-    const holeNumbersHeader = document.createElement('th');
-    holeNumbersHeader.textContent = 'Hole';
-    headerRow.appendChild(holeNumbersHeader);
-
-    // Optional: Calculate handicaps
-    const enableHandicap = !!round.holes[0].handicap
-    if (enableHandicap) {
-        const handicapHeader = document.createElement('th');
-        handicapHeader.textContent = 'Hcp';
-        headerRow.appendChild(handicapHeader);
-    }
-
-    // Create the header cells for Par
-    const parHeader = document.createElement('th');
-    parHeader.textContent = 'Par';
-    headerRow.appendChild(parHeader);
-
-    // Create the header cells for Score
-    const scoreHeader = document.createElement('th');
-    scoreHeader.textContent = 'Score';
-    headerRow.appendChild(scoreHeader);
-
-    // Append the header row to the table
-    table.appendChild(thead);
+    let headers = ['Hole', 'Hdcp', 'Par', 'Score'];
+    const disableHandicap = !round.holes[0].handicap;
+    const disablePar = !round.holes[0].par;
+    if (disableHandicap) headers = headers.filter((el) => el != 'Hdcp');
+    if (disablePar) headers = headers.filter((el) => el != 'Par');
+    headers.forEach((col) => {
+        const th = document.createElement('th');
+        th.textContent = col;
+        headerRow.append(th);
+    });
+    thead.appendChild(headerRow);
+    table.append(thead);
 
     // Create body
     const tbody = document.createElement('tbody');
-    table.appendChild(tbody);
+    table.append(tbody);
 
     // Initialize total counts
     let totalStrokes = 0;
@@ -1825,69 +1775,53 @@ function scorecardViewElement(round: Round): HTMLElement {
         const row = document.createElement('tr');
         row.onclick = () => holeSelect(hole.index);
 
-        // Create cells for Hole Number
-        const holeNumberCell = document.createElement('td');
-        holeNumberCell.textContent = (hole.index + 1).toString();
-        row.appendChild(holeNumberCell);
-
-        // Create cells for Handicap, if enabled
-        if (enableHandicap) {
-            const handicapCell = document.createElement('td');
-            const handicap = hole.handicap;
-            handicapCell.textContent = handicap ? handicap.toString() : "";
-            row.appendChild(handicapCell);
-        }
-
-        // Create cells for Par
-        const parCell = document.createElement('td');
-        const par = hole.par
-        parCell.textContent = par ? par.toString() : "";
-        totalPar += par;
-        row.appendChild(parCell);
-
-        // Create cells for Score
-        const scoreCell = document.createElement('td');
-        const strokes = hole.strokes.length;
-        const relative = strokes - par;
-        totalStrokes += strokes;
-        scoreCell.textContent = `${strokes} (${relative >= 0 ? "+" : ""}${relative})`;
-        scoreCell.classList.add(scoreClass(relative));
-        row.appendChild(scoreCell);
-
+        headers.forEach((col) => {
+            const td = document.createElement('td');
+            let text;
+            if (col == "Hole") {
+                text = (hole.index + 1).toString();
+            } else if (col == "Hdcp") {
+                text = hole.handicap?.toString();
+            } else if (col == "Par") {
+                text = hole.par?.toString();
+                totalPar += hole.par || 0;
+            } else if (col == "Score") {
+                text = hole.handicap?.toString();
+                const strokes = hole.strokes.length;
+                const par = hole.par || 0;
+                const relative = strokes - par;
+                text = `${strokes} (${relative >= 0 ? "+" : ""}${relative})`;
+                td.classList.add(scoreClass(relative));
+                totalStrokes += strokes;
+            }
+            td.textContent = text;
+            row.append(td);
+        });
         // Append the row to the table
-        tbody.appendChild(row);
+        tbody.append(row);
     }
 
     // Create totals row
-    const row = document.createElement('tr');
-    row.classList.add('totals');
-
-    // Create cells for Hole Number
-    const holeNumberCell = document.createElement('td');
-    holeNumberCell.textContent = "Total"
-    row.appendChild(holeNumberCell);
-
-    // Spacer for handicap, if enabled
-    if (enableHandicap) {
-        const handicapCell = document.createElement('td');
-        handicapCell.textContent = ""
-        row.appendChild(handicapCell);
-    }
-
-    // Create cells for Par
-    const parCell = document.createElement('td');
-    parCell.textContent = totalPar.toString();
-    row.appendChild(parCell);
-
-    // Create cells for Score
-    const scoreCell = document.createElement('td');
-    const relative = totalStrokes - totalPar;
-    scoreCell.textContent = `${totalStrokes} (${relative >= 0 ? "+" : ""}${relative})`;;
-    scoreCell.classList.add(scoreClass(relative));
-    row.appendChild(scoreCell);
-
-    // Append the row to the table
-    tbody.appendChild(row);
+    const totalRow = document.createElement('tr');
+    totalRow.classList.add('totals');
+    headers.forEach((col) => {
+        const td = document.createElement('td');
+        let text;
+        if (col == "Hole") {
+            text = "Total"
+        } else if (col == "Hdcp") {
+            text = "";
+        } else if (col == "Par") {
+            text = totalPar.toString();
+        } else if (col == "Score") {
+            const relative = totalStrokes - totalPar;
+            text = `${totalStrokes} (${relative >= 0 ? "+" : ""}${relative})`;
+            td.classList.add(scoreClass(relative));
+        }
+        td.textContent = text;
+        totalRow.append(td);
+    });
+    tbody.append(totalRow);
 
     return table;
 }
