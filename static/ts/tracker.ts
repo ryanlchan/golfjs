@@ -273,7 +273,7 @@ function strokeMarkerCreate(stroke: Stroke, options?: object) {
     }
     marker.bindTooltip(
         (function () { return strokeTooltipText(stroke) }),
-        { permanent: true, direction: direction, offset: offset })
+        { permanent: true, direction: direction, offset: offset });
     marker.on('click', strokeMarkerActivateCallback(marker));
 }
 
@@ -310,17 +310,17 @@ function strokeMarkerActivateCallback(marker: L.Marker): () => void {
  * @param {L.Marker} marker the leaflet map marker
  */
 function strokeMarkerActivate(marker: L.Marker) {
-    let opt = <any>marker.options
+    const opt = <any>marker.options
 
     // Set current hole to this one if missing
-    let stroke = round.holes[opt["holeIndex"]].strokes[opt["strokeIndex"]];
+    const stroke = round.holes[opt["holeIndex"]].strokes[opt["strokeIndex"]];
     if (!currentHole || !currentStrokeIndex) {
         holeSelect(opt["holeIndex"]);
         marker = layerRead(strokeMarkerID(stroke));
     }
 
     // Deactivate the currently active marker if there is one
-    let alreadySelected = activeStroke == stroke;
+    const alreadySelected = activeStroke == stroke;
     if (activeStroke) {
         strokeMarkerDeactivate();
     }
@@ -337,18 +337,11 @@ function strokeMarkerActivate(marker: L.Marker) {
     marker.getElement().classList.add('active-marker');
     activeStroke = currentHole.strokes[opt.strokeIndex];
 
-    // Show the aim marker
-    if (activeStroke.aim) {
-        strokeMarkerAimCreate();
-    }
-
     // Register deactivation clicks
     mapView.addEventListener("click", strokeMarkerDeactivate)
 
     // Rerender stroke list
-    strokeListUpdate();
-    strokeTerrainSelectUpdate();
-    gridTypeSelectUpdate();
+    rerender('active');
 }
 
 /**
@@ -1475,7 +1468,10 @@ function strokeStatsListItem(stroke: Stroke): HTMLElement {
 
     const listItem = document.createElement("li");
     const container = document.createElement("div");
-    container.classList.add("strokeStatContainer", "listCell");
+    const selectedClass = 'strokeStatsListItemSelected';
+    container.classList.add("strokeStatsListItem", "listCell");
+    if (activeStroke && activeStroke == stroke) container.classList.add(selectedClass);
+    container.id = stroke.id;
 
     const text = document.createElement("div");
     text.classList.add("strokeDetails");
@@ -1486,11 +1482,22 @@ function strokeStatsListItem(stroke: Stroke): HTMLElement {
     const buttons = document.createElement("div");
     buttons.classList.add("strokeControls");
     buttons.append(
-        strokeSelectViewCreate(stroke),
         strokeMoveViewCreate(stroke, -1),
         strokeMoveViewCreate(stroke, 1),
         strokeDeleteViewCreate(stroke)
     );
+
+    listItem.addEventListener('click', () => {
+        const selected = container.classList.contains(selectedClass);
+        if (selected) {
+            strokeMarkerDeactivate();
+            container.classList.remove(selectedClass);
+            return;
+        }
+
+        strokeMarkerActivate(layerRead(strokeMarkerID(stroke)));
+        container.classList.add(selectedClass);
+    });
 
     container.append(text);
     container.append(buttons);
@@ -1775,7 +1782,7 @@ function rerender(category: string = "map") {
         saveData();
     }
 
-    const grids = () => {
+    const activeGrids = () => {
         if (!activeStroke) return
         gridUpdate().then(() => {
             aimStatsUpdate();
@@ -1783,7 +1790,7 @@ function rerender(category: string = "map") {
         }).catch((error) => console.error(error));
     }
 
-    const activeFull = () => {
+    const activeStates = () => {
         if (!activeStroke) return
         strokeMarkerAimDelete();
         strokeMarkerAimCreate();
@@ -1792,9 +1799,9 @@ function rerender(category: string = "map") {
     }
     const categories = {
         map: [lines, markers, lists],
-        dragend: [grids],
-        active: [grids, activeFull],
-        full: [lines, markers, lists, grids, activeFull]
+        dragend: [activeGrids],
+        active: [activeStates],
+        full: [lines, markers, lists, activeStates]
     }
 
     categories[category].forEach((action) => action());
