@@ -22,7 +22,8 @@
     "@googlemaps/js-api-loader": "^1.16.2",
     "@types/leaflet.gridlayer.googlemutant": "^0.4.6",
     "leaflet": "^1.9.4",
-    "leaflet.gridlayer.googlemutant": "^0.14.0"
+    "leaflet.gridlayer.googlemutant": "^0.14.0",
+    "projektpro-leaflet-smoothwheelzoom": "^0.1.4"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.7.0",

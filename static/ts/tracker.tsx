@@ -8,6 +8,7 @@ import * as turf from "@turf/turf";
 import chroma from "chroma-js";
 import { Loader } from "@googlemaps/js-api-loader";
 import "./googlemutant.js";
+import 'projektpro-leaflet-smoothwheelzoom/Leaflet.SmoothWheelZoom.js';
 import { typeid } from "typeid-js";
 import { render, VNode } from 'preact';
 import { useState } from 'preact/hooks';
@@ -1155,7 +1156,12 @@ function mapViewCreate(mapid) {
         version: "weekly",
     });
     loader.importLibrary("maps");
-    mapView = L.map(mapid, { attributionControl: false }).setView([36.567383, -121.947729], 18);
+    mapView = L.map(mapid, {
+        attributionControl: false,
+        scrollWheelZoom: false,
+        smoothWheelZoom: true,
+        smoothSensitivity: 1.5,
+    }).setView([36.567383, -121.947729], 18);
     L.gridLayer.googleMutant({
         type: "satellite",
         maxZoom: 24,
