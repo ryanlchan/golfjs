@@ -667,7 +667,7 @@ function reduceStrokeColumns(dataFrame: any[][], metrics: string[]) {
  * Views
  */
 const defaultStrokeStatsMetrics = ['hole', 'index', 'club', 'terrain', 'distanceToAim', 'distanceToActual', 'strokesGained', 'strokesGainedPredicted', 'strokesGainedPercentile', 'proximity', 'proximityCrossTrack', 'proximityPercentile'];
-const defaultSummaryStatsMetrics = ['strokes', 'strokesGained', 'strokesGainedAvg', 'strokesGainedPredicted', 'strokesGainedPredictedAvg', 'strokesGainedPercentile', 'proximity', 'proximityCrossTrack', 'proximityPercentile'];
+const defaultSummaryStatsMetrics = ['strokes', 'strokesGained', 'strokesGainedPredicted', 'strokesGainedAvg', 'strokesGainedPredictedAvg', 'strokesGainedPercentile', 'proximity', 'proximityCrossTrack', 'proximityPercentile'];
 
 function createColumnTable(headers: string[], columns: HTMLTableCellElement[][]): HTMLTableElement {
     // Create the table and table head
