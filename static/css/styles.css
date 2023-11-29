@@ -74,7 +74,7 @@ button {
     margin-top: 1em;
 }
 
-#controls {
+#mapControlsWrapper {
     position: relative;
 }
 
@@ -95,7 +95,7 @@ button {
 }
 
 #mapControlsUpperRight {
-    top: 2em;
+    top: 0em;
     right: 2em;
 }
 
@@ -178,6 +178,36 @@ select,
 select:focus,
 textarea {
     font-size: inherit;
+}
+
+.appMenu {
+    position: absolute;
+    top: 100%;
+    /* Adjust as needed */
+    right: 100%;
+    /* Adjust as needed */
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 0px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    width: 10em;
+}
+
+.appMenu a {
+    padding: 10px;
+    text-decoration: none;
+    color: #333;
+}
+
+.appMenu a span.menuIcon {
+    margin-right: 1em;
+}
+
+.appMenu a:hover {
+    background-color: #e5e5e5;
 }
 
 /*
@@ -368,6 +398,10 @@ div#strokeList ol {
 */
 .scorecard {
     text-align: center;
+}
+
+.scorecard tbody tr {
+    cursor: pointer;
 }
 
 .scorecard td.albatross {
