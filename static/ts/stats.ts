@@ -911,10 +911,14 @@ function generateView() {
     holeDiv.replaceChildren(holeTable);
 
     // Attach download handler
-    const downloader = document.getElementById('downloadAsCSV');
+    const oldDownloader = document.getElementById('downloadAsCSV');
+    const newDownloader = oldDownloader.cloneNode(false);
+    while (oldDownloader.hasChildNodes()) newDownloader.appendChild(oldDownloader.firstChild);
+    oldDownloader.parentNode.replaceChild(newDownloader, oldDownloader);
     const roundDateString = [roundDate.getFullYear(), roundDate.getMonth(), roundDate.getDate(), roundDate.getHours(), roundDate.getMinutes()].join('');
     const filename = `${round.course}_${roundDateString}.csv`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    downloader.addEventListener('click', () => downloadCSV(cache.strokes, filename));
+    const callback = () => downloadCSV(cache.strokes, filename);
+    newDownloader.addEventListener('click', callback);
 }
 
 function regenerateView() {
