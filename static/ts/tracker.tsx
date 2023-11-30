@@ -4,11 +4,11 @@
  */
 // Dependencies
 import * as L from "leaflet";
+import { Loader } from "@googlemaps/js-api-loader";
+import "leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant";
+import "projektpro-leaflet-smoothwheelzoom";
 import * as turf from "@turf/turf";
 import chroma from "chroma-js";
-import { Loader } from "@googlemaps/js-api-loader";
-import "./googlemutant.js";
-import 'projektpro-leaflet-smoothwheelzoom/Leaflet.SmoothWheelZoom.js';
 import { typeid } from "typeid-js";
 import { render, VNode } from 'preact';
 import { useState } from 'preact/hooks';

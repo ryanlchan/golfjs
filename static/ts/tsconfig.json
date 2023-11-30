@@ -11,8 +11,10 @@
         "sourceMap": true,
         "outDir": "dist/js",
         "allowJs": true,
+        "esModuleInterop": true,
         "types": [
-            "vite/client"
+            "vite/client",
+            "leaflet.gridlayer.googlemutant"
         ],
         "jsx": "react-jsx",
         "jsxImportSource": "preact",
