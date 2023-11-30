@@ -1548,7 +1548,7 @@ function DispersionLink(props: DispersionLinkProps): VNode {
 function strokeDistancePrompt(stroke: Stroke) {
     let disp = prompt("Enter a dispersion:");
     if (disp === null || disp === "") return;
-    if (!Number.isFinite(disp)) return showError("Invalid dispersion");
+    if (!Number.isFinite(parseFloat(disp))) return showError("Invalid dispersion");
     const dispersion = convertAndSetStrokeDispersion(stroke, disp);
     rerender("full");
     return dispersion;
