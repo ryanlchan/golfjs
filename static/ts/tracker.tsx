@@ -17,7 +17,7 @@ import { useState } from 'preact/hooks';
 import * as grids from "./grids.js";
 import { getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "./projections.js";
 import { PositionError } from "./errors.js";
-import { showError, hideError, wait, touch, getUnitsSetting } from "./utils.js";
+import { showError, hideError, touch, getUnitsSetting } from "./utils.js";
 import * as cache from "./cache.js";
 import { roundCreate, roundCourseParams, roundLoad, roundSave } from "./rounds.js";
 import { STROKES_REMAINING_COEFFS } from "./coeffs20230705.js";
@@ -1338,12 +1338,12 @@ function MenuButton() {
         setMenuVisible(!menuVisible);
     };
 
-    return (<div class="menuButton">
+    return (<div className="menuButton">
         <button id="menuButton" className="mapButton" onClick={toggleMenu}>
             <svg height="1.25em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 18L20 18" stroke="#000000" stroke-width="2" stroke-linecap="round" />
-                <path d="M4 12L20 12" stroke="#000000" stroke-width="2" stroke-linecap="round" />
-                <path d="M4 6L20 6" stroke="#000000" stroke-width="2" stroke-linecap="round" />
+                <path d="M4 18L20 18" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+                <path d="M4 12L20 12" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
+                <path d="M4 6L20 6" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
             </svg>
         </button>
         {menuVisible && <AppMenu />}
@@ -1389,8 +1389,8 @@ function DistanceTracker(props: DistanceTrackerProps) {
     if (!active) return;
     const opt = { to_unit: displayUnits, include_unit: true };
     const pos = currentCoordRead();
-    const dist = formatDistance(getDistance(pos, currentHole.pin), opt);
-    const id = `distanceTo${name}Container`;
+    const dist = formatDistance(getDistance(pos, props.location), opt);
+    const id = `distanceTo${props.name}Container`;
     return (<div id={id} className="mapInfoBox">
         <span>{props.name}</span>
         <div id="distanceToPin">
@@ -1413,14 +1413,14 @@ function MapControlsUpperRight() {
 }
 
 function MapControlsRight() {
-    return (<div class="mapControlsContainer" id="mapControlsRight">
+    return (<div className="mapControlsContainer" id="mapControlsRight">
         <MapRecenterButton />
         <StrokeAddButton />
     </div>)
 }
 
 function MapControlsLeft() {
-    return (<div class="mapControlsContainer" id="mapControlsLeft">
+    return (<div className="mapControlsContainer" id="mapControlsLeft">
         <StrokeAimResetButton />
     </div>)
 }
@@ -1433,14 +1433,12 @@ function MapControlsLower() {
 }
 
 function MapControlsUpper() {
-    return <>
-        <MapControlsUpperRight />
-    </>
+    return <MapControlsUpperRight />
 }
 
 interface HoleInfoProps { hole: Hole, round: Round }
 function HoleInfo(props: HoleInfoProps) {
-    const round = props.round
+    const round = props.round;
     const hole = props.hole;
     let stats = [];
     if (hole) {
@@ -1532,7 +1530,7 @@ function StrokeStatsListItem(props: StrokeStatsListItemProps) {
 interface StrokeStatsListProps { strokes: Stroke[] }
 function StrokeStatsList(props: StrokeStatsListProps) {
     return (<div id="strokeList"><ol>
-        {props.strokes?.map((stroke) => <StrokeStatsListItem stroke={stroke} />)}
+        {props.strokes?.map((stroke) => <StrokeStatsListItem key={stroke.id} stroke={stroke} />)}
     </ol></div>);
 }
 
@@ -1592,9 +1590,9 @@ function GridTypeControl() {
         strokeMarkerAimUpdate();
     }
     return <div className="buttonRow" id={id}>
-        <label for={id}>Grid type:</label>
+        <label htmlFor={id}>Grid type:</label>
         <select id="gridTypeSelect" onInput={onInput} value={activeType}>
-            {Object.values(grids.gridTypes).map(name => <option value={name}>{name}</option>)}
+            {Object.values(grids.gridTypes).map(name => <option key={name} value={name}>{name}</option>)}
         </select>
     </div>
 }
@@ -1603,7 +1601,7 @@ interface DispersionControlProps { stroke: Stroke }
 function DispersionControl(props: DispersionControlProps) {
     const id = "dispersionControlContainer";
     return <div className="buttonRow" id={id}>
-        <label for={id}>Dispersion:</label>
+        <label htmlFor={id}>Dispersion:</label>
         <DispersionLink stroke={props.stroke} id={id} />
     </div>
 }
@@ -1627,10 +1625,10 @@ function TerrainControl(props: TerrainControlProps) {
         rerender("dragend");
     }
     return <div className="buttonRow" id={containerID}>
-        <label for={containerID}>Terrain:</label>
+        <label htmlFor={containerID}>Terrain:</label>
         <select type="text" id={selectID} value={currentTerrain} onChange={onChange}>
             <option value="">unknown</option>
-            {Object.keys(STROKES_REMAINING_COEFFS).map((type) => <option value={type}>{type}</option>)}
+            {Object.keys(STROKES_REMAINING_COEFFS).map((type) => <option key={type} value={type}>{type}</option>)}
         </select>
     </div>
 }
@@ -1639,11 +1637,100 @@ interface ActiveStrokeControlsProps { activeStroke: Stroke, round: Round }
 function ActiveStrokeControls(props: ActiveStrokeControlsProps) {
     if (!props.activeStroke) return;
     return <div id="activeStrokeControls" className="buttonRow">
-        <AimStats activeStroke={activeStroke} round={round} />
+        <AimStats activeStroke={props.activeStroke} round={props.round} />
         <GridTypeControl />
-        <DispersionControl stroke={activeStroke} />
-        <TerrainControl stroke={activeStroke} />
+        <DispersionControl stroke={props.activeStroke} />
+        <TerrainControl stroke={props.activeStroke} />
     </div>
+}
+
+/**
+ * Scorecard helpers
+ */
+interface ScorecardTDProps { hole: Hole }
+function HoleTD(props: ScorecardTDProps) {
+    const hole = props.hole;
+    return <td key={[hole.id, "Hole"].join()}>{(hole.index + 1)}</td>
+}
+
+function HdcpTD(props: ScorecardTDProps) {
+    const hole = props.hole;
+    return <td key={[hole.id, "Hdcp"].join()}>{hole.handicap || ""}</td>
+}
+
+function ParTD(props: ScorecardTDProps) {
+    const hole = props.hole;
+    return <td key={[hole.id, "Par"].join()}>{hole.par || ""}</td>
+}
+
+function ScoreTD(props: ScorecardTDProps) {
+    const hole = props.hole;
+    const strokes = hole.strokes.length;
+    if (!hole.par) {
+        return <td key={[hole.id, "Score"].join()}>{strokes}</td>
+    } else {
+        const par = hole.par || 0;
+        const relative = strokes - par;
+        const text = `${hole.strokes.length} (${relative >= 0 ? "+" : ""}${relative})`;
+        return <td key={[hole.id, "Score"].join()} className={scoreClass(relative)}>{text}</td>
+    }
+}
+
+interface ScorecardRowProps { hole: Hole, holeCol?: boolean, hdcpCol?: boolean, parCol?: boolean, scoreCol?: boolean }
+function ScorecardRow(props: ScorecardRowProps) {
+    const opts = {
+        holeCol: props.holeCol ?? true,
+        hdcpCol: props.hdcpCol ?? true,
+        parCol: props.parCol ?? true,
+        scoreCol: props.scoreCol ?? true,
+    };
+    const hole = props.hole;
+    const key = ['row', hole.id].join();
+    return (<tr key={key} onClick={() => holeSelect(hole.index)}>
+        {opts.holeCol && <HoleTD hole={hole} />}
+        {opts.parCol && <ParTD hole={hole} />}
+        {opts.hdcpCol && <HdcpTD hole={hole} />}
+        {opts.scoreCol && <ScoreTD hole={hole} />}
+    </tr>);
+}
+
+function HoleTotalTD() {
+    return <td key="hole-total">Total</td>;
+}
+function HdcpTotalTD() {
+    return <td key="hdcp-total"></td>;
+}
+function ParTotalTD(props: ScorecardProps) {
+    const round = props.round;
+    return <td key="par-total">{round.holes.reduce((acc, hole) => acc + hole.par, 0)}</td>
+}
+function ScoreTotalTD(props: ScorecardProps) {
+    const round = props.round;
+    const strokes = round.holes.reduce((acc, hole) => acc + hole.strokes.length, 0);
+    if (round.holes[0].par) {
+        const par = round.holes.reduce((acc, hole) => acc + hole.par, 0);
+        const relative = strokes - par;
+        const text = `${strokes} (${relative >= 0 ? "+" : ""}${relative})`;
+        return <td key="score-total" className={scoreClass(relative)}>{text}</td>;
+    } else {
+        return <td key="score-total">{strokes}</td>;
+    }
+}
+
+interface ScorecardTotalRowProps { round: Round, holeCol?: boolean, hdcpCol?: boolean, parCol?: boolean, scoreCol?: boolean }
+function ScorecardTotalRow(props: ScorecardTotalRowProps) {
+    const opts = {
+        holeCol: props.holeCol ?? true,
+        hdcpCol: props.hdcpCol ?? true,
+        parCol: props.parCol ?? true,
+        scoreCol: props.scoreCol ?? true,
+    };
+    return <tr className="totals">
+        {opts.holeCol && <HoleTotalTD />}
+        {opts.parCol && <ParTotalTD round={props.round} />}
+        {opts.hdcpCol && <HdcpTotalTD />}
+        {opts.scoreCol && <ScoreTotalTD round={props.round} />}
+    </tr>
 }
 
 /**
@@ -1652,61 +1739,24 @@ function ActiveStrokeControls(props: ActiveStrokeControlsProps) {
 interface ScorecardProps { round: Round }
 function Scorecard(props: ScorecardProps) {
     const scoringRound = props.round;
-    let metrics = ['Hole', 'Hdcp', 'Par', 'Score'];
-    const disableHandicap = !scoringRound.holes[0].handicap;
-    const disablePar = !scoringRound.holes[0].par;
-    if (disableHandicap) metrics = metrics.filter((el) => el != 'Hdcp');
-    if (disablePar) metrics = metrics.filter((el) => el != 'Par');
+    if (currentHole) return;
+    const holeCol = true;
+    const hdcpCol = !!props.round?.holes[0].handicap;
+    const parCol = !!props.round?.holes[0].par
+    const scoreCol = true;
 
-    const mappers = {
-        "Hole": (hole) => <td key={[hole.id, "Hole"].join()}>{(hole.index + 1)}</td>,
-        "Hdcp": (hole) => <td key={[hole.id, "Hdcp"].join()}>{hole.handicap || ""}</td>,
-        "Par": (hole) => <td key={[hole.id, "Par"].join()}>{hole.par || ""}</td>,
-        "Score": (hole) => {
-            const strokes = hole.strokes.length;
-            let text = strokes;
-            if (!disablePar) {
-                const par = hole.par || 0;
-                const relative = strokes - par;
-                text = `${hole.strokes.length} (${relative >= 0 ? "+" : ""}${relative})`;
-                return <td key={[hole.id, "Score"].join()} className={scoreClass(relative)}>{text}</td>
-            } else {
-                return <td key={[hole.id, "Score"].join()}>{hole.strokes.length}</td>
-            }
-        },
-    }
-    const totals = {
-        "Hole": <td key="hole-total">Total</td>,
-        "Hdcp": <td key="hdcp-total"></td>,
-        "Par": <td key="par-total">{round.holes.reduce((acc, hole) => acc + hole.par, 0)}</td>,
-    }
-    const strokes = round.holes.reduce((acc, hole) => acc + hole.strokes.length, 0);
-    if (!disablePar) {
-        const par = round.holes.reduce((acc, hole) => acc + hole.par, 0);
-        const relative = strokes - par;
-        const text = `${strokes} (${relative >= 0 ? "+" : ""}${relative})`;
-        totals["Score"] = <td key="score-total" className={scoreClass(relative)}>{text}</td>
-    } else {
-        totals["Score"] = <td key="score-total">{strokes}</td>
-    }
-
-    const holeTd = (hole, metric) => mappers[metric](hole)
-    const holeRow = (hole, metrics) => {
-        return (<tr key={['row', hole.id].join()} onClick={() => holeSelect(hole.index)}>
-            {metrics.map((metric) => holeTd(hole, metric))}
-        </tr>)
-    }
-    const totalRow = <tr class="totals">{metrics.map(metric => totals[metric])}</tr>
-    // Create the table element
-    const classes = ["scorecard", currentHole ? "inactive" : "active"].join(' ');
-    const tab = (<table className={classes}>
-        <thead><tr>{metrics.map((metric) => <th key={metric}>{metric}</th>)}</tr></thead>
+    return (<table className="scorecard">
+        <thead><tr>
+            {holeCol && <td>Hole</td>}
+            {hdcpCol && <td>Hdcp</td>}
+            {parCol && <td>Par</td>}
+            {scoreCol && <td>Score</td>}
+        </tr></thead>
         <tbody>
-            {scoringRound.holes.map((hole) => holeRow(hole, metrics))}
-            {totalRow}
+            {scoringRound.holes.map((hole) => <ScorecardRow key={hole.id} hole={hole} holeCol hdcpCol parCol scoreCol />)}
+            <ScorecardTotalRow round={round} holeCol hdcpCol parCol scoreCol />
         </tbody>
-    </table>)
-    return tab;
+    </table>);
 }
 
 /**
