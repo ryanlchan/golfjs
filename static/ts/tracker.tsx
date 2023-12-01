@@ -6,7 +6,7 @@
 import * as L from "leaflet";
 import { Loader } from "@googlemaps/js-api-loader";
 import "leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant";
-import "projektpro-leaflet-smoothwheelzoom";
+import { enableSmoothZoom } from "leaflet.smoothwheelzoom";
 import * as turf from "@turf/turf";
 import chroma from "chroma-js";
 import { typeid } from "typeid-js";
@@ -1166,16 +1166,14 @@ function mapViewCreate(mapid) {
     });
     loader.importLibrary("maps");
     mapView = L.map(mapid, {
-        attributionControl: false,
-        scrollWheelZoom: false,
-        smoothWheelZoom: true,
-        smoothSensitivity: 1.5,
+        attributionControl: false
     }).setView([36.567383, -121.947729], 18);
     L.gridLayer.googleMutant({
         type: "satellite",
         maxZoom: 24,
         attribution: "",
     }).addTo(mapView);
+    enableSmoothZoom(mapView, 1.5);
 }
 
 /**

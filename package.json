@@ -24,7 +24,7 @@
     "@types/leaflet.gridlayer.googlemutant": "^0.4.6",
     "leaflet": "^1.9.4",
     "leaflet.gridlayer.googlemutant": "^0.14.0",
-    "projektpro-leaflet-smoothwheelzoom": "^0.1.4"
+    "leaflet.smoothwheelzoom": "github:nyko28/Leaflet.SmoothWheelZoom"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.7.0",
