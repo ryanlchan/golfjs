@@ -622,6 +622,7 @@ function targetGridCreate() {
         activeStroke.dispersion,
         roundCourseParams(round),
         activeStroke.terrain);
+    const bestCell = grid.properties.idealStrokesGained;
 
     // Check if any grid returned, for example if the data didn't load or something
     if (grid instanceof Error) {
@@ -631,6 +632,14 @@ function targetGridCreate() {
     const colorscale = chroma.scale('RdYlGn').domain([-.25, .25]);
     const options: GridOptions = {
         style: function (feature) {
+            const ideal = feature.properties.weightedStrokesGained == bestCell;
+            if (ideal) {
+                return {
+                    stroke: true,
+                    fillColor: "#FFD700",
+                    fillOpacity: 0.8
+                }
+            }
             return {
                 stroke: false,
                 fillColor: colorscale(feature.properties.relativeStrokesGained).hex(),

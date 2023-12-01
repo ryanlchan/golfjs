@@ -722,6 +722,7 @@ export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispe
     aimGrid.features.forEach((feature) => feature.properties = {});
     console.log(`Iterating through aim grid of ${aimGrid.features.length} cells`);
     let ix = 0;
+    let idealStrokesGained;
     for (let cell of aimGrid.features) {
         const subAimPoint = turf.center(cell);
         const subWindow = turf.circle(subAimPoint, 3 * dispersionNumber / 1000, { units: "kilometers" })
@@ -731,6 +732,7 @@ export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispe
         weightStrokesGained(subGrid);
         const weightedStrokesGained = subGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
         cell.properties.weightedStrokesGained = weightedStrokesGained;
+        if (!idealStrokesGained || idealStrokesGained < weightedStrokesGained) idealStrokesGained = weightedStrokesGained;
         console.log(`Processed cell ${ix}, wsg = ${weightedStrokesGained}`);
         ix++;
     }
@@ -749,10 +751,15 @@ export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispe
         strokesRemainingStart: strokesRemainingStart,
         distanceToHole: distanceToHole,
         weightedStrokesGained: baseSg,
+        idealStrokesGained
     }
     aimGrid.properties = properties
 
     return aimGrid;
+}
+
+export function bestTarget(grid: turf.FeatureCollection) {
+    return turf.featureCollection(grid.features.reduce((acc, cell) => cell.weightedStrokesGained > acc.weightedStrokesGained ? cell : acc));
 }
 
 /**
