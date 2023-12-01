@@ -1595,11 +1595,17 @@ function ControlCardHeader(props) {
     return classedDiv("cardTitle", props);
 }
 function ControlCardValue(props) {
-    const length = typeof props.children === 'string' ? props.children.length : 3
+    let length = 3;
+    let wordLength = 3;
+    if (typeof props.children === 'string') {
+        length = props.children.length;
+        wordLength = longestWord(props.children);
+    }
+
     let lengthClass;
     if (length < 4) {
         lengthClass = "";
-    } else if (length < 10) {
+    } else if (wordLength < 8 && length < 12) {
         lengthClass = "cardValueMed";
     } else {
         lengthClass = "cardValueLong"
@@ -1610,6 +1616,15 @@ function ControlCardValue(props) {
 }
 function ControlCardFooter(props) {
     return classedDiv("cardFooter", props);
+}
+
+function longestWord(text: string) {
+    const matches: string[] = text.match(/\S+/g) || [];
+    let longest: string = "";
+    if (matches.length > 0) {
+        longest = matches.reduce((a, b) => a.length > b.length ? a : b);
+    }
+    return longest.length;
 }
 
 function ClubMenuOption(props: { club: Club, callback?: (club: Club, e: Event) => void }) {
