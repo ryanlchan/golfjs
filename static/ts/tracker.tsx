@@ -1596,21 +1596,20 @@ function ControlCardHeader(props) {
 }
 function ControlCardValue(props) {
     const length = typeof props.children === 'string' ? props.children.length : 3
-    const classes = ["cardValue", props.className, (length > 3) ? "longCardValue" : ""].join(' ');
+    let lengthClass;
+    if (length < 4) {
+        lengthClass = "";
+    } else if (length < 10) {
+        lengthClass = "cardValueMed";
+    } else {
+        lengthClass = "cardValueLong"
+    }
+    const classes = ["cardValue", lengthClass, props.className].join(' ');
     const newProps = { ...props, className: classes };
     return <div className="cardValueOuter">{h('div', newProps)}</div>;
 }
 function ControlCardFooter(props) {
     return classedDiv("cardFooter", props);
-}
-
-function ComboControlCard(props: { header?: string, value?: string, footer?: string, children?: VNode[] }) {
-    const children = <>
-        <ControlCardHeader>{props.header}</ControlCardHeader>
-        <ControlCardValue>{props.value}</ControlCardValue>
-        <ControlCardFooter>{props.footer}</ControlCardFooter>
-    </>
-    return h(ControlCard, { ...props, children: children });
 }
 
 function ClubMenuOption(props: { club: Club, callback?: (club: Club, e: Event) => void }) {
@@ -1758,13 +1757,19 @@ function AimStatsControls(props: { stroke: Stroke, round: Round }) {
         srn = grids.strokesRemaining(nextDistance, nextTerrain);
     }
     const sga = sr - srn - 1;
-    return <ComboControlCard header="SG Aim" value={wsg.toFixed(3)} footer="" />
+    const header = "SG: Aim"
+    const value = wsg.toFixed(3);
+    const footer = `${sga.toFixed(3)} SG`
+    return <ControlCard>
+        <ControlCardHeader>{header}</ControlCardHeader>
+        <ControlCardValue>{value}</ControlCardValue>
+        <ControlCardFooter>{footer}</ControlCardFooter>
+    </ControlCard>
 }
 
 function ActiveStrokeControls(props: { activeStroke: Stroke, round: Round }) {
     if (!props.activeStroke) return;
     return <div id="activeStrokeControls" className="buttonRow">
-        <AimStats activeStroke={props.activeStroke} round={round} />
         <div className="cardContainer hoscro">
             <AimStatsControls stroke={props.activeStroke} round={props.round} />
             <ClubControl stroke={props.activeStroke} />

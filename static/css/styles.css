@@ -429,7 +429,6 @@ div#strokeList ol {
 .cardContainer {
     display: flex;
     flex-direction: row;
-    padding: 10px;
 }
 
 .hoscro {
@@ -470,10 +469,19 @@ div#strokeList ol {
     font-size: 34px;
     font-weight: 700;
     overflow: hidden;
+    height: auto;
 }
 
-.longCardValue {
+.cardValueMed {
+    font-size: 24px;
+}
+
+.cardValueLong {
     font-size: 16px;
+}
+
+.cardValue svg {
+    display: block;
 }
 
 .cardFooter {
@@ -543,14 +551,18 @@ div#strokeList ol {
     }
 
     .cardValueOuter {
-        height: 30px;
+        height: 32px;
     }
 
     .cardValue {
         font-size: 24px;
     }
 
-    .longCardValue {
+    .cardValueMed {
+        font-size: 16px;
+    }
+
+    .cardValueLong {
         font-size: 12px;
     }
 
