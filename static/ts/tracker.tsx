@@ -1587,38 +1587,77 @@ function ControlCardHeader(props) {
 }
 function ControlCardValue(props) {
     const length = typeof props.children === 'string' ? props.children.length : 3
-    const fontSize = (length > 3) ? 14 : 34; // Cards are ~3ems wide
-    const style = `font-size: ${fontSize}px;${props.style || ""} `;
-    const classes = ["cardValue", props.className].join(' ');
-    const newProps = { ...props, className: classes, style: style };
+    const classes = ["cardValue", props.className, (length > 3) ? "longCardValue" : ""].join(' ');
+    const newProps = { ...props, className: classes };
     return <div className="cardValueOuter">{h('div', newProps)}</div>;
 }
 function ControlCardFooter(props) {
     return classedDiv("cardFooter", props);
 }
 
+function ComboControlCard(props: { header?: string, value?: string, footer?: string, children?: VNode[] }) {
+    const children = <>
+        <ControlCardHeader>{props.header}</ControlCardHeader>
+        <ControlCardValue>{props.value}</ControlCardValue>
+        <ControlCardFooter>{props.footer}</ControlCardFooter>
+    </>
+    return h(ControlCard, { ...props, children: children });
+}
+
+function ClubMenuOption(props: { club: Club, callback?: (club: Club, e: Event) => void }) {
+    if (!props.club) return;
+    const onClick = (e) => (props.callback && props.callback(props.club, e));
+    return <ControlCard className={`clubOption clickable club-${props.club?.name.toLocaleLowerCase()}`} onClick={onClick} >
+        <input type="hidden" value={props.club?.dispersion}></input>
+        <ControlCardHeader></ControlCardHeader>
+        <ControlCardValue>{props.club?.name}</ControlCardValue>
+        <ControlCardFooter></ControlCardFooter>
+    </ControlCard>
+}
+
+function ClubMenu(props: { clubs?: Club[], callback?: (club: Club, e: Event) => void }) {
+    const clubs = props.clubs || getUsableClubs();
+    return <div className="takeover">
+        <div className="clubMenu takeoverMenu cardContainer">
+            {clubs.map((club) => <ClubMenuOption club={club} callback={props.callback} />)}
+        </div>
+    </div>
+}
+
 function ClubControl(props: { stroke: Stroke }) {
-    return <ControlCard className="clubControlCard">
+    const [menuVisible, setMenuVisible] = useState(false);
+    const toggleMenu = () => setMenuVisible(!menuVisible);
+    const onClick = () => toggleMenu();
+    const clubClick = (club: Club, e) => {
+        const loadStroke = round.holes[props.stroke.holeIndex].strokes[props.stroke.index];
+        if (!loadStroke) return;
+        loadStroke.club = club.name;
+        touch(loadStroke);
+        saveData();
+    }
+    return <ControlCard className="clubControlCard clickable" onClick={onClick}>
         <ControlCardHeader>Club</ControlCardHeader>
         <ControlCardValue>{props.stroke?.club}</ControlCardValue>
+        <ControlCardFooter></ControlCardFooter>
+        {menuVisible && <ClubMenu callback={clubClick} />}
     </ControlCard>
 }
 
 function GridTypeControl() {
     const activeGrid = layerRead('active_grid'); // TODO: replace with a prop/context pass
     const activeType = activeGrid?.options.grid.properties.type;
-    const onClick = (e) => {
+    const onClick = () => {
         gridDelete();
         const types = Object.values(grids.gridTypes)
         const newType = types[types.indexOf(activeType) + 1];
         gridCreate(newType);
         strokeMarkerAimUpdate();
         rerender('controls');
-
     }
-    return <ControlCard className="gridTypeControlCard" onClick={onClick}>
+    return <ControlCard className="gridTypeControlCard clickable" onClick={onClick}>
         <ControlCardHeader>Grid</ControlCardHeader>
         <ControlCardValue>{activeType}</ControlCardValue>
+        <ControlCardFooter></ControlCardFooter>
     </ControlCard>
 }
 
@@ -1627,7 +1666,7 @@ function DispersionControl(props: { stroke: Stroke, distOptions?: formatDistance
     const onClick = () => strokeDistancePrompt(props.stroke);
     const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: false };
     const formattedDistance = formatDistance(props.stroke?.dispersion, distOptions);
-    return <ControlCard className="dispersionControlCard" onClick={onClick}>
+    return <ControlCard className="dispersionControlCard clickable" onClick={onClick}>
         <ControlCardHeader>Dispersion</ControlCardHeader>
         <ControlCardValue>{formattedDistance}</ControlCardValue>
         <ControlCardFooter>{distOptions.to_unit}</ControlCardFooter>
@@ -1661,6 +1700,7 @@ function TerrainOption(props: { stroke: Stroke, type: string }) {
     const formattedType = props.type.replaceAll("_", " ");
     return <ControlCard className={`terrainOption clickable ${props.type}`} onClick={onClick}>
         <input type="hidden" value={props.type}></input>
+        <ControlCardHeader></ControlCardHeader>
         <ControlCardValue>{icon}</ControlCardValue>
         <ControlCardFooter>{formattedType}</ControlCardFooter>
     </ControlCard>
@@ -1679,24 +1719,49 @@ function TerrainControl(props: { stroke: Stroke }) {
     const [menuVisible, setMenuVisible] = useState(false);
     const toggleMenu = () => setMenuVisible(!menuVisible);
     const onClick = () => toggleMenu();
-    const currentTerrain = props.stroke?.terrain?.replaceAll("_", " ");
-
-    return <ControlCard className="dispersionControlCard" onClick={onClick}>
+    const currentTerrain = props.stroke?.terrain
+    const formattedTerrain = currentTerrain.replaceAll("_", " ");
+    const icon = terrainIcons[currentTerrain];
+    return <ControlCard className="dispersionControlCard clickable" onClick={onClick}>
         <ControlCardHeader>Terrain</ControlCardHeader>
-        <ControlCardValue>{currentTerrain}</ControlCardValue>
+        <ControlCardValue>{icon}</ControlCardValue>
+        <ControlCardFooter>{formattedTerrain}</ControlCardFooter>
         {menuVisible && <TerrainMenu stroke={props.stroke} />}
     </ControlCard>
+}
+
+function AimStatsControls(props: { stroke: Stroke, round: Round }) {
+    const layer = layerRead("active_grid")
+    if (!layer) return; // No grid to load
+    const stroke = props.stroke;
+    const round = props.round;
+    const grid = layer.options.grid;
+    const hole = round.holes[stroke.holeIndex];
+    const wsg = grid.properties.weightedStrokesGained;
+    const sr = grid.properties.strokesRemainingStart;
+    const sa = hole.strokes.length - stroke.index - 1;
+    let srn = 0;
+    if (sa > 0) {
+        const nextStroke = hole.strokes[stroke.index + 1];
+        const nextStart = nextStroke.start;
+        const nextDistance = getDistance(nextStroke.start, hole.pin);
+        const nextTerrain = nextStroke.terrain || grids.getGolfTerrainAt(roundCourseParams(round), [nextStart.y, nextStart.x]);
+        srn = grids.strokesRemaining(nextDistance, nextTerrain);
+    }
+    const sga = sr - srn - 1;
+    return <ComboControlCard header="SG Aim" value={wsg.toFixed(3)} footer="" />
 }
 
 function ActiveStrokeControls(props: { activeStroke: Stroke, round: Round }) {
     if (!props.activeStroke) return;
     return <div id="activeStrokeControls" className="buttonRow">
         <AimStats activeStroke={props.activeStroke} round={round} />
-        <div className="cardContainer">
+        <div className="cardContainer hoscro">
+            <AimStatsControls stroke={props.activeStroke} round={props.round} />
             <ClubControl stroke={props.activeStroke} />
-            <GridTypeControl />
             <DispersionControl stroke={props.activeStroke} />
             <TerrainControl stroke={props.activeStroke} />
+            <GridTypeControl />
         </div>
     </div>
 }

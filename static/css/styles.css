@@ -230,8 +230,16 @@ textarea {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     text-align: center;
     width: 80%;
+    max-height: 80%;
     display: flex;
     flex-flow: wrap;
+    justify-content: center;
+    overflow: scroll;
+}
+
+.takeoverMenuHeader {
+    width: 100%;
+    border-bottom: 1px solid #e1e1e8
 }
 
 /*
@@ -424,6 +432,10 @@ div#strokeList ol {
     padding: 10px;
 }
 
+.hoscro {
+    overflow-x: scroll;
+}
+
 /* Individual card styles */
 .card {
     background: #f7f7f7;
@@ -434,6 +446,7 @@ div#strokeList ol {
     height: 80px;
     text-align: center;
     margin: 10px;
+    flex-shrink: 0;
 }
 
 .cardTitle {
@@ -441,7 +454,7 @@ div#strokeList ol {
     color: #555;
     font-size: 14px;
     font-weight: 600;
-    margin-bottom: 5px;
+    margin-bottom: 2px;
     text-transform: uppercase;
 }
 
@@ -459,25 +472,16 @@ div#strokeList ol {
     overflow: hidden;
 }
 
+.longCardValue {
+    font-size: 16px;
+}
+
 .cardFooter {
     height: 18px;
     color: #555;
     font-size: 14px;
     font-weight: 600;
-    margin-top: 5px;
-}
-
-/* Responsive design */
-@media (max-width: 600px) {
-    .card-container {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .card {
-        width: 80%;
-        margin-bottom: 10px;
-    }
+    margin-top: 2px;
 }
 
 .clickable {
@@ -490,7 +494,7 @@ div#strokeList ol {
 
 .terrainMenu .out_of_bounds,
 .terrainMenu .out_of_bounds .cardFooter,
-.terrainMenu .out_of_bounds .cardHeader,
+.terrainMenu .out_of_bounds .cardTitle,
 .terrainMenu .out_of_bounds .cardValue {
     background-color: #c25;
     color: #efefef;
@@ -502,7 +506,7 @@ div#strokeList ol {
 
 .terrainMenu .penalty,
 .terrainMenu .penalty .cardFooter,
-.terrainMenu .penalty .cardHeader,
+.terrainMenu .penalty .cardTitle,
 .terrainMenu .penalty .cardValue {
     color: #fff;
     background-color: #6c757d;
@@ -511,6 +515,58 @@ div#strokeList ol {
 .terrainMenu .penalty path {
     fill: #efefef;
 }
+
+.clubMenu .club-penalty,
+.clubMenu .club-penalty .cardFooter,
+.clubMenu .club-penalty .cardTitle,
+.clubMenu .club-penalty .cardValue {
+    background-color: #c25;
+    color: #efefef;
+    fill: #efefef;
+}
+
+.clubMenu .club-skip,
+.clubMenu .club-skip .cardFooter,
+.clubMenu .club-skip .cardTitle,
+.clubMenu .club-skip .cardValue {
+    background-color: #6d6d6d;
+    color: #efefef;
+    fill: #efefef;
+}
+
+@media (max-width: 400px) {
+    .card {
+        padding: 10px;
+        width: 60px;
+        height: 60px;
+        overflow: hidden;
+    }
+
+    .cardValueOuter {
+        height: 30px;
+    }
+
+    .cardValue {
+        font-size: 24px;
+    }
+
+    .longCardValue {
+        font-size: 12px;
+    }
+
+    .cardTitle {
+        height: 12px;
+        font-size: 12px;
+        margin-bottom: 2px;
+    }
+
+    .cardFooter {
+        height: 12px;
+        font-size: 12px;
+        margin-top: 2px;
+    }
+}
+
 
 /*
 * Scorecard styles 
