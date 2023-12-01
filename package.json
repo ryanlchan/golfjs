@@ -31,7 +31,7 @@
     "@turf/turf": "^6.5.0",
     "@types/geojson": "^7946.0.10",
     "chroma-js": "^2.4.2",
-    "osmtogeojson": "^3.0.0-beta.5",
+    "osmtogeojson": "github:ryanlchan/osmtogeojson",
     "typeid-js": "^0.3.0",
     "vite": "^5.0.4"
   }
