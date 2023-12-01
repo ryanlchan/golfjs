@@ -1174,6 +1174,7 @@ function mapViewCreate(mapid) {
         attribution: "",
     }).addTo(mapView);
     enableSmoothZoom(mapView, 1.5);
+    addTooltipDecluttering(mapView, 85);
 }
 
 /**
@@ -1985,6 +1986,35 @@ function subMapControlsUpdate() {
 function upperMapControlsUpdate() {
     const el = document.querySelector('div#upperMapControls');
     render(<MapControlsUpper />, el);
+}
+
+function addTooltipDecluttering(map: L.Map, percentScreenFree: number = 60): void {
+    const tooltipSize = { width: 55, height: 32 }; // Size of each tooltip
+
+    // Function to calculate the maximum number of tooltips that can be displayed
+    const calculateMaxTooltips = (): number => {
+        const mapSize = map.getSize();
+        const mapArea = mapSize.x * mapSize.y;
+        const tooltipArea = tooltipSize.width * tooltipSize.height;
+        const maxTooltips = Math.floor(mapArea * (1 - percentScreenFree / 100) / tooltipArea);
+        return maxTooltips > 0 ? maxTooltips : 0;
+    };
+
+    const updateTooltipsVisibility = () => {
+        const bounds = map.getBounds();
+        let markers = [] as L.Marker[];
+        map.eachLayer(layer => { if (layer instanceof L.Marker) markers.push(layer) });
+        const visibleMarkers = markers.filter(marker => bounds.contains(marker.getLatLng()));
+        const tooltipThreshold = calculateMaxTooltips();
+        if (visibleMarkers.length > tooltipThreshold) {
+            markers.forEach(marker => marker.closeTooltip());
+        } else {
+            markers.forEach(marker => marker.openTooltip());
+        }
+    };
+
+    map.on('zoomend', updateTooltipsVisibility);
+    updateTooltipsVisibility();
 }
 
 /**
