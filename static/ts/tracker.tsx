@@ -10,7 +10,7 @@ import "projektpro-leaflet-smoothwheelzoom";
 import * as turf from "@turf/turf";
 import chroma from "chroma-js";
 import { typeid } from "typeid-js";
-import { render, VNode } from 'preact';
+import { h, render, VNode } from 'preact';
 import { useState } from 'preact/hooks';
 
 // Modules
@@ -1383,8 +1383,7 @@ function StrokeAimResetButton() {
     </button>);
 }
 
-interface DistanceTrackerProps { location: Coordinate, name: string }
-function DistanceTracker(props: DistanceTrackerProps) {
+function DistanceTracker(props: { location: Coordinate, name: string }) {
     const active = currentHole?.pin && currentPositionRead();
     if (!active) return;
     const opt = { to_unit: displayUnits, include_unit: true };
@@ -1436,8 +1435,7 @@ function MapControlsUpper() {
     return <MapControlsUpperRight />
 }
 
-interface HoleInfoProps { hole: Hole, round: Round }
-function HoleInfo(props: HoleInfoProps) {
+function HoleInfo(props: { hole: Hole, round: Round }) {
     const round = props.round;
     const hole = props.hole;
     let stats = [];
@@ -1457,8 +1455,7 @@ function HoleInfo(props: HoleInfoProps) {
  * @param {number} props.currentHoleIndex
     * @param {Hole[]} props.holes
     */
-interface HoleSelectorProps { currentHoleIndex: number, holes: Hole[] }
-function HoleSelector(props: HoleSelectorProps) {
+function HoleSelector(props: { currentHoleIndex: number, holes: Hole[] }) {
     const handleSelect = (e) => holeSelect(parseInt(e.target.value));
     const value = Number.isFinite(props.currentHoleIndex) ? props.currentHoleIndex : -1;
     const selector = (<select id="holeSelector" value={value} onInput={handleSelect}>
@@ -1479,8 +1476,7 @@ function HoleChangeControl() {
     return element
 }
 
-interface HoleControlsProps { hole: Hole, round: Round }
-function HoleControls(props: HoleControlsProps) {
+function HoleControls(props: { hole: Hole, round: Round }) {
     const id = "holeControlsContainer"
     return <div className="buttonRow" id={id}>
         <HoleChangeControl />
@@ -1493,8 +1489,7 @@ function HoleControls(props: HoleControlsProps) {
  * @param {Stroke} props.stroke
     * @returns {HTMLElement} the li element for the list
     */
-interface StrokeStatsListItemProps { stroke: Stroke }
-function StrokeStatsListItem(props: StrokeStatsListItemProps) {
+function StrokeStatsListItem(props: { stroke: Stroke }) {
     const stroke = props.stroke;
     const distOptions = { to_unit: displayUnits, precision: 1, include_unit: true }
     const distance = formatDistance(strokeDistance(stroke), distOptions);
@@ -1527,15 +1522,13 @@ function StrokeStatsListItem(props: StrokeStatsListItemProps) {
  * Generate a list of strokes with controls to adjust them
  * @param {Stroke[]} props.strokes
     */
-interface StrokeStatsListProps { strokes: Stroke[] }
-function StrokeStatsList(props: StrokeStatsListProps) {
+function StrokeStatsList(props: { strokes: Stroke[] }) {
     return (<div id="strokeList"><ol>
         {props.strokes?.map((stroke) => <StrokeStatsListItem key={stroke.id} stroke={stroke} />)}
     </ol></div>);
 }
 
-interface DispersionLinkProps { stroke: Stroke, distOptions?: formatDistanceOptions, id?: string }
-function DispersionLink(props: DispersionLinkProps): VNode {
+function DispersionLink(props: { stroke: Stroke, distOptions?: formatDistanceOptions, id?: string }): VNode {
     const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
     const formattedDistance = formatDistance(props.stroke.dispersion, distOptions);
     const clickHandler = (e) => {
@@ -1554,8 +1547,7 @@ function strokeDistancePrompt(stroke: Stroke) {
     return dispersion;
 }
 
-interface AimStatsProps { activeStroke: Stroke, round: Round }
-function AimStats(props: AimStatsProps) {
+function AimStats(props: { activeStroke: Stroke, round: Round }) {
     const layer = layerRead("active_grid")
     if (!layer) return; // No grid to load
     const stroke = props.activeStroke;
@@ -1580,67 +1572,132 @@ function AimStats(props: AimStatsProps) {
     return <div id="aimStats" className="buttonRow">{innerText}</div>
 }
 
+function classedDiv(newClass: string, props) {
+    const classes = [newClass, props.className].join(' ');
+    const newProps = { ...props, className: classes }
+    return h('div', newProps);
+}
+
+function ControlCard(props) {
+    return classedDiv("card", props);
+}
+
+function ControlCardHeader(props) {
+    return classedDiv("cardTitle", props);
+}
+function ControlCardValue(props) {
+    const length = typeof props.children === 'string' ? props.children.length : 3
+    const fontSize = (length > 3) ? 14 : 34; // Cards are ~3ems wide
+    const style = `font-size: ${fontSize}px;${props.style || ""} `;
+    const classes = ["cardValue", props.className].join(' ');
+    const newProps = { ...props, className: classes, style: style };
+    return <div className="cardValueOuter">{h('div', newProps)}</div>;
+}
+function ControlCardFooter(props) {
+    return classedDiv("cardFooter", props);
+}
+
+function ClubControl(props: { stroke: Stroke }) {
+    return <ControlCard className="clubControlCard">
+        <ControlCardHeader>Club</ControlCardHeader>
+        <ControlCardValue>{props.stroke?.club}</ControlCardValue>
+    </ControlCard>
+}
+
 function GridTypeControl() {
-    const activeGrid = layerRead('active_grid');
+    const activeGrid = layerRead('active_grid'); // TODO: replace with a prop/context pass
     const activeType = activeGrid?.options.grid.properties.type;
-    const id = "gridTypeControlContainer";
-    const onInput = (e) => {
+    const onClick = (e) => {
         gridDelete();
-        gridCreate(e.target.value);
+        const types = Object.values(grids.gridTypes)
+        const newType = types[types.indexOf(activeType) + 1];
+        gridCreate(newType);
         strokeMarkerAimUpdate();
+        rerender('controls');
+
     }
-    return <div className="buttonRow" id={id}>
-        <label htmlFor={id}>Grid type:</label>
-        <select id="gridTypeSelect" onInput={onInput} value={activeType}>
-            {Object.values(grids.gridTypes).map(name => <option key={name} value={name}>{name}</option>)}
-        </select>
-    </div>
+    return <ControlCard className="gridTypeControlCard" onClick={onClick}>
+        <ControlCardHeader>Grid</ControlCardHeader>
+        <ControlCardValue>{activeType}</ControlCardValue>
+    </ControlCard>
 }
 
-interface DispersionControlProps { stroke: Stroke }
-function DispersionControl(props: DispersionControlProps) {
-    const id = "dispersionControlContainer";
-    return <div className="buttonRow" id={id}>
-        <label htmlFor={id}>Dispersion:</label>
-        <DispersionLink stroke={props.stroke} id={id} />
-    </div>
+function DispersionControl(props: { stroke: Stroke, distOptions?: formatDistanceOptions }) {
+    if (!props.stroke) return;
+    const onClick = () => strokeDistancePrompt(props.stroke);
+    const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: false };
+    const formattedDistance = formatDistance(props.stroke?.dispersion, distOptions);
+    return <ControlCard className="dispersionControlCard" onClick={onClick}>
+        <ControlCardHeader>Dispersion</ControlCardHeader>
+        <ControlCardValue>{formattedDistance}</ControlCardValue>
+        <ControlCardFooter>{distOptions.to_unit}</ControlCardFooter>
+    </ControlCard>
 }
 
-interface TerrainControlProps { stroke: Stroke }
-function TerrainControl(props: TerrainControlProps) {
-    const containerID = "terrainControlContainer";
-    const selectID = "terrainControlSelect";
-    const currentTerrain = props.stroke?.terrain;
-    const hole = strokeHole(props.stroke);
-    const onChange = (e) => {
-        const val = e.target.value;
-        if (val == "" || val in STROKES_REMAINING_COEFFS) {
-            props.stroke.terrain = val;
-            touch(props.stroke, hole, round);
+const terrainIcons = {
+    'green': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="28" viewBox="0 0 448 512"><path d="M48 24C48 10.7 37.3 0 24 0S0 10.7 0 24V64 350.5 400v88c0 13.3 10.7 24 24 24s24-10.7 24-24V388l80.3-20.1c41.1-10.3 84.6-5.5 122.5 13.4c44.2 22.1 95.5 24.8 141.7 7.4l34.7-13c12.5-4.7 20.8-16.6 20.8-30V66.1c0-23-24.2-38-44.8-27.7l-9.6 4.8c-46.3 23.2-100.8 23.2-147.1 0c-35.1-17.6-75.4-22-113.5-12.5L48 52V24zm0 77.5l96.6-24.2c27-6.7 55.5-3.6 80.4 8.8c54.9 27.4 118.7 29.7 175 6.8V334.7l-24.4 9.1c-33.7 12.6-71.2 10.7-103.4-5.4c-48.2-24.1-103.3-30.1-155.6-17.1L48 338.5v-237z" /></svg>,
+    'fairway': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="36" viewBox="0 0 576 512"><path d="M269.5 69.9c11.1-7.9 25.9-7.9 37 0C329 85.4 356.5 96 384 96c26.9 0 55.4-10.8 77.4-26.1l0 0c11.9-8.5 28.1-7.8 39.2 1.7c14.4 11.9 32.5 21 50.6 25.2c17.2 4 27.9 21.2 23.9 38.4s-21.2 27.9-38.4 23.9c-24.5-5.7-44.9-16.5-58.2-25C449.5 149.7 417 160 384 160c-31.9 0-60.6-9.9-80.4-18.9c-5.8-2.7-11.1-5.3-15.6-7.7c-4.5 2.4-9.7 5.1-15.6 7.7c-19.8 9-48.5 18.9-80.4 18.9c-33 0-65.5-10.3-94.5-25.8c-13.4 8.4-33.7 19.3-58.2 25c-17.2 4-34.4-6.7-38.4-23.9s6.7-34.4 23.9-38.4C42.8 92.6 61 83.5 75.3 71.6c11.1-9.5 27.3-10.1 39.2-1.7l0 0C136.7 85.2 165.1 96 192 96c27.5 0 55-10.6 77.5-26.1zm37 288C329 373.4 356.5 384 384 384c26.9 0 55.4-10.8 77.4-26.1l0 0c11.9-8.5 28.1-7.8 39.2 1.7c14.4 11.9 32.5 21 50.6 25.2c17.2 4 27.9 21.2 23.9 38.4s-21.2 27.9-38.4 23.9c-24.5-5.7-44.9-16.5-58.2-25C449.5 437.7 417 448 384 448c-31.9 0-60.6-9.9-80.4-18.9c-5.8-2.7-11.1-5.3-15.6-7.7c-4.5 2.4-9.7 5.1-15.6 7.7c-19.8 9-48.5 18.9-80.4 18.9c-33 0-65.5-10.3-94.5-25.8c-13.4 8.4-33.7 19.3-58.2 25c-17.2 4-34.4-6.7-38.4-23.9s6.7-34.4 23.9-38.4c18.1-4.2 36.2-13.3 50.6-25.2c11.1-9.4 27.3-10.1 39.2-1.7l0 0C136.7 373.2 165.1 384 192 384c27.5 0 55-10.6 77.5-26.1c11.1-7.9 25.9-7.9 37 0zm0-144C329 229.4 356.5 240 384 240c26.9 0 55.4-10.8 77.4-26.1l0 0c11.9-8.5 28.1-7.8 39.2 1.7c14.4 11.9 32.5 21 50.6 25.2c17.2 4 27.9 21.2 23.9 38.4s-21.2 27.9-38.4 23.9c-24.5-5.7-44.9-16.5-58.2-25C449.5 293.7 417 304 384 304c-31.9 0-60.6-9.9-80.4-18.9c-5.8-2.7-11.1-5.3-15.6-7.7c-4.5 2.4-9.7 5.1-15.6 7.7c-19.8 9-48.5 18.9-80.4 18.9c-33 0-65.5-10.3-94.5-25.8c-13.4 8.4-33.7 19.3-58.2 25c-17.2 4-34.4-6.7-38.4-23.9s6.7-34.4 23.9-38.4c18.1-4.2 36.2-13.3 50.6-25.2c11.1-9.5 27.3-10.1 39.2-1.7l0 0C136.7 229.2 165.1 240 192 240c27.5 0 55-10.6 77.5-26.1c11.1-7.9 25.9-7.9 37 0z" /></svg>,
+    'rough': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 512 512"><path d="M288 32c0 17.7 14.3 32 32 32h32c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32 14.3-32 32s14.3 32 32 32H352c53 0 96-43 96-96s-43-96-96-96H320c-17.7 0-32 14.3-32 32zm64 352c0 17.7 14.3 32 32 32h32c53 0 96-43 96-96s-43-96-96-96H32c-17.7 0-32 14.3-32 32s14.3 32 32 32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H384c-17.7 0-32 14.3-32 32zM128 512h32c53 0 96-43 96-96s-43-96-96-96H32c-17.7 0-32 14.3-32 32s14.3 32 32 32H160c17.7 0 32 14.3 32 32s-14.3 32-32 32H128c-17.7 0-32 14.3-32 32s14.3 32 32 32z" /></svg>,
+    'bunker': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="36" viewBox="0 0 576 512"><path d="M346.3 271.8l-60.1-21.9L214 448H32c-17.7 0-32 14.3-32 32s14.3 32 32 32H544c17.7 0 32-14.3 32-32s-14.3-32-32-32H282.1l64.1-176.2zm121.1-.2l-3.3 9.1 67.7 24.6c18.1 6.6 38-4.2 39.6-23.4c6.5-78.5-23.9-155.5-80.8-208.5c2 8 3.2 16.3 3.4 24.8l.2 6c1.8 57-7.3 113.8-26.8 167.4zM462 99.1c-1.1-34.4-22.5-64.8-54.4-77.4c-.9-.4-1.9-.7-2.8-1.1c-33-11.7-69.8-2.4-93.1 23.8l-4 4.5C272.4 88.3 245 134.2 226.8 184l-3.3 9.1L434 269.7l3.3-9.1c18.1-49.8 26.6-102.5 24.9-155.5l-.2-6zM107.2 112.9c-11.1 15.7-2.8 36.8 15.3 43.4l71 25.8 3.3-9.1c19.5-53.6 49.1-103 87.1-145.5l4-4.5c6.2-6.9 13.1-13 20.5-18.2c-79.6 2.5-154.7 42.2-201.2 108z" /></svg>,
+    'recovery': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 512 512"><path d="M254.4 6.6c3.5-4.3 9-6.5 14.5-5.7C315.8 7.2 352 47.4 352 96c0 11.2-1.9 22-5.5 32H352c35.3 0 64 28.7 64 64c0 19.1-8.4 36.3-21.7 48H408c39.8 0 72 32.2 72 72c0 23.2-11 43.8-28 57c34.1 5.7 60 35.3 60 71c0 39.8-32.2 72-72 72H72c-39.8 0-72-32.2-72-72c0-35.7 25.9-65.3 60-71c-17-13.2-28-33.8-28-57c0-39.8 32.2-72 72-72h13.7C104.4 228.3 96 211.1 96 192c0-35.3 28.7-64 64-64h16.2c44.1-.1 79.8-35.9 79.8-80c0-9.2-1.5-17.9-4.3-26.1c-1.8-5.2-.8-11.1 2.8-15.4z" /></svg>,
+    'tee': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="24" viewBox="0 0 384 512"><path d="M384 192c0 66.8-34.1 125.6-85.8 160H85.8C34.1 317.6 0 258.8 0 192C0 86 86 0 192 0S384 86 384 192zM242.1 256.6c0 18.5-15 33.5-33.5 33.5c-4.9 0-9.1 5.1-5.4 8.4c5.9 5.2 13.7 8.4 22.1 8.4c18.5 0 33.5-15 33.5-33.5c0-8.5-3.2-16.2-8.4-22.1c-3.3-3.7-8.4 .5-8.4 5.4zm-52.3-49.3c-4.9 0-9.1 5.1-5.4 8.4c5.9 5.2 13.7 8.4 22.1 8.4c18.5 0 33.5-15 33.5-33.5c0-8.5-3.2-16.2-8.4-22.1c-3.3-3.7-8.4 .5-8.4 5.4c0 18.5-15 33.5-33.5 33.5zm113.5-17.5c0 18.5-15 33.5-33.5 33.5c-4.9 0-9.1 5.1-5.4 8.4c5.9 5.2 13.7 8.4 22.1 8.4c18.5 0 33.5-15 33.5-33.5c0-8.5-3.2-16.2-8.4-22.1c-3.3-3.7-8.4 .5-8.4 5.4zM96 416c0-17.7 14.3-32 32-32h64 64c17.7 0 32 14.3 32 32s-14.3 32-32 32H240c-8.8 0-16 7.2-16 16v16c0 17.7-14.3 32-32 32s-32-14.3-32-32V464c0-8.8-7.2-16-16-16H128c-17.7 0-32-14.3-32-32z" /></svg>,
+    'penalty': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 512 512"><path d="M256 48a208 208 0 1 1 0 416 208 208 0 1 1 0-416zm0 464A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM175 175c-9.4 9.4-9.4 24.6 0 33.9l47 47-47 47c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l47-47 47 47c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-47-47 47-47c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0l-47 47-47-47c-9.4-9.4-24.6-9.4-33.9 0z" /></svg>,
+    'out_of_bounds': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="28" viewBox="0 0 448 512"><path d="M368 128c0 44.4-25.4 83.5-64 106.4V256c0 17.7-14.3 32-32 32H176c-17.7 0-32-14.3-32-32V234.4c-38.6-23-64-62.1-64-106.4C80 57.3 144.5 0 224 0s144 57.3 144 128zM168 176a32 32 0 1 0 0-64 32 32 0 1 0 0 64zm144-32a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM3.4 273.7c7.9-15.8 27.1-22.2 42.9-14.3L224 348.2l177.7-88.8c15.8-7.9 35-1.5 42.9 14.3s1.5 35-14.3 42.9L295.6 384l134.8 67.4c15.8 7.9 22.2 27.1 14.3 42.9s-27.1 22.2-42.9 14.3L224 419.8 46.3 508.6c-15.8 7.9-35 1.5-42.9-14.3s-1.5-35 14.3-42.9L152.4 384 17.7 316.6C1.9 308.7-4.5 289.5 3.4 273.7z" /></svg>,
+}
+function TerrainOption(props: { stroke: Stroke, type: string }) {
+    const onClick = (e) => {
+        if (props.type == "" || props.type in STROKES_REMAINING_COEFFS) {
+            const stroke = round.holes[props.stroke.holeIndex].strokes[props.stroke.index];
+            stroke.terrain = props.type;
+            touch(stroke);
             saveData();
         } else {
             showError(new PositionError("Terrain type not recognized", 4));
-            console.error(`Terrain type not recognized, got ${val}`);
+            console.error(`Terrain type not recognized, got ${props.type}`);
         }
         rerender("dragend");
     }
-    return <div className="buttonRow" id={containerID}>
-        <label htmlFor={containerID}>Terrain:</label>
-        <select type="text" id={selectID} value={currentTerrain} onChange={onChange}>
-            <option value="">unknown</option>
-            {Object.keys(STROKES_REMAINING_COEFFS).map((type) => <option key={type} value={type}>{type}</option>)}
-        </select>
+    const icon = terrainIcons[props.type];
+    const formattedType = props.type.replaceAll("_", " ");
+    return <ControlCard className={`terrainOption clickable ${props.type}`} onClick={onClick}>
+        <input type="hidden" value={props.type}></input>
+        <ControlCardValue>{icon}</ControlCardValue>
+        <ControlCardFooter>{formattedType}</ControlCardFooter>
+    </ControlCard>
+}
+
+function TerrainMenu(props: { stroke: Stroke, types?: string[] }) {
+    const types = props.types || Object.keys(STROKES_REMAINING_COEFFS).map((key) => key);
+    return <div className="takeover">
+        <div className="terrainMenu takeoverMenu cardContainer">
+            {types.map((type) => <TerrainOption type={type} stroke={props.stroke} />)}
+        </div>
     </div>
 }
 
-interface ActiveStrokeControlsProps { activeStroke: Stroke, round: Round }
-function ActiveStrokeControls(props: ActiveStrokeControlsProps) {
+function TerrainControl(props: { stroke: Stroke }) {
+    const [menuVisible, setMenuVisible] = useState(false);
+    const toggleMenu = () => setMenuVisible(!menuVisible);
+    const onClick = () => toggleMenu();
+    const currentTerrain = props.stroke?.terrain?.replaceAll("_", " ");
+
+    return <ControlCard className="dispersionControlCard" onClick={onClick}>
+        <ControlCardHeader>Terrain</ControlCardHeader>
+        <ControlCardValue>{currentTerrain}</ControlCardValue>
+        {menuVisible && <TerrainMenu stroke={props.stroke} />}
+    </ControlCard>
+}
+
+function ActiveStrokeControls(props: { activeStroke: Stroke, round: Round }) {
     if (!props.activeStroke) return;
     return <div id="activeStrokeControls" className="buttonRow">
-        <AimStats activeStroke={props.activeStroke} round={props.round} />
-        <GridTypeControl />
-        <DispersionControl stroke={props.activeStroke} />
-        <TerrainControl stroke={props.activeStroke} />
+        <AimStats activeStroke={props.activeStroke} round={round} />
+        <div className="cardContainer">
+            <ClubControl stroke={props.activeStroke} />
+            <GridTypeControl />
+            <DispersionControl stroke={props.activeStroke} />
+            <TerrainControl stroke={props.activeStroke} />
+        </div>
     </div>
 }
 
@@ -1676,8 +1733,7 @@ function ScoreTD(props: ScorecardTDProps) {
     }
 }
 
-interface ScorecardRowProps { hole: Hole, holeCol?: boolean, hdcpCol?: boolean, parCol?: boolean, scoreCol?: boolean }
-function ScorecardRow(props: ScorecardRowProps) {
+function ScorecardRow(props: { hole: Hole, holeCol?: boolean, hdcpCol?: boolean, parCol?: boolean, scoreCol?: boolean }) {
     const opts = {
         holeCol: props.holeCol ?? true,
         hdcpCol: props.hdcpCol ?? true,
@@ -1700,11 +1756,11 @@ function HoleTotalTD() {
 function HdcpTotalTD() {
     return <td key="hdcp-total"></td>;
 }
-function ParTotalTD(props: ScorecardProps) {
+function ParTotalTD(props: { round: Round }) {
     const round = props.round;
     return <td key="par-total">{round.holes.reduce((acc, hole) => acc + hole.par, 0)}</td>
 }
-function ScoreTotalTD(props: ScorecardProps) {
+function ScoreTotalTD(props: { round: Round }) {
     const round = props.round;
     const strokes = round.holes.reduce((acc, hole) => acc + hole.strokes.length, 0);
     if (round.holes[0].par) {
@@ -1717,8 +1773,7 @@ function ScoreTotalTD(props: ScorecardProps) {
     }
 }
 
-interface ScorecardTotalRowProps { round: Round, holeCol?: boolean, hdcpCol?: boolean, parCol?: boolean, scoreCol?: boolean }
-function ScorecardTotalRow(props: ScorecardTotalRowProps) {
+function ScorecardTotalRow(props: { round: Round, holeCol?: boolean, hdcpCol?: boolean, parCol?: boolean, scoreCol?: boolean }) {
     const opts = {
         holeCol: props.holeCol ?? true,
         hdcpCol: props.hdcpCol ?? true,
@@ -1736,8 +1791,7 @@ function ScorecardTotalRow(props: ScorecardTotalRowProps) {
 /**
  * Create a scorecard as table
  */
-interface ScorecardProps { round: Round }
-function Scorecard(props: ScorecardProps) {
+function Scorecard(props: { round: Round }) {
     const scoringRound = props.round;
     if (currentHole) return;
     const holeCol = true;
@@ -1781,8 +1835,7 @@ function scoreClass(relativeScore: number): string {
     }
 }
 
-interface StrokeAndHoleControlsProps { activeStroke: Stroke, hole: Hole, round: Round }
-function StrokeAndHoleControls(props: StrokeAndHoleControlsProps) {
+function StrokeAndHoleControls(props: { activeStroke: Stroke, hole: Hole, round: Round }) {
     return <div className="StrokeAndHoleControls">
         <HoleControls hole={props.hole} round={props.round} />
         <ActiveStrokeControls activeStroke={props.activeStroke} round={props.round} />
@@ -1804,8 +1857,7 @@ function SubMapControls() {
  * @param {Stroke} stroke
     * @returns {HTMLElement}
     */
-interface StrokeDeleteButtonProps { stroke: Stroke }
-function StrokeDeleteButton(props: StrokeDeleteButtonProps): VNode {
+function StrokeDeleteButton(props: { stroke: Stroke }): VNode {
     const icon = <span>&#215;</span>;
     const clickHandler = (e) => {
         strokeDelete(props.stroke?.holeIndex, props.stroke?.index);
@@ -1820,8 +1872,7 @@ function StrokeDeleteButton(props: StrokeDeleteButtonProps): VNode {
     * @param {Number} offset the offset for the stroke index
     * @returns {HTMLElement}
     */
-interface StrokeMoveButtonProps { stroke: Stroke, offset: number }
-function StrokeMoveButton(props: StrokeMoveButtonProps): VNode {
+function StrokeMoveButton(props: { stroke: Stroke, offset: number }): VNode {
     const stroke = props.stroke;
     const icon = (props.offset > 0 ? <span>&#8595;</span> : <span>&#8593;</span>)
     const clickHandler = (e) => {
@@ -1848,41 +1899,51 @@ function upperMapControlsUpdate() {
  * Rerender key views based on volatile data
  * @param {string} category the category of rerender to perform.
     */
-function rerender(category: string = "map") {
-    const lines = () => {
-        strokelineUpdate();
+function rerenderLines() {
+    strokelineUpdate();
+}
+function rerenderMarkers() {
+    strokeMarkerUpdate();
+    strokeMarkerAimUpdate();
+    if (currentHole) {
+        pinMarkerUpdate(currentHole);
     }
-    const markers = () => {
-        strokeMarkerUpdate();
+}
+function rerenderControls() {
+    subMapControlsUpdate();
+    upperMapControlsUpdate();
+    saveData();
+}
+function rerenderActiveGrids() {
+    if (!activeStroke) return
+    gridUpdate().then(() => {
         strokeMarkerAimUpdate();
-        if (currentHole) {
-            pinMarkerUpdate(currentHole);
-        }
-    }
-    const controls = () => {
         subMapControlsUpdate();
-        upperMapControlsUpdate();
-        saveData();
-    }
-    const activeGrids = () => {
-        if (!activeStroke) return
-        gridUpdate().then(() => {
-            strokeMarkerAimUpdate();
-            subMapControlsUpdate();
-        }).catch((error) => console.error(error));
-    }
-    const activeStates = () => {
-        if (!activeStroke) return
-        strokeMarkerAimDelete();
-        strokeMarkerAimCreate();
-    }
+    }).catch((error) => console.error(error));
+}
+function rerenderActiveStates() {
+    if (!activeStroke) return
+    strokeMarkerAimDelete();
+    strokeMarkerAimCreate();
+}
+
+function rerender(category: string = "map") {
     const categories = {
-        map: [lines, markers, controls],
-        dragend: [activeGrids],
-        active: [activeStates, controls],
-        full: [lines, markers, controls, activeStates]
+        // Base rerenders
+        lines: [rerenderLines],
+        markers: [rerenderMarkers],
+        activeGrids: [rerenderActiveGrids],
+        activeStates: [rerenderActiveStates],
+        controls: [rerenderControls],
+
+        // Grouped rerenders
+        map: [rerenderLines, rerenderMarkers, rerenderControls],
+        dragend: [rerenderActiveGrids],
+        active: [rerenderActiveStates, rerenderControls],
+        full: [rerenderLines, rerenderMarkers, rerenderControls, rerenderActiveStates]
     }
 
+    if (!(category in categories)) throw new Error("Rerender not recognized");
     categories[category].forEach((action) => action());
 }
 
