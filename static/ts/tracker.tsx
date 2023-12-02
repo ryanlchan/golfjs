@@ -1786,10 +1786,10 @@ function ActiveStrokeControls(props: { activeStroke: Stroke, round: Round }) {
     return <div id="activeStrokeControls" className="buttonRow">
         <div className="cardContainer hoscro">
             <AimStatsControls stroke={props.activeStroke} round={props.round} />
+            <GridTypeControl />
+            <TerrainControl stroke={props.activeStroke} />
             <ClubControl stroke={props.activeStroke} />
             <DispersionControl stroke={props.activeStroke} />
-            <TerrainControl stroke={props.activeStroke} />
-            <GridTypeControl />
         </div>
     </div>
 }
