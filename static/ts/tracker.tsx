@@ -11,7 +11,7 @@ import * as turf from "@turf/turf";
 import chroma from "chroma-js";
 import { typeid } from "typeid-js";
 import { h, render, VNode } from 'preact';
-import { useState } from 'preact/hooks';
+import { useState, useMemo } from 'preact/hooks';
 
 // Modules
 import * as grids from "./grids.js";
@@ -416,7 +416,7 @@ function strokeMarkerAimTooltip(): string {
 
     const sggrid = layerRead("active_grid");
     if (sggrid?.options.grid) {
-        const wsg = sggrid.options.grid.properties.weightedStrokesGained.toFixed(3);
+        const wsg = sggrid.options.grid.properties.weightedStrokesGained.toFixed(2);
         text += `<br> SG Aim ${wsg}`
     }
     return text
@@ -592,7 +592,7 @@ function sgGridCreate() {
         const prob = (props.probability * 100);
         const er = grids.erf(props.distanceToAim, 0, activeStroke.dispersion)
         const ptile = (1 - er) * 100;
-        return `SG: ${sg.toFixed(3)}
+        return `SG: ${sg.toFixed(2)}
                     | ${props.terrainType}
                     | Prob: ${prob.toFixed(2)}%
                     | ${ptile.toFixed(1)}%ile`;
@@ -652,8 +652,8 @@ function targetGridCreate() {
         const props = layer.feature.properties;
         const wsg = props.weightedStrokesGained;
         const rwsg = props.relativeStrokesGained;
-        return `SG: ${wsg.toFixed(3)}
-                    | vs Aim: ${rwsg.toFixed(3)}`
+        return `SG: ${wsg.toFixed(2)}
+                    | vs Aim: ${rwsg.toFixed(2)}`
     });
     layerCreate("active_grid", gridLayer);
 }
@@ -1555,31 +1555,6 @@ function strokeDistancePrompt(stroke: Stroke) {
     return dispersion;
 }
 
-function AimStats(props: { activeStroke: Stroke, round: Round }) {
-    const layer = layerRead("active_grid")
-    if (!layer) return; // No grid to load
-    const stroke = props.activeStroke;
-    const round = props.round;
-    const grid = layer.options.grid;
-    const hole = round.holes[stroke.holeIndex];
-    const wsg = grid.properties.weightedStrokesGained;
-    const sr = grid.properties.strokesRemainingStart;
-    const sa = hole.strokes.length - stroke.index - 1;
-    let srn = 0;
-    if (sa > 0) {
-        const nextStroke = hole.strokes[stroke.index + 1];
-        const nextStart = nextStroke.start;
-        const nextDistance = getDistance(nextStroke.start, hole.pin);
-        const nextTerrain = nextStroke.terrain || grids.getGolfTerrainAt(roundCourseParams(round), [nextStart.y, nextStart.x]);
-        srn = grids.strokesRemaining(nextDistance, nextTerrain);
-    }
-    const sga = sr - srn - 1;
-    const innerText = `SG Aim: ${wsg.toFixed(3)} | SG Actual: ${sga.toFixed(3)} | SR: ${sr.toFixed(3)}`;
-
-    // Update dispersion
-    return <div id="aimStats" className="buttonRow">{innerText}</div>
-}
-
 function classedDiv(newClass: string, props) {
     const classes = [newClass, props.className].join(' ');
     const newProps = { ...props, className: classes }
@@ -1753,14 +1728,16 @@ function TerrainControl(props: { stroke: Stroke }) {
 }
 
 function AimStatsControls(props: { stroke: Stroke, round: Round }) {
-    const layer = layerRead("active_grid")
-    if (!layer) return; // No grid to load
+    const activeGridLayer = layerRead('active_grid'); // TODO: replace with a prop/context pass
+    const activeGrid = activeGridLayer.options.grid;
+    const activeType = activeGrid?.properties.type;
+    const active = activeType == grids.gridTypes.STROKES_GAINED;
+    if (!activeGrid) return; // No grid to load
     const stroke = props.stroke;
     const round = props.round;
-    const grid = layer.options.grid;
     const hole = round.holes[stroke.holeIndex];
-    const wsg = grid.properties.weightedStrokesGained;
-    const sr = grid.properties.strokesRemainingStart;
+    const wsg = activeGrid.properties.weightedStrokesGained;
+    const sr = activeGrid.properties.strokesRemainingStart;
     const sa = hole.strokes.length - stroke.index - 1;
     let srn = 0;
     if (sa > 0) {
@@ -1771,22 +1748,59 @@ function AimStatsControls(props: { stroke: Stroke, round: Round }) {
         srn = grids.strokesRemaining(nextDistance, nextTerrain);
     }
     const sga = sr - srn - 1;
+    const onClick = () => {
+        if (active) return
+        gridDelete();
+        gridCreate(grids.gridTypes.STROKES_GAINED)
+        strokeMarkerAimUpdate();
+        rerender('controls');
+    }
+
     const header = "SG: Aim"
-    const value = wsg.toFixed(3);
-    const footer = `${sga.toFixed(3)} SG`
-    return <ControlCard>
+    const value = wsg.toFixed(2);
+    const footer = `${sga.toFixed(2)} SG`
+    return <ControlCard className="aimStatsControlCard clickable" onClick={onClick}>
         <ControlCardHeader>{header}</ControlCardHeader>
         <ControlCardValue>{value}</ControlCardValue>
         <ControlCardFooter>{footer}</ControlCardFooter>
     </ControlCard>
 }
 
+function BestAimControl(props: { stroke: Stroke }) {
+    const activeGridLayer = layerRead('active_grid'); // TODO: replace with a prop/context pass
+    const activeGrid = activeGridLayer.options.grid;
+    const activeType = activeGrid?.properties.type;
+    const active = activeType == grids.gridTypes.TARGET;
+    const onClick = () => {
+        if (active) return
+        gridDelete();
+        gridCreate(grids.gridTypes.TARGET)
+        strokeMarkerAimUpdate();
+        rerender('controls');
+    }
+    let value = "-";
+    let footer = "recalculate";
+    if (active) {
+        const sgi = activeGrid?.properties.idealStrokesGained;
+        const wsg = activeGrid?.properties.weightedStrokesGained;
+        const sgs = wsg - sgi;
+        value = sgs.toFixed(2);
+        footer = "vs best aim";
+    }
+    return <ControlCard className="gridTypeControlCard clickable" onClick={onClick}>
+        <ControlCardHeader>SG: Ideal</ControlCardHeader>
+        <ControlCardValue>{value}</ControlCardValue>
+        <ControlCardFooter>{footer}</ControlCardFooter>
+    </ControlCard>
+}
+
+
 function ActiveStrokeControls(props: { activeStroke: Stroke, round: Round }) {
     if (!props.activeStroke) return;
     return <div id="activeStrokeControls" className="buttonRow">
         <div className="cardContainer hoscro">
             <AimStatsControls stroke={props.activeStroke} round={props.round} />
-            <GridTypeControl />
+            <BestAimControl stroke={props.activeStroke} />
             <TerrainControl stroke={props.activeStroke} />
             <ClubControl stroke={props.activeStroke} />
             <DispersionControl stroke={props.activeStroke} />
