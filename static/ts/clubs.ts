@@ -1,4 +1,3 @@
-import * as cache from "./cache";
 import { typeid } from "typeid-js";
 import { getSetting, setSetting } from "./utils";
 
@@ -63,10 +62,10 @@ export function getUsableClubs(): GolfClub[] {
  * Persist a set of user-defined clubs
  * @param {GolfClub[]} clubs an array of golf club objects
  */
-export function saveUserClubs(clubs: GolfClub[]) {
-    setSetting('clubs', clubs);
+export function saveUserClubs(clubs: GolfClub[]): void {
+    return setSetting('clubs', clubs);
 }
 
-export function resetUserClubs() {
-    saveUserClubs(getDefaultClubs());
+export function resetUserClubs(): void {
+    return saveUserClubs(getDefaultClubs());
 }

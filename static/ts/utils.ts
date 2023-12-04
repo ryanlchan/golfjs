@@ -1,4 +1,4 @@
-import { getJSON, setJSON } from "./cache";
+import { get, set } from "./cache";
 
 /**
  * Utility to have a wait promise
@@ -45,14 +45,33 @@ export function touch(...objs: HasUpdateDates[]): HasUpdateDates[] {
     return objs;
 }
 
-export function set(obj: HasUpdateDates, key: string, val: any): HasUpdateDates {
+export function setter(obj: HasUpdateDates, key: string, val: any): HasUpdateDates {
     obj[key] = val;
     touch(obj);
     return obj;
 }
 
+/**
+ * **************** 
+ * * LocalStorage *
+ * **************** 
+ */
+
+function getJSON(key: string) {
+    try {
+        return JSON.parse(localStorage.getItem(key));
+    } catch (e) {
+        return;
+    }
+}
+
+function setJSON(key: string, value: any) {
+    return localStorage.setItem(key, value);
+}
+
 export function getSetting(setting: string): any {
-    let settings = getJSON('settings') || {};
+    const settings = getJSON('settings');
+    if (!settings) return;
     return settings[setting];
 }
 

@@ -1,6 +1,6 @@
 import * as utils from "./utils";
-import { osmCourseID, clearOSMData } from "./grids";
-import { roundCreate, roundInitialize, roundClear, roundSwap } from "./rounds";
+import { osmCourseID, courseCacheDelete } from "./courses";
+import { roundCreate, roundInitialize, roundClear, roundSelect } from "./rounds";
 
 function search(query: string): Promise<void> {
     if (query.length >= 3) {
@@ -51,11 +51,11 @@ function courseSearchViewUpdate(results: any[]) {
 
 /**
  * Handles the click event for starting a new round.
- * @param {Course} [courseParams] the course to create for. If not provided, then infers from input box.
+ * @param {Course} [course] the course to create for. If not provided, then infers from input box.
  */
-function handleRoundCreateClickCallback(courseParams?: Course) {
+function handleRoundCreateClickCallback(course?: Course) {
     return (() => {
-        if (!courseParams) {
+        if (!course) {
             const el = document.getElementById("courseName") as HTMLInputElement;
             const val = el.value;
             if (!(el instanceof HTMLInputElement)) {
@@ -64,22 +64,21 @@ function handleRoundCreateClickCallback(courseParams?: Course) {
                 alert("Course name cannot be blank!");
                 return
             }
-            courseParams = { name: el.value };
+            course = { name: el.value };
         }
 
         if (!confirm("Are you sure you want to start a new round? All current data will be lost.")) {
             return
         }
 
-        let round = roundCreate(courseParams);
-        roundInitialize(round)
+        let round = roundInitialize(course)
             .then((round) => {
-                roundSwap(round);
+                roundSelect(round);
                 window.location.href = "./"
             }).catch(e => {
                 utils.showError(e);
                 roundClear();
-                clearOSMData(courseParams);
+                courseCacheDelete(course);
             })
     });
 }

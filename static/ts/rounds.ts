@@ -1,23 +1,33 @@
 import * as cache from "./cache";
-import { fetchGolfCourseData, getGolfHoleGreenCenter } from "./grids";
+import { courseLoad, getHoleGreenCenter } from "./courses";
 import { FeatureCollection } from "geojson";
 import { typeid } from "typeid-js";
 
 /**
+ * *************
+ * * Constants *
+ * *************
+ */
+
+const ROUNDS_NAMESPACE = 'rounds'
+
+/**
  * Save round data to localstorage
  */
-export function roundSave(round: Round) {
-    cache.setJSON("golfData", { ...round });
+export async function roundSave(round: Round) {
+    await roundSelect(round);
+    return cache.set(round.id, { ...round }, ROUNDS_NAMESPACE);
 }
 
 /**
  * Loads the data from localStorage and initializes the map.
  * @returns {object | undefined} the loaded round or undefined
  */
-export function roundLoad(): Round {
-    const loaded = cache.getJSON("golfData") as Round;
+export async function roundLoad(id?: string): Promise<Round> {
+    if (!id) id = await cache.get('latest', ROUNDS_NAMESPACE);
+    const loaded = await cache.get(id, ROUNDS_NAMESPACE) as Round;
     if (loaded) {
-        console.log(`Rehydrating round ${loaded.course} ${loaded.date} from localStorage`)
+        console.log(`Rehydrating round ${loaded.course} ${loaded.date}`)
         return loaded;
     }
     return undefined;
@@ -25,46 +35,57 @@ export function roundLoad(): Round {
 
 /**
  * Archive current round and load new one
+ * @param round the round to swap into
  */
-export function roundSwap(newRound: Round): void {
-    const r = roundLoad();
-    if (roundIsPlayed(r)) roundArchive(r);
-    roundSave(newRound);
+export async function roundSwap(round: Round): Promise<void> {
+    const current = await roundLoad();
+    if (!roundIsPlayed(current)) roundDelete(current)
+    return cache.set('latest', round.id, ROUNDS_NAMESPACE);
 }
 
 /**
  * Create a new round and clear away all old data
- * @param {Course} courseParams the course
+ * @param {Course} course the course
  * @returns {Round} a new Round object
  */
-export function roundCreate(courseParams?: Course): Round {
-    if (courseParams) {
-        return { ...defaultRound(), course: courseParams.name, courseId: courseParams.id };
+export function roundCreate(course?: Course): Round {
+    if (course) {
+        return { ...defaultRound(), course: course.name, courseId: course.id };
     } else {
         return defaultRound();
     }
 }
 
 /**
- * Initialize a round by downloading the data from OSM
- * @param round the round to initialize
- * @returns {Promise} a promise that resolves when the round is updated
- * 
+ * Mark a round as the current round
+ * @param round the round to select
  */
-export function roundInitialize(round: Round): Promise<Round> {
-    return fetchGolfCourseData(roundCourseParams(round), true)
+export async function roundSelect(round: Round): Promise<void> {
+    return cache.set('latest', round.id, ROUNDS_NAMESPACE);
+}
+
+/**
+ * Create and update a round using OSM data
+ * @param {Course} course the courseto create a round for
+ * @returns {Round} the updated round
+ */
+export async function roundInitialize(course: Course): Promise<Round> {
+    const round = roundCreate(course);
+    return courseLoad(roundCourseParams(round), true)
         .then((data) => roundUpdateWithData(round, data));
 }
 
 /**
  * After downloading polygons, update the Round with relevant data like pins and holes
- * @param {turf.FeatureCollection} courseData the polygons for this course
+ * @param {Round} round the round to update
+ * @param {FeatureCollection} courseData the polygons for this course
+ * @returns {Round}
  */
-export function roundUpdateWithData(round: Round, courseData: FeatureCollection): Round {
+export async function roundUpdateWithData(round: Round, courseData: FeatureCollection): Promise<Round> {
     let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
     for (let line of lines) {
         const index = parseInt(line.properties.ref) - 1;
-        const cog = getGolfHoleGreenCenter(roundCourseParams(round), index);
+        const cog = await getHoleGreenCenter(roundCourseParams(round), index);
         const pin = {
             x: cog[0],
             y: cog[1],
@@ -83,25 +104,12 @@ export function roundUpdateWithData(round: Round, courseData: FeatureCollection)
 }
 
 /**
- * Rotate the current round into the archive/local storage
- */
-export function roundArchive(round: Round): void {
-    let priorRounds = cache.getJSON('priorRounds');
-    if (!priorRounds) {
-        priorRounds = {};
-    }
-    const roundKey = roundID(round);
-    priorRounds[roundKey] = { ...round };
-    cache.setJSON('priorRounds', priorRounds);
-}
-
-/**
  * Load all archived rounds as an array
  * @returns {Round[]} An array of all rounds
  */
-export function roundLoadArchive(): Round[] {
-    let priorRounds = cache.getJSON('priorRounds');
-    if (!priorRounds) return []
+export async function roundLoadAll(): Promise<Round[]> {
+    const all = (_, val) => val instanceof Object
+    const priorRounds = await cache.filter(all, ROUNDS_NAMESPACE)
     return Object.values(priorRounds);
 }
 
@@ -109,20 +117,14 @@ export function roundLoadArchive(): Round[] {
  * Drop a round from the archive
  * @param round the round to delete from the archive
  */
-export function roundDeleteArchive(round: Round) {
-    let priorRounds = cache.getJSON('priorRounds');
-    if (!priorRounds) {
-        return;
-    }
-    const roundKey = roundID(round);
-    delete priorRounds[roundKey];
-    cache.setJSON('priorRounds', priorRounds);
+export async function roundDelete(round: Round): Promise<void> {
+    return cache.remove(round.id, ROUNDS_NAMESPACE);
 }
 
 /**
  * Delete current round and start over
  */
-export function roundClear(): void {
+export async function roundClear(): Promise<void> {
     let round = roundCreate();
     roundSave(round);
 }
@@ -172,4 +174,60 @@ function defaultCurrentHole(): Hole {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
+}
+
+/**
+ * *************
+ * * Utilities *
+ * *************
+ */
+
+export function getHoleFromRound(round: Round, holeIndex: number): Hole {
+    return round.holes[holeIndex];
+}
+
+export function getHolePinFromRound(round: Round, holeIndex: number): Coordinate {
+    const hole = getHoleFromRound(round, holeIndex);
+    if (!hole) return
+    return hole.pin
+}
+
+export function getStrokeFromRound(round: Round, holeIndex: number, strokeIndex: number): Stroke {
+    const hole = getHoleFromRound(round, holeIndex);
+    return hole.strokes[strokeIndex]
+}
+
+export function getStrokeFollowingFromRound(round: Round, stroke: Stroke): Stroke {
+    return getStrokeFromRound(round, stroke.holeIndex, stroke.index + 1);
+}
+
+export function getStrokeEndFromRound(round: Round, stroke: Stroke): Coordinate {
+    const following = getStrokeFollowingFromRound(round, stroke);
+    if (following) return following.start;
+    return getHolePinFromRound(round, stroke.holeIndex);
+}
+
+export function getStrokesFromRound(round: Round): Stroke[] {
+    return round.holes.flatMap(hole => hole.strokes);
+}
+
+export async function lookupRoundFromHole(hole: Hole): Promise<Round> {
+    const filter = (id, round) => round.holes.some(hole => hole.id == id)
+    const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
+    if (rounds.length == 0) throw new Error(`No round found for hole ${hole.id}`);
+    return rounds[0];
+}
+
+export async function lookupRoundFromStroke(stroke: Stroke): Promise<Round> {
+    const filter = (id, round) => round.holes.some(hole => hole.strokes.some(stroke => stroke.id == id));
+    const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
+    if (rounds.length == 0) throw new Error(`No round found for stroke ${stroke.id}`);
+    return rounds[0];
+}
+
+export function getHoleFromStrokeRound(stroke: Stroke, round: Round): Hole {
+    const filter = hole => hole.strokes.some(s => s.id == stroke.id)
+    const holes = round.holes.filter(filter);
+    if (holes.length == 0) throw new Error(`No hole found for stroke ${stroke.id} in round ${round.id}`);
+    return holes[0];
 }

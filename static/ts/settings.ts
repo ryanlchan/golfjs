@@ -1,9 +1,8 @@
 import {
-    roundDeleteArchive, roundLoad, roundLoadArchive,
-    roundSwap, roundCreate, roundUpdateWithData, roundSave
+    roundDelete, roundLoad, roundLoadAll,
+    roundSelect, roundCreate, roundUpdateWithData, roundSave, roundInitialize
 } from "./rounds";
-import { getJSON, remove } from "./cache";
-import type { FeatureCollection } from "geojson";
+import { courseCacheAll, courseCacheDelete } from "./courses";
 import { GolfClub, getUserClubs, saveUserClubs, resetUserClubs } from "./clubs";
 import { formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "./projections";
 import { getUnitsSetting, setSetting } from "./utils";
@@ -21,15 +20,15 @@ function jsonViewUpdate(): void {
     );
 }
 
-function roundListViewUpdate(): void {
-    const rounds = roundLoadArchive();
+async function roundListViewUpdate(): Promise<void> {
+    const rounds = await roundLoadAll();
     const listItems = rounds.map(round => {
         let li = document.createElement('li');
         let div = document.createElement('div');
         div.classList.add('listCell', 'listCellClickable');
         div.innerText = `${round.date} - ${round.course} `;
-        div.onclick = () => {
-            roundSwap(round);
+        div.onclick = async () => {
+            await roundSelect(round);
             window.location.href = import.meta.env.BASE_URL;
         }
 
@@ -39,10 +38,10 @@ function roundListViewUpdate(): void {
         let del = document.createElement('button');
         del.innerHTML = "&#215;";
         del.classList.add("linkCircleButton", "danger");
-        del.onclick = (e) => {
+        del.onclick = async (e) => {
             if (confirm("Are you sure you want to delete this round?")) {
                 e.stopPropagation();
-                roundDeleteArchive(round);
+                await roundDelete(round);
                 window.location.reload();
             }
         };
@@ -57,21 +56,16 @@ function roundListViewUpdate(): void {
     roundList.replaceChildren(...listItems);
 }
 
-function courseListViewUpdate(): void {
-    const courses = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        let key = localStorage.key(i);
-        if (!key.includes("courseData-")) continue
-        const [name, id] = key.slice(11).split("-osm-");
-
+async function courseListViewUpdate(): Promise<void> {
+    const courses = await courseCacheAll();
+    const listItems = courses.map((courseFc) => {
+        const course = courseFc.course;
         let li = document.createElement('li');
         let div = document.createElement('div');
         div.classList.add('listCell', 'listCellClickable');
-        div.innerText = `${name} `;
-        div.onclick = () => {
-            const round = roundCreate({ name: name, id: `osm-${id}` });
-            roundUpdateWithData(round, getJSON(key) as FeatureCollection);
-            roundSwap(round);
+        div.innerText = `${course.name} `;
+        div.onclick = async () => {
+            await roundInitialize(course).then(roundSelect);
             window.location.href = import.meta.env.BASE_URL;
         }
 
@@ -84,7 +78,7 @@ function courseListViewUpdate(): void {
         del.onclick = (e) => {
             if (confirm("Are you sure you want to delete this course?")) {
                 e.stopPropagation();
-                remove(key);
+                courseCacheDelete(course);
                 window.location.reload();
             }
         };
@@ -92,12 +86,12 @@ function courseListViewUpdate(): void {
         controls.append(del);
         div.append(controls);
         li.appendChild(div);
-        courses.push(li);
-    }
+        return li;
+    });
 
-    courses.sort((a, b) => a.innerText.localeCompare(b.innerText));
+    listItems.sort((a, b) => a.innerText.localeCompare(b.innerText));
     const courseList = document.getElementById("savedCoursesList");
-    courseList.replaceChildren(...courses);
+    courseList.replaceChildren(...listItems);
 }
 
 function addClubRow(tableBody: HTMLTableSectionElement, data?: GolfClub) {

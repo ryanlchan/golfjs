@@ -114,3 +114,40 @@ function migrate1p1to2p1(round: Round1p1): Round {
 
     return newRound;
 }
+
+export function migrateLocalStorageToForage(key, value): any[] {
+    let namespace;
+    const split = key.split("-") as string[];
+
+    // Transfer old rounds
+    if (split[0] == "priorRounds") {
+        namespace = "rounds";
+        const rounds = JSON.parse(value);
+        return Object.values(rounds).map((round: Round) => [round.id, round, namespace]);
+    } else if (split[0] == "golfData") {
+        namespace = "rounds";
+        const round = JSON.parse(value);
+        const roundEntry = [round.id, round, namespace];
+        const latestEntry = ["latest", round.id, namespace];
+        return [roundEntry, latestEntry];
+    }
+
+    // Parse and preserve settings
+    if (split[0] == "settings") {
+        value = JSON.parse(value);
+    }
+
+    // Skip existing stats - will regenerate in new format
+    if (split[0] == "stats") {
+        return;
+    }
+
+    // Skip existing courseData - will reparse in new format
+    if (split[0] == "courseData") {
+        return
+    }
+
+    // Everything else (googleMaps keys, etc)
+    return [[key, value, namespace]];
+
+}

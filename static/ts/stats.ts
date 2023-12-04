@@ -4,10 +4,17 @@ import * as chroma from "chroma-js";
 
 import { cdf, sgGrid } from './grids';
 import { coordToPoint, getDistance, formatDistance, formatDistanceOptions } from './projections';
-import { roundID, roundLoad } from './rounds';
-import { touch, getUnitsSetting } from './utils';
+import { roundCourseParams, roundID, roundLoad, getStrokesFromRound, lookupRoundFromHole, lookupRoundFromStroke, getHoleFromStrokeRound, getStrokeFollowingFromRound } from './rounds';
+import { touch, getUnitsSetting, showError } from './utils';
 import * as cacheUtils from "./cache";
 
+
+
+/**
+ * *********
+ * * Types *
+ * *********
+ */
 interface RoundStatsCache extends HasUpdateDates {
     round: RoundStats,
     holes: HoleStats[],
@@ -16,18 +23,21 @@ interface RoundStatsCache extends HasUpdateDates {
 }
 
 interface RoundStats extends StrokesSummary, HasUpdateDates {
+    id: string,
     par: number,
     filter?: string,
     strokesRemaining: number
 }
 
 interface HoleStats extends StrokesSummary, HasUpdateDates {
+    id: string,
     index: number,
     par: number,
     strokesRemaining: number
 }
 
 interface StrokeStats extends HasUpdateDates {
+    id: string,
     index: number,
     holeIndex: number,
     club: string,
@@ -83,36 +93,6 @@ interface GroupedStrokeStats {
     [index: string]: StrokeStats[];
 }
 
-function defaultRoundStats(filter?: string): RoundStats {
-    return {
-        strokes: 0,
-        par: 0,
-        strokesRemaining: 0,
-        strokesGained: 0,
-        strokesGainedPredicted: 0,
-        strokesGainedPercentile: 0,
-        proximityPercentile: 0,
-        filter: filter,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    };
-}
-
-function defaultHoleStats(hole: Hole): HoleStats {
-    return {
-        index: hole.index,
-        par: hole.par,
-        strokes: hole.strokes.length,
-        strokesRemaining: 0,
-        strokesGained: 0,
-        strokesGainedPredicted: 0,
-        strokesGainedPercentile: 0,
-        proximityPercentile: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    }
-}
-
 function defaultStrokesSummary(): StrokesSummary {
     return {
         strokes: 0,
@@ -125,6 +105,11 @@ function defaultStrokesSummary(): StrokesSummary {
     }
 }
 
+/**
+ * **************
+ * * Formatters *
+ * **************
+ */
 class BaseFormatter {
     column: any[];
     domain: number[];
@@ -239,57 +224,55 @@ class CenteredDistanceFormatter extends DistanceFormatter {
 /**
  * Cache operations
  */
-function getHoleStats(cache: RoundStatsCache, holeIndex: number): HoleStats {
-    return cache.holes.filter((el) => el.index == holeIndex)[0];
-}
+const STATS_ROUNDS_NAMESPACE = 'stats-rounds';
+const STATS_HOLES_NAMESPACE = 'stats-holes';
+const STATS_STROKES_NAMESPACE = 'stats-strokes';
 
-function setHoleStats(cache: RoundStatsCache, stats: HoleStats): void {
-    cache.holes.push(stats);
-}
-
-function getStrokeStats(cache: RoundStatsCache, holeIndex: number, strokeIndex: number): StrokeStats {
-    return cache.strokes.filter((el) => el.index == strokeIndex && el.holeIndex == holeIndex)[0];
-}
-
-function setStrokeStats(cache: RoundStatsCache, stats: StrokeStats): void {
-    cache.strokes.push(stats);
-}
-
-function setRoundStats(cache: RoundStatsCache, stats: RoundStats): void {
-    cache.round = stats;
-}
-
-function statsCacheKey(round: Round) {
-    return `stats-${roundID(round)}`;
-}
-
-/**
- * Utilities
- */
-
-function getHoleFromRound(round: Round, holeIndex: number): Hole {
-    return round.holes[holeIndex];
-}
-
-function getHolePinFromRound(round: Round, holeIndex: number): Coordinate {
-    const hole = getHoleFromRound(round, holeIndex);
+async function getHoleStats(hole: Hole): Promise<HoleStats> {
     if (!hole) return
-    return hole.pin
+    const cached = await cacheUtils.get(hole.id, STATS_HOLES_NAMESPACE) as HoleStats;
+    if (!cached || cached.updatedAt < hole.updatedAt) {
+        return calculateHoleStats(hole)
+    }
+    return cached;
 }
 
-function getStrokeFromRound(round: Round, holeIndex: number, strokeIndex: number): Stroke {
-    const hole = getHoleFromRound(round, holeIndex);
-    return hole.strokes[strokeIndex]
+async function getAllHoleStats(round: Round): Promise<HoleStats[]> {
+    return Promise.all(round.holes.map(hole => getHoleStats(hole)));
 }
 
-function getStrokeFollowingFromRound(round: Round, stroke: Stroke): Stroke {
-    return getStrokeFromRound(round, stroke.holeIndex, stroke.index + 1);
+async function getAllStrokeStats(round: Round): Promise<StrokeStats[]> {
+    return Promise.all(getStrokesFromRound(round).map(stroke => getStrokeStats(stroke)));
 }
 
-function getStrokeEndFromRound(round: Round, stroke: Stroke): Coordinate {
-    const following = getStrokeFollowingFromRound(round, stroke);
-    if (following) return following.start;
-    return getHolePinFromRound(round, stroke.holeIndex);
+async function saveHoleStats(stats: HoleStats): Promise<void> {
+    return cacheUtils.set(stats.id, stats, STATS_HOLES_NAMESPACE);
+}
+
+async function getStrokeStats(stroke: Stroke): Promise<StrokeStats> {
+    if (!stroke) return
+    const cached = await cacheUtils.get(stroke.id, STATS_STROKES_NAMESPACE) as StrokeStats;
+    if (!cached || cached.updatedAt < stroke.updatedAt) {
+        return calculateStrokeStats(stroke)
+    }
+    return cached;
+}
+
+async function saveStrokeStats(stats: StrokeStats): Promise<void> {
+    return cacheUtils.set(stats.id, stats, STATS_STROKES_NAMESPACE);
+}
+
+async function getRoundStats(round: Round): Promise<RoundStats> {
+    if (!round) return
+    const cached = await cacheUtils.get(round.id, STATS_ROUNDS_NAMESPACE) as RoundStats;
+    if (!cached || cached.updatedAt < round.updatedAt) {
+        return calculateRoundStats(round);
+    }
+    return cached;
+}
+
+async function saveRoundStats(stats: RoundStats): Promise<void> {
+    return cacheUtils.set(stats.id, stats, STATS_ROUNDS_NAMESPACE);
 }
 
 /**
@@ -299,85 +282,83 @@ function getStrokeEndFromRound(round: Round, stroke: Stroke): Coordinate {
 /**
  * Runs a full recalculation of a round
  * @param round the round to recalculate
- * @param cache? the prior round cache, optinoally, for an update
- * @returns {RoundStatsCache}
+ * @returns {RoundStats}
  */
-export function calculateRoundStatsCache(round: Round, cache?: RoundStatsCache): RoundStatsCache {
-    let rstats: RoundStats = defaultRoundStats();
-    if (!cache) {
-        cache = {
-            round: null,
-            holes: [],
-            strokes: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-    }
-
-    // Create config entries
-    const courseParams = { 'name': round.course, 'id': round.courseId }
+export async function calculateRoundStats(round: Round): Promise<RoundStats> {
+    let rstats: RoundStats = {
+        id: round.id,
+        strokes: 0,
+        par: 0,
+        strokesRemaining: 0,
+        strokesGained: 0,
+        strokesGainedPredicted: 0,
+        strokesGainedPercentile: 0,
+        proximityPercentile: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
 
     // Iterate over round holes forward, 1-18
-    for (let hole of round.holes) {
-        calcHoleStats(hole, courseParams, cache);
-    }
+    const holeStats = await Promise.all(round.holes.map(hole => calculateHoleStats(hole, round)));
 
     // Calculate round stats after holes are all done
-    let rsummary = summarizeStrokes(cache.strokes);
-    rstats = { ...rstats, ...rsummary }
-    cache.holes.forEach((el) => {
+    holeStats.forEach((el) => {
+        rstats.strokes += el.strokes;
         rstats.par += el.par;
         rstats.strokesRemaining += el.strokesRemaining;
-    })
-    setRoundStats(cache, rstats);
-
-    // Update last touch
-    touch(cache);
-
-    return cache;
-}
-
-function calcHoleStats(hole: Hole, courseParams: Course, cache: RoundStatsCache) {
-    let hstats: HoleStats = defaultHoleStats(hole);
-
-    // Within each hole, calculate strokes gained from last stroke backwards
-    let nextStroke;
-    let priorStats = [];
-    for (let strokeIndex = hole.strokes.length - 1; strokeIndex >= 0; strokeIndex--) {
-        let stroke = hole.strokes[strokeIndex];
-        let stats = calcStrokeStats(stroke, hole, courseParams, nextStroke, priorStats.at(-1), cache);
-
-        // Calculate hole stats
-        if (stroke.index == 0) {
-            hstats.strokesRemaining = stats.strokesRemaining;
-        }
-        if ((stroke.index == 0) && (hstats.par === undefined)) {
-            hstats.par = Math.round(stats.strokesRemaining);
-        }
-
-        // Update iterators/references
-        nextStroke = stroke;
-        priorStats.push(stats);
-    }
+    });
 
     // Calculate the rest of the hole stats
-    let hsummary = summarizeStrokes(priorStats);
+    const strokeStats = await getAllStrokeStats(round);
+    let rsummary = summarizeStrokes(strokeStats);
+    rstats = { ...rstats, ...rsummary };
+
+    await saveRoundStats(rstats);
+    return rstats;
+}
+
+async function calculateHoleStats(hole: Hole, round?: Round): Promise<HoleStats> {
+    if (!round) round = await lookupRoundFromHole(hole);
+    let hstats: HoleStats = {
+        id: hole.id,
+        index: hole.index,
+        par: hole.par,
+        strokes: hole.strokes.length,
+        strokesRemaining: 0,
+        strokesGained: 0,
+        strokesGainedPredicted: 0,
+        strokesGainedPercentile: 0,
+        proximityPercentile: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    }
+
+    // Within each hole, calculate strokes gained from last stroke backwards
+    const strokes = hole.strokes.sort((a, b) => a.index - b.index);
+    const asyncStats = strokes.map(stroke => calculateStrokeStats(stroke, round));
+    const stats = await Promise.all(asyncStats);
+    hstats.strokesRemaining = stats[0]?.strokesRemaining;
+    if (!hstats.par) hstats.par = Math.round(stats[0]?.strokesRemaining);
+
+    // Calculate the rest of the hole stats
+    let hsummary = summarizeStrokes(stats);
     hstats = { ...hstats, ...hsummary };
 
     // Add hole to cache
-    setHoleStats(cache, hstats);
+    await saveHoleStats(hstats);
     return hstats;
 }
 
-function calcStrokeStats(stroke: Stroke, hole: Hole, courseParams: Course,
-    nextStroke: Stroke, nextStats: StrokeStats, cache: RoundStatsCache): StrokeStats {
+async function calculateStrokeStats(stroke: Stroke, round?: Round): Promise<StrokeStats> {
+    if (!round) round = await lookupRoundFromStroke(stroke);
+    const hole = getHoleFromStrokeRound(stroke, round);
+    const courseParams = roundCourseParams(round);
+    const nextStroke = getStrokeFollowingFromRound(round, stroke)
     const pin = hole.pin;
-    let srnext = 0;
-    if (nextStats) srnext = nextStats.strokesRemaining;
-    let strokeEnd = pin;
-    if (nextStroke) strokeEnd = nextStroke.start;
-
-    const grid = sgGrid(
+    const strokeEnd = nextStroke ? nextStroke.start : pin;
+    const nextStats = await getStrokeStats(nextStroke);
+    const srnext = nextStats ? nextStats.strokesRemaining : 0;
+    const grid = await sgGrid(
         [stroke.start.y, stroke.start.x],
         [stroke.aim.y, stroke.aim.x],
         [pin.y, pin.x],
@@ -416,6 +397,7 @@ function calcStrokeStats(stroke: Stroke, hole: Hole, courseParams: Course,
     }
 
     const stats = {
+        id: stroke.id,
         index: index,
         holeIndex: holeIndex,
         club: stroke.club,
@@ -437,7 +419,7 @@ function calcStrokeStats(stroke: Stroke, hole: Hole, courseParams: Course,
         updatedAt: new Date().toISOString(),
         category: category
     }
-    setStrokeStats(cache, stats);
+    await saveStrokeStats(stats);
     return stats
 }
 
@@ -774,21 +756,20 @@ function createGroupedPivotTable(input: StrokeStats[], groupByPropOrFunction: st
     return table;
 }
 
-function createBreakdownTable(cache: RoundStatsCache): HTMLElement {
-    const strokes = cache.strokes;
+function createBreakdownTable(stats: StrokeStats[]): HTMLElement {
     const summaryOrder = ["putts", "chips", "approaches", "drives"];
     const categoryOrder = (el) => summaryOrder.findIndex((ref) => ref === el);
     const sortBy = (a, b) => categoryOrder(a) - categoryOrder(b);
     const options = { sortBy, groupName: "Type" } as GroupedPivotTableOptions;
-    const table = createGroupedPivotTable(strokes, "category", options);
+    const table = createGroupedPivotTable(stats, "category", options);
     table.id = "breakdownViewTable";
     return table;
 }
 
-function createHoleTable(cache: RoundStatsCache): HTMLElement {
+function createHoleTable(stats: StrokeStats[]): HTMLElement {
     const options = { groupName: "Hole" }
     const groupByFunc = (ss) => ss.holeIndex + 1;
-    const holeTable = createGroupedPivotTable(cache.strokes, groupByFunc, options);
+    const holeTable = createGroupedPivotTable(stats, groupByFunc, options);
     holeTable.id = "holeViewTable";
     return holeTable;
 }
@@ -875,8 +856,14 @@ function downloadCSV(jsonArray: any[], filename: string = 'data.csv'): void {
     document.body.removeChild(link);
 }
 
-function generateView() {
-    const round = roundLoad();
+async function generateView() {
+    await cacheUtils.init();
+
+    const round = await roundLoad();
+    if (!round) {
+        showError("No round found!")
+        return;
+    };
 
     // Output round metadata
     const header = document.getElementById("roundTitle");
@@ -893,21 +880,20 @@ function generateView() {
     outputs.forEach((el) => el.replaceChildren(prog));
 
     // Generate or load cache
-    const key = statsCacheKey(round);
-    let cache = cacheUtils.getJSON(key) as RoundStatsCache;
+    let cache = await getRoundStats(round);
     if (!cache || (round.updatedAt && cache.updatedAt && cache.updatedAt < round.updatedAt)) {
-        cache = calculateRoundStatsCache(round);
-        cacheUtils.setJSON(key, cache);
+        calculateRoundStats(round);
     }
 
     // Generate breakdowns data
+    const strokeStats = await getAllStrokeStats(round);
     const breakdownDiv = document.getElementById("breakdownTables");
-    const table = createBreakdownTable(cache);
+    const table = createBreakdownTable(strokeStats);
     breakdownDiv.replaceChildren(table);
 
     // Create hole tables
     const holeDiv = document.getElementById("holeTables");
-    const holeTable = createHoleTable(cache);
+    const holeTable = createHoleTable(strokeStats);
     holeDiv.replaceChildren(holeTable);
 
     // Attach download handler
@@ -917,14 +903,11 @@ function generateView() {
     oldDownloader.parentNode.replaceChild(newDownloader, oldDownloader);
     const roundDateString = [roundDate.getFullYear(), roundDate.getMonth(), roundDate.getDate(), roundDate.getHours(), roundDate.getMinutes()].join('');
     const filename = `${round.course}_${roundDateString}.csv`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const callback = () => downloadCSV(cache.strokes, filename);
+    const callback = () => downloadCSV(strokeStats, filename);
     newDownloader.addEventListener('click', callback);
 }
 
-function regenerateView() {
-    const round = roundLoad();
-    const key = statsCacheKey(round);
-    cacheUtils.remove(key);
+async function regenerateView() {
     generateView();
 }
 

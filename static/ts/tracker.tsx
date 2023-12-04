@@ -11,10 +11,11 @@ import * as turf from "@turf/turf";
 import chroma from "chroma-js";
 import { typeid } from "typeid-js";
 import { h, render, VNode } from 'preact';
-import { useState, useMemo } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 
 // Modules
 import * as grids from "./grids.js";
+import * as courses from "./courses.js";
 import { getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "./projections.js";
 import { PositionError } from "./errors.js";
 import { showError, hideError, touch, getUnitsSetting } from "./utils.js";
@@ -70,7 +71,7 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
             y: position.coords.latitude,
             crs: "EPSG:4326",
         },
-        terrain: grids.getGolfTerrainAt(course, [position.coords.latitude, position.coords.longitude]),
+        terrain: courses.getTerrainAt(course, [position.coords.latitude, position.coords.longitude]),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...options
@@ -164,7 +165,7 @@ function convertAndSetStrokeDispersion(stroke: Stroke, val: number | string): nu
 function strokeUpdateTerrain(stroke: Stroke, strokeRound?: Round) {
     if (!strokeRound) strokeRound = round;
     const course = roundCourseParams(strokeRound);
-    stroke.terrain = grids.getGolfTerrainAt(course, [stroke.start.y, stroke.start.x])
+    stroke.terrain = courses.getTerrainAt(course, [stroke.start.y, stroke.start.x])
     touch(stroke);
 }
 
@@ -820,7 +821,7 @@ function pinMarkerUpdate(hole: Hole) {
  * @param {Hole} hole the Hole interface object
  */
 function holeLineCreate(hole: Hole) {
-    let line = grids.getGolfHoleLine(roundCourseParams(round), hole.index);
+    let line = courses.getHoleLine(roundCourseParams(round), hole.index);
     if (line instanceof Error) {
         return
     }
@@ -865,8 +866,8 @@ function loadRoundData(): Promise<Round> {
     console.log("Rehydrating round from cache");
 
     const params = roundCourseParams(round);
-    if (grids.getGolfCourseData(params) instanceof Error) {
-        return grids.fetchGolfCourseData(params, true)
+    if (courses.courseLoad(params) instanceof Error) {
+        return courses.courseLoad(params, true)
             .then(() => loadRoundData());
     } else {
         currentHole = round.holes.at(0);
@@ -911,8 +912,8 @@ function saveData() {
  * Loads the data from localStorage and initializes the map.
  * @returns {Round} the loaded round or undefined
  */
-function loadData(): Round {
-    const loaded = roundLoad();
+async function loadData(): Promise<Round> {
+    const loaded = await roundLoad();
     if (!loaded) return;
     round = loaded;
     return round;
@@ -1142,7 +1143,7 @@ function currentCoordRead(maximumAge = 5000): Coordinate {
 /**
  * Initialize the leaflet map and satellite baselayer
  */
-function mapViewCreate(mapid) {
+async function mapViewCreate(mapid) {
     if (mapView) return; // Skip initialized map already
     const mapContainer = document.getElementById(mapid);
 
@@ -1154,7 +1155,7 @@ function mapViewCreate(mapid) {
     mapContainer.style.height = mapHeight + 'px';
 
     // Initialize the Leaflet map
-    let gmapsKey = cache.get("googleMapsAPIKey");
+    let gmapsKey = await cache.get("googleMapsAPIKey");
     if (!gmapsKey && typeof (gmapsKey) != "string") {
         gmapsKey = prompt("Enter a Google Maps API key to initialize the map:")
         cache.set("googleMapsAPIKey", gmapsKey);
@@ -1207,14 +1208,14 @@ function mapRecenterBbox(bbox, flyoptions = { animate: true, duration: 0.33 }) {
 }
 
 function mapRecenterCourse(flyoptions = { animate: true, duration: 0.33 }) {
-    const bbox = grids.getGolfCourseBbox(roundCourseParams(round));
+    const bbox = courses.getGolfCourseBbox(roundCourseParams(round));
     if (!bbox) return;
     console.debug("Recentering on course");
-    mapRecenterBbox(bbox);
+    mapRecenterBbox(bbox, flyoptions);
 }
 
 function mapRecenterHole(flyoptions = { animate: true, duration: 0.33 }) {
-    let bbox = grids.getGolfHoleBbox(roundCourseParams(round), currentHole.index);
+    let bbox = courses.getGolfHoleBbox(roundCourseParams(round), currentHole.index);
     if (bbox) {
         console.debug("Recentering on current hole");
         mapRecenterBbox(bbox)
@@ -1745,7 +1746,7 @@ function AimStatsControls(props: { stroke: Stroke, round: Round }) {
         const nextStroke = hole.strokes[stroke.index + 1];
         const nextStart = nextStroke.start;
         const nextDistance = getDistance(nextStroke.start, hole.pin);
-        const nextTerrain = nextStroke.terrain || grids.getGolfTerrainAt(roundCourseParams(round), [nextStart.y, nextStart.x]);
+        const nextTerrain = nextStroke.terrain || courses.getTerrainAt(roundCourseParams(round), [nextStart.y, nextStart.x]);
         srn = grids.strokesRemaining(nextDistance, nextTerrain);
     }
     const sga = sr - srn - 1;
