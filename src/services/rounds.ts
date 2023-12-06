@@ -1,4 +1,4 @@
-import * as cache from "./cache";
+import * as cache from "../common/cache";
 import { courseLoad, getHoleGreenCenter } from "./courses";
 import { FeatureCollection } from "geojson";
 import { typeid } from "typeid-js";
@@ -31,6 +31,28 @@ export async function roundLoad(id?: string): Promise<Round> {
         return loaded;
     }
     return undefined;
+}
+
+/**
+ * Loads saved round data and initializes relevant variables
+ * TODO: needs to be better
+ * @returns {Promise} returns the round once all data is loaded
+ */
+function loadRoundData(): Promise<Round> {
+    const loaded = loadData();
+    if (!loaded) {
+        return;
+    }
+    console.log("Rehydrating round from cache");
+
+    const params = roundCourseParams(round);
+    if (courses.courseLoad(params) instanceof Error) {
+        return courses.courseLoad(params, true)
+            .then(() => loadRoundData());
+    } else {
+        currentHole = round.holes.at(0);
+        return Promise.resolve(loaded);
+    }
 }
 
 /**

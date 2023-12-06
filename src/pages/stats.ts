@@ -2,11 +2,11 @@
 import { point, distance, bearing, FeatureCollection } from '@turf/turf';
 import * as chroma from "chroma-js";
 
-import { cdf, sgGrid } from './grids';
-import { coordToPoint, getDistance, formatDistance, formatDistanceOptions } from './projections';
-import { roundCourseParams, roundID, roundLoad, getStrokesFromRound, lookupRoundFromHole, lookupRoundFromStroke, getHoleFromStrokeRound, getStrokeFollowingFromRound } from './rounds';
-import { touch, getUnitsSetting, showError } from './utils';
-import * as cacheUtils from "./cache";
+import { cdf, sgGrid } from '../services/grids';
+import { coordToPoint, getDistance, formatDistance, formatDistanceOptions } from '../common/projections';
+import { roundCourseParams, roundID, roundLoad, getStrokesFromRound, lookupRoundFromHole, lookupRoundFromStroke, getHoleFromStrokeRound, getStrokeFollowingFromRound } from '../services/rounds';
+import { touch, getUnitsSetting, showError } from '../common/utils';
+import * as cacheUtils from "../common/cache";
 
 
 

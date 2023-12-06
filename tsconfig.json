@@ -1,8 +1,8 @@
 {
     "include": [
-        "*.ts",
-        "*.js",
-        "*.tsx",
+        "**/*.ts",
+        "**/*.js",
+        "**/*.tsx",
     ],
     "compilerOptions": {
         "target": "ES2022",
@@ -20,14 +20,35 @@
         "jsxImportSource": "preact",
         "allowSyntheticDefaultImports": true,
         "skipLibCheck": true,
-        "baseUrl": "./",
+        "baseUrl": ".",
         "paths": {
             "react": [
                 "./node_modules/preact/compat/"
             ],
             "react-dom": [
                 "./node_modules/preact/compat/"
-            ]
+            ],
+            "src/*": [
+                "./src/*"
+            ],
+            "assets/*": [
+                "./src/assets/*"
+            ],
+            "components/*": [
+                "./src/components/*"
+            ],
+            "common/*": [
+                "./src/common/*"
+            ],
+            "hooks/*": [
+                "./src/hooks/*"
+            ],
+            "contexts/*": [
+                "./src/contexts/*"
+            ],
+            "services/*": [
+                "./src/services/*"
+            ],
         }
     }
 }

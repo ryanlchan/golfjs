@@ -1,10 +1,10 @@
 import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
 import { OSM_GOLF_TO_TERRAIN, SG_SPLINES } from "./coeffs20231205";
-import * as cache from "./cache";
+import * as cache from "../common/cache";
 import { Feature, FeatureCollection, Point } from "geojson";
 import { featureIntersect } from "./grids";
-import { showError } from "./utils";
+import { showError } from "../common/utils";
 
 interface CourseFeatureCollection extends FeatureCollection { course?: Course }
 

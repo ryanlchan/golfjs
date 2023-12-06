@@ -1,5 +1,5 @@
 import localForage from 'localforage';
-import { migrateLocalStorageToForage } from './migrations';
+import { migrateLocalStorageToForage } from '../services/migrations';
 
 function _getInstance(namespace?: string): LocalForage {
     const name = namespace ? `golfjs-${namespace}` : "golfjs";

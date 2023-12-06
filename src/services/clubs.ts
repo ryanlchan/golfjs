@@ -1,5 +1,5 @@
 import { typeid } from "typeid-js";
-import { getSetting, setSetting } from "./utils";
+import { getSetting, setSetting } from "../common/utils";
 
 export class GolfClub {
     id: string;

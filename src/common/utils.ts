@@ -81,6 +81,24 @@ export function setSetting(setting: string, value: any): void {
     setJSON('settings', settings);
 }
 
-export function getUnitsSetting(): string {
-    return getSetting('unit') || "yards";
+/**
+ * Return the score class (birdie, bogey, etc)
+ * @param relativeScore the score relative to par
+ * @returns {string} the score class
+ */
+export function scoreClass(relativeScore: number): string {
+    const s = Math.round(relativeScore);
+    if (s >= 2) {
+        return "double_bogey";
+    } else if (s == 1) {
+        return "bogey";
+    } else if (s == 0) {
+        return "par";
+    } else if (s == -1) {
+        return "birdie";
+    } else if (s == -2) {
+        return "eagle";
+    } else {
+        return "albatross";
+    }
 }

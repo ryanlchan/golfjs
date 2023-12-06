@@ -1,11 +1,11 @@
 import {
     roundDelete, roundLoad, roundLoadAll,
     roundSelect, roundCreate, roundUpdateWithData, roundSave, roundInitialize
-} from "./rounds";
-import { courseCacheAll, courseCacheDelete } from "./courses";
-import { GolfClub, getUserClubs, saveUserClubs, resetUserClubs } from "./clubs";
-import { formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "./projections";
-import { getUnitsSetting, setSetting } from "./utils";
+} from "../services/rounds";
+import { courseCacheAll, courseCacheDelete } from "../services/courses";
+import { GolfClub, getUserClubs, saveUserClubs, resetUserClubs } from "../services/clubs";
+import { formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "../common/projections";
+import { getUnitsSetting, setSetting } from "../common/utils";
 
 /**
  * Updates the round data displayed on the page.
