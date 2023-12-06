@@ -20,7 +20,7 @@ import { PositionError } from "./errors.js";
 import { showError, hideError, touch, getUnitsSetting } from "./utils.js";
 import * as cache from "./cache.js";
 import { roundCreate, roundCourseParams, roundLoad, roundSave } from "./rounds.js";
-import { STROKES_REMAINING_COEFFS } from "./coeffs20230705.js";
+import { SG_SPLINES } from "./coeffs20231205.js";
 import { getUsableClubs } from "./clubs.js";
 
 // Static images
@@ -1683,7 +1683,7 @@ const terrainIcons = {
 }
 function TerrainOption(props: { stroke: Stroke, type: string }) {
     const onClick = (e) => {
-        if (props.type == "" || props.type in STROKES_REMAINING_COEFFS) {
+        if (props.type == "" || props.type in SG_SPLINES) {
             const stroke = round.holes[props.stroke.holeIndex].strokes[props.stroke.index];
             stroke.terrain = props.type;
             touch(stroke);
@@ -1705,7 +1705,7 @@ function TerrainOption(props: { stroke: Stroke, type: string }) {
 }
 
 function TerrainMenu(props: { stroke: Stroke, types?: string[] }) {
-    const types = props.types || Object.keys(STROKES_REMAINING_COEFFS).map((key) => key);
+    const types = props.types || Object.keys(SG_SPLINES).map((key) => key);
     return <div className="takeover">
         <div className="terrainMenu takeoverMenu cardContainer">
             {types.map((type) => <TerrainOption type={type} stroke={props.stroke} />)}

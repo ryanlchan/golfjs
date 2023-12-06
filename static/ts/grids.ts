@@ -1,6 +1,6 @@
 import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
-import { HOLE_OUT_COEFFS, OSM_GOLF_TO_TERRAIN, STROKES_REMAINING_COEFFS } from "./coeffs20230705";
+import { HOLE_OUT_COEFFS, OSM_GOLF_TO_TERRAIN, SG_SPLINES } from "./coeffs20231205";
 import * as cache from "./cache";
 export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 
@@ -275,7 +275,7 @@ function scrubOSMData(geojson) {
         if (props.golf && props.golf in OSM_GOLF_TO_TERRAIN) {
             props["terrainType"] = OSM_GOLF_TO_TERRAIN[props.golf];
         } else if (props.golf) {
-            props["terrainType"] = props.golf in STROKES_REMAINING_COEFFS ? props.golf : "rough"
+            props["terrainType"] = props.golf in SG_SPLINES ? props.golf : "rough"
         }
         if (typeof (props.par) === 'string') {
             props.par = Number(props.par);
@@ -397,6 +397,14 @@ function findTerrainType(point, collection, bounds?): string {
  * Grids
  * =====
  */
+
+function loadSpline(type: string): Spline {
+    return new Spline(SG_SPLINES[type]);
+}
+
+function splineAt(type: string, at: number): number {
+    return loadSpline(type).at(at);
+}
 
 /**
  * Create a hex grid around a given feature
@@ -542,16 +550,15 @@ function addHoleOut(hexGrid, distanceToHole, terrainType, holePoint) {
  * @returns {Number} the number of strokes remaining
  */
 export function strokesRemaining(distanceToHole, terrainType) {
-    if (!(terrainType in STROKES_REMAINING_COEFFS)) {
+    if (!(terrainType in SG_SPLINES)) {
         console.error("No strokes remaining polynomial for terrainType" + terrainType + ", defaulting to rough");
         terrainType = "rough"
     }
 
-    // Assume that we have an polynomial function defined by STROKES_REMAINING_COEFFS
-    let totalStrokes = STROKES_REMAINING_COEFFS[terrainType].reduce((acc, coeff, index) => acc + coeff * Math.pow(distanceToHole, index), 0);
+    let totalStrokes = splineAt(terrainType, distanceToHole);
 
-    // Clip results from -7 to 7 strokes remaining to catch really extreme outlier predictions
-    let clippedStrokes = Math.min(Math.max(totalStrokes, -7), 7)
+    // Clip results from 1 to 7 strokes remaining to catch really extreme outlier predictions
+    let clippedStrokes = Math.min(Math.max(totalStrokes, 1), 7)
     return clippedStrokes;
 }
 
@@ -829,4 +836,135 @@ export function cdf(x, mean, standardDeviation) {
     const z = (x - mean) / (standardDeviation * Math.sqrt(2));
     const cdf = 0.5 * (1 + Math.sign(z) * e);
     return cdf;
+}
+
+function csv2array(data: string, delimiter = ',', omitFirstRow = false): any[][] {
+    return data
+        .slice(omitFirstRow ? data.indexOf('\n') + 1 : 0)
+        .split('\n')
+        .map(v => v.split(delimiter).map(n => parseFloat(n) > 0 ? parseFloat(n) : n));
+}
+
+function transposeMatrix(data: any[][]): any[][] {
+    return data[0].map((_, colIndex) => data.map(row => row[colIndex]));
+}
+
+// Given an array of knots and an array of values,
+// return a function which evaluates a natural cubic spline
+// extrapolated by linear functions on either end.
+// Adapted from https://talk.observablehq.com/t/obtain-interpolated-y-values-without-drawing-a-line/1796/8
+interface SplineOptions { knots: number[] | Float64Array, scales: number[] | Float64Array, coeffs: number[] | Float64Array }
+class Spline {
+    knots: Float64Array;
+    scales: Float64Array;
+    coeffs: Float64Array;
+
+    constructor(props: SplineOptions) {
+        this.knots = Float64Array.from(props.knots);
+        this.scales = Float64Array.from(props.scales);
+        this.coeffs = Float64Array.from(props.coeffs);
+    }
+
+    at(u: number) {
+        // Binary search
+        let nn = this.knots.length - 1, low = 0, half;
+        while ((half = (nn / 2) | 0) > 0) {
+            low += half * (this.knots[low + half] <= u ? 1 : 0);
+            nn -= half;
+        }
+        const i = low, j = 4 * i;
+        u = (2 * u - this.knots[i] - this.knots[i + 1]) * this.scales[i]; // scale to [–1, 1]
+        // Clenshaw's method.
+        let b1 = this.coeffs[j + 3], b2 = this.coeffs[j + 2] + 2 * u * b1;
+        b1 = this.coeffs[j + 1] + 2 * u * b2 - b1;
+        return this.coeffs[j] + u * b1 - b2;
+    }
+
+    static fromValues(knots: number[] | Float64Array, values: number[] | Float64Array): Spline {
+        const n = knots.length - 1;
+        const t = new Float64Array(n + 3); t.set(knots, 1);
+        const y = new Float64Array(n + 3); y.set(values, 1);
+        const s = new Float64Array(n + 2); // horizontal scales
+        const m = new Float64Array(n + 3); // slope at each knot
+        const d = new Float64Array(n + 3); // diagonal matrix
+
+        // Natural cubic spline algorithm
+        for (let i = 1; i < n + 1; i++) {
+            s[i] = 1 / (t[i + 1] - t[i]);
+            m[i] += (m[i + 1] = 3 * s[i] * s[i] * (y[i + 1] - y[i]));
+        }
+        d[1] = 0.5 / s[1];
+        m[1] = d[1] * m[1];
+        for (let i = 2; i <= n + 1; i++) {
+            d[i] = 1 / (2 * (s[i] + s[i - 1]) - s[i - 1] * s[i - 1] * d[i - 1]);
+            m[i] = d[i] * (m[i] - s[i - 1] * m[i - 1]);
+        }
+        for (let i = n; i >= 1; i--) {
+            m[i] -= d[i] * s[i] * m[i + 1];
+        }
+
+        // Linear extrapolation
+        t[0] = t[1] - 1; t[n + 2] = t[n + 1] + 1;
+        y[0] = y[1] - m[1]; y[n + 2] = y[n + 1] + m[n + 1];
+        s[0] = s[n + 1] = 1;
+        m[0] = m[1]; m[n + 2] = m[n + 1];
+
+        // Set up Chebyshev coefficients
+        const coeffs = new Float64Array(4 * (n + 2));
+        for (let i = 0; i < n + 2; i++) {
+            const h = t[i + 1] - t[i];
+            const y0 = y[i], y1 = y[i + 1], m0 = h * m[i], m1 = h * m[i + 1], j = 4 * i;
+            coeffs[j] = 0.5 * (y0 + y1 + 0.125 * (m0 - m1));
+            coeffs[j + 1] = 0.03125 * (18 * (y1 - y0) - m0 - m1);
+            coeffs[j + 2] = 0.0625 * (m1 - m0);
+            coeffs[j + 3] = 0.03125 * (2 * (y0 - y1) + m0 + m1);
+        }
+
+        return new Spline({ knots: t, scales: s, coeffs: coeffs })
+    }
+}
+
+function buildSplines(data) {
+    const colData = transposeMatrix(csv2array(data));
+    const x = colData[0];
+    const splines = {};
+    colData.slice(1).forEach((col, ix) => {
+        const type = col[0];
+        const filteredX: number[] = [];
+        const filteredY: number[] = [];
+
+        // Single iteration to check the condition and build the filtered arrays
+        col.forEach((value, index) => {
+            if (index == 0) return
+            if (value > 0) {
+                filteredX.push(x[index]);
+                filteredY.push(value);
+            }
+        });
+        const spline = Spline.fromValues(filteredX, filteredY);
+        splines[type] = spline;
+    });
+    return splines;
+}
+
+function dehydrateSplines(splines: { [type: string]: Spline }): { [type: string]: SplineOptions } {
+    const outputs = {};
+    for (const type in splines) {
+        const spline = splines[type];
+        outputs[type] = {
+            knots: spline.knots,
+            scales: spline.scales,
+            coeffs: spline.coeffs,
+        }
+    };
+    return outputs;
+}
+
+function rehydrateSplines(splines: { [type: string]: SplineOptions }) {
+    const outputs = {};
+    for (const type in splines) {
+        const spline = new Spline(splines[type]);
+        outputs[type] = spline;
+    };
+    return outputs;
 }
