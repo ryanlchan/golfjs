@@ -12,13 +12,15 @@ import chroma from "chroma-js";
 import { typeid } from "typeid-js";
 import { h, render, VNode } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import ReactLeafletGoogleLayer from 'react-leaflet-google-layer';
 
 // Modules
 import * as grids from "./grids.js";
 import * as courses from "./courses.js";
 import { getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "./projections.js";
 import { PositionError } from "./errors.js";
-import { showError, hideError, touch, getUnitsSetting } from "./utils.js";
+import { showError, hideError, touch, getUnitsSetting, getSetting, setSetting } from "./utils.js";
 import * as cache from "./cache.js";
 import { roundCreate, roundCourseParams, roundLoad, roundSave } from "./rounds.js";
 import { SG_SPLINES } from "./coeffs20231205.js";
@@ -1140,42 +1142,33 @@ function currentCoordRead(maximumAge = 5000): Coordinate {
  * =======================
  */
 
-/**
- * Initialize the leaflet map and satellite baselayer
- */
-async function mapViewCreate(mapid) {
-    if (mapView) return; // Skip initialized map already
-    const mapContainer = document.getElementById(mapid);
-
-    // Calculate 80% of the available vertical space
+function LeafletMap(props) {
+    const [map, setMap] = useState(null);
+    mapView = map;
+    const { children, ...options } = props;
     const availableHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
     const mapHeight = 0.8 * availableHeight;
+    const heightStyle = `height:${mapHeight}px`
+    const gmapsKey = getSetting("googleMapsAPIKey");
 
-    // Set the height of the container element
-    mapContainer.style.height = mapHeight + 'px';
+    useEffect(() => {
+        if (map) {
+            enableSmoothZoom(map, 1.5);
+            addTooltipDecluttering(map, 85)
+        }
+    })
 
-    // Initialize the Leaflet map
-    let gmapsKey = await cache.get("googleMapsAPIKey");
-    if (!gmapsKey && typeof (gmapsKey) != "string") {
-        gmapsKey = prompt("Enter a Google Maps API key to initialize the map:")
-        cache.set("googleMapsAPIKey", gmapsKey);
-    }
-
-    const loader = new Loader({
-        apiKey: gmapsKey,
-        version: "weekly",
-    });
-    loader.importLibrary("maps");
-    mapView = L.map(mapid, {
-        attributionControl: false
-    }).setView([36.567383, -121.947729], 18);
-    L.gridLayer.googleMutant({
-        type: "satellite",
-        maxZoom: 24,
-        attribution: "",
-    }).addTo(mapView);
-    enableSmoothZoom(mapView, 1.5);
-    addTooltipDecluttering(mapView, 85);
+    return <MapContainer className="h-[200px] w-full relative" zoom={18} maxZoom={24} maxNativeZoom={18}
+        style={heightStyle} center={[36.567383, -121.947729]}
+        ref={setMap}
+        {...options}>
+        {gmapsKey ?
+            (<ReactLeafletGoogleLayer apiKey={gmapsKey} type='satellite' maxZoom='24' attribution='' />)
+            : <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />}
+        {children}
+    </MapContainer>
 }
 
 /**
@@ -1306,7 +1299,7 @@ function positionMarkerPopupText(layer: L.Marker) {
  * View components
  */
 
-function ErrorModal(props: { message: string, timeout: number }) {
+function ErrorModal(props?: { message: string, timeout: number }) {
     const [visible, setVisibility] = useState(true)
     useEffect(() => {
         const timer = setTimeout(() => setVisibility(false), props.timeout)
@@ -2003,6 +1996,29 @@ function StrokeMoveButton(props: { stroke: Stroke, offset: number }): VNode {
     return <button onClick={clickHandler}>{icon}</button>
 }
 
+function App() {
+    return <div className="app">
+        <ErrorModal message="Test" timeout={1} />
+        <div id='mapid'>
+            <LeafletMap></LeafletMap>
+            <div id="upperMapControls">
+                <MapControlsUpper />
+            </div>
+        </div>
+        <div id="subMapControls" class="bodyContainer">
+            <SubMapControls />
+            <div id="clubStrokeCreateContainer" class="inactive">
+                <div id="clubStrokeCreateContainerCloseContainer">
+                    <button id="clubStrokeCreateContainerClose" class="dark">Close and go back</button>
+                </div>
+            </div>
+        </div>
+        <div className="bodyContainer">
+        </div>
+    </div>
+
+}
+
 /**
  * Rerendering handlers
  */
@@ -2168,7 +2184,7 @@ function clubStrokeViewToggle() {
  */
 function handleLoad() {
     loadRoundData().then(() => {
-        mapViewCreate("mapid");
+        render(<App />, document.getElementById('appContainer'))
         clubStrokeViewCreate(getUsableClubs(), document.getElementById("clubStrokeCreateContainer"));
         holeSelect(-1);
     });

@@ -66,7 +66,7 @@ function getJSON(key: string) {
 }
 
 function setJSON(key: string, value: any) {
-    return localStorage.setItem(key, value);
+    return localStorage.setItem(key, JSON.stringify(value));
 }
 
 export function getSetting(setting: string): any {

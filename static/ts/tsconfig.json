@@ -18,6 +18,16 @@
         ],
         "jsx": "react-jsx",
         "jsxImportSource": "preact",
-        "allowSyntheticDefaultImports": true
+        "allowSyntheticDefaultImports": true,
+        "skipLibCheck": true,
+        "baseUrl": "./",
+        "paths": {
+            "react": [
+                "./node_modules/preact/compat/"
+            ],
+            "react-dom": [
+                "./node_modules/preact/compat/"
+            ]
+        }
     }
 }
