@@ -11,7 +11,7 @@ import * as turf from "@turf/turf";
 import chroma from "chroma-js";
 import { typeid } from "typeid-js";
 import { h, render, VNode } from 'preact';
-import { useState } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
 
 // Modules
 import * as grids from "./grids.js";
@@ -1306,8 +1306,20 @@ function positionMarkerPopupText(layer: L.Marker) {
  * View components
  */
 
-interface AppMenuItem { href: string, icon: VNode, text: string }
-function AppMenuItem(props: AppMenuItem) {
+function ErrorModal(props: { message: string, timeout: number }) {
+    const [visible, setVisibility] = useState(true)
+    useEffect(() => {
+        const timer = setTimeout(() => setVisibility(false), props.timeout)
+        return () => clearTimeout(timer);
+    }, [visible])
+    return visible && <div id="errorContainer">
+        <div id="error" class="danger">
+            {props.message}
+        </div>
+    </div>
+}
+
+function AppMenuItem(props: { href: string, icon: VNode, text: string }) {
     return <a href={props.href}><span className="menuIcon">{props.icon}</span>{props.text}</a>
 }
 
