@@ -1,6 +1,6 @@
 import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
-import { OSM_GOLF_TO_TERRAIN, STROKES_REMAINING_COEFFS } from "./coeffs20230705";
+import { OSM_GOLF_TO_TERRAIN, SG_SPLINES } from "./coeffs20231205";
 import * as cache from "./cache";
 import { Feature, FeatureCollection, Point } from "geojson";
 import { featureIntersect } from "./grids";
@@ -111,7 +111,7 @@ function scrubOSMData(geojson: FeatureCollection): FeatureCollection {
         if (props.golf && props.golf in OSM_GOLF_TO_TERRAIN) {
             props["terrainType"] = OSM_GOLF_TO_TERRAIN[props.golf];
         } else if (props.golf) {
-            props["terrainType"] = props.golf in STROKES_REMAINING_COEFFS ? props.golf : "rough";
+            props["terrainType"] = props.golf in SG_SPLINES ? props.golf : "rough";
         }
         if (typeof (props.par) === 'string') {
             props.par = Number(props.par);
