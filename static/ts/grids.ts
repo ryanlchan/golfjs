@@ -2,6 +2,7 @@ import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
 import { HOLE_OUT_COEFFS, OSM_GOLF_TO_TERRAIN, SG_SPLINES } from "./coeffs20231205";
 import * as cache from "./cache";
+import { Feature, FeatureCollection, Point } from "geojson";
 export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 
 /**
@@ -432,8 +433,87 @@ function hexGridCreate(feature, options?) {
 
     let grid_options = { units: 'kilometers' };
     let grid = turf.hexGrid(bbox, x, grid_options);
-    grid = featureWithin(grid, feature);
+    // grid = featureWithin(grid, feature);
     return grid;
+}
+
+/**
+ * Optimization: For ~circular hexagonal grids, we can index and avoid a lot of distance calculations
+ */
+const HEXAGON_ANGLE: number = Math.PI / 3;
+const SIDES: number = 6;
+
+// Precompute cosines and sines for hexagon angles
+const cosines: number[] = [];
+const sines: number[] = [];
+for (let i = 0; i < SIDES; i++) {
+    const angle: number = HEXAGON_ANGLE * i;
+    cosines.push(Math.cos(angle));
+    sines.push(Math.sin(angle));
+}
+
+// Converts axial coordinates to cube coordinates
+function axialToCube(axial: [number, number]): [number, number, number] {
+    const x = axial[0];
+    const z = axial[1];
+    const y = -x - z;
+    return [x, y, z];
+}
+
+// Checks if the hexagon is within the grid radius
+function isWithinGrid(axial: [number, number], radius: number): boolean {
+    const cube = axialToCube(axial);
+    return Math.max(Math.abs(cube[0]), Math.abs(cube[1]), Math.abs(cube[2])) <= radius;
+}
+
+// Creates a single hexagon feature
+function createHexagon(center: [number, number], size: number, axialCoordinates: [number, number]): Feature {
+    let vertices: [number, number][] = [];
+    for (let i = 0; i < SIDES; i++) {
+        vertices.push([
+            center[0] + size * cosines[i],
+            center[1] + size * sines[i]
+        ]);
+    }
+    vertices.push(vertices[0]); // Closing the hexagon
+
+    return turf.polygon([vertices], { axialCoordinates })
+}
+
+// Generates the hexagon grid
+function generateHexagonGrid(center: [number, number], gridRadius: number, hexagonSize: number): FeatureCollection {
+    let hexagons: Feature[] = [];
+    for (let q = -gridRadius; q <= gridRadius; q++) {
+        let r1 = Math.max(-gridRadius, -q - gridRadius);
+        let r2 = Math.min(gridRadius, -q + gridRadius);
+        for (let r = r1; r <= r2; r++) {
+            if (isWithinGrid([q, r], gridRadius)) {
+                const hexCenter: [number, number] = [
+                    center[0] + hexagonSize * 3 / 2 * q,
+                    center[1] + hexagonSize * Math.sqrt(3) * (r + q / 2)
+                ];
+                hexagons.push(createHexagon(hexCenter, hexagonSize, [q, r]));
+            }
+        }
+    }
+    return turf.featureCollection(hexagons)
+}
+
+/**
+ * Create a circular grid of Hexagons around a point
+ * @param center the center point to create around in WGS84 coord
+ * @param radius the radius of the grid, in meters
+ * @param cells the target number of cells to return
+ */
+function hexCircleCreate(center: [number, number], radius: number, target_cells = 2000) {
+    // Calculate hexagon size length between 0.16m and 10m
+    const _r = Math.sqrt((Math.PI * Math.pow(radius, 2) * 2) / (target_cells * (3 * Math.sqrt(3))));
+    const minR = 0.16;
+    const maxR = 10;
+    const r = Math.min(Math.max(minR, _r), maxR);
+    const hexSize = turf.lengthToDegrees(r, 'meters');
+    const hexRadius = Math.round((radius / r) / 1.5);
+    return generateHexagonGrid(center, hexRadius, hexSize);
 }
 
 /**
@@ -657,7 +737,7 @@ export function sgGrid(startCoordinate, aimCoordinate, holeCoordinate, dispersio
 
 
     // Create a grid
-    let hexGrid = hexGridCreate(aimWindow);
+    const hexGrid = hexCircleCreate(aimCoordinate.reverse(), dispersionNumber * 3);
 
     // Get probabilities
     probabilityGrid(hexGrid, aimPoint, dispersionNumber);
@@ -717,23 +797,23 @@ export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispe
 
 
     // Create a supergrid 3x the subgrid window size
-    const outcomeWindow = turf.circle(aimPoint, 2 * 3 * dispersionNumber / 1000, { units: "kilometers" });
-    let outcomeGrid = hexGridCreate(outcomeWindow, { 'maximum_cells': 8000 });
+    const outcomeGrid = hexCircleCreate(aimCoordinate.reverse(), dispersionNumber * 3 * 2, 8000);
 
     // Add SG info to supergrid
     strokesGained(outcomeGrid, holePoint, strokesRemainingStart, golfCourseData);
 
     // Get each grid cell within the aim window, and use it as the aim point
-    const aimWindow = turf.circle(aimPoint, dispersionNumber / 1000, { units: "kilometers" });
-    const aimGrid = turf.clone(featureWithin(outcomeGrid, aimWindow));
-    aimGrid.features.forEach((feature) => feature.properties = {});
+    const aimGrid = turf.clone(featureNear(outcomeGrid, aimPoint, dispersionNumber));
     console.log(`Iterating through aim grid of ${aimGrid.features.length} cells`);
-    let ix = 0;
     let idealStrokesGained;
-    for (let cell of aimGrid.features) {
+    aimGrid.features.forEach((cell, ix) => {
         const subAimPoint = turf.center(cell);
-        const subWindow = turf.circle(subAimPoint, 3 * dispersionNumber / 1000, { units: "kilometers" })
-        const subGrid = featureWithin(outcomeGrid, subWindow);
+        const subAimCoords = cell.properties.axialCoordinates;
+        const subGrid = featureFilter(outcomeGrid, (cell) => {
+            const coords = cell.properties.axialCoordinates;
+            const relativeCoords = coords.map((coord, ix) => coord - subAimCoords[ix]);
+            return isWithinGrid(relativeCoords, 25); // 25 ~ 2000 cells
+        })
         probabilityGrid(subGrid, subAimPoint, dispersionNumber);
         addHoleOut(subGrid, distanceToHole, terrainTypeStart, holePoint);
         weightStrokesGained(subGrid);
@@ -741,8 +821,7 @@ export function targetGrid(startCoordinate, aimCoordinate, holeCoordinate, dispe
         cell.properties.weightedStrokesGained = weightedStrokesGained;
         if (!idealStrokesGained || idealStrokesGained < weightedStrokesGained) idealStrokesGained = weightedStrokesGained;
         console.log(`Processed cell ${ix}, wsg = ${weightedStrokesGained}`);
-        ix++;
-    }
+    });
 
     // baseline against middle aim point
     const aimCells = aimGrid.features.filter((feature) => turf.booleanContains(feature, aimPoint));
@@ -804,6 +883,14 @@ function featureIntersect(collection, intersects) {
  */
 function featureWithin(collection, container) {
     return featureFilter(collection, (feature) => turf.booleanWithin(feature, container))
+}
+
+function featureNear(collection: FeatureCollection, point: Point, distance: number) {
+    return featureFilter(collection, (cell) => {
+        const subCellCenter = turf.center(cell);
+        const proximity = turf.distance(subCellCenter, point, { units: "kilometers" }) * 1000;
+        return !(proximity > distance);
+    });
 }
 
 /**
