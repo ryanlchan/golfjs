@@ -3,7 +3,7 @@
 
 <head>
     <title>Golf-stats.js</title>
-    <link rel="stylesheet" href="static/css/styles.css" />
+    <link rel="stylesheet" href="src/assets/css/styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 
@@ -13,24 +13,7 @@
             Enable Javascript
         </div>
     </div>
-    <div class="bodyContainer">
-        <div id="roundTitleContainer">
-            <h1>
-                <span id="roundTitle"></span>
-                <a id="regenerate" href="#" class="undecorated" title="Regenerate stats">&orarr;</a>
-                <a id="downloadAsCSV" href="#" class="undecorated" title="Download as CSV">&#10515;</a>
-            </h1>
-        </div>
-        <h2>Strokes Gained by Type</h2>
-        <div id="breakdownTables" class="generateOutput">
-            <progress></progress>
-        </div>
-        <h2>Strokes Gained by Hole</h2>
-        <div id="holeTables" class="generateOutput">
-            <progress></progress>
-        </div>
-    </div>
-    <script type="module" src="static/ts/stats.ts"></script>
+    <script type="module" src="src/pages/stats.tsx"></script>
 </body>
 
 </html>

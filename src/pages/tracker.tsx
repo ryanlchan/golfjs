@@ -7,7 +7,7 @@ import * as L from "leaflet";
 import "leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant";
 import { enableSmoothZoom } from "leaflet.smoothwheelzoom";
 import { typeid } from "typeid-js";
-import { h, render, VNode } from 'preact';
+import { h, render, JSX.Element } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 ;
 
@@ -18,9 +18,9 @@ import { getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOpti
 import { PositionError } from "common/errors.js";
 import { showError, hideError, touch, getUnitsSetting, getSetting } from "common/utils.js";
 import * as cache from "common/cache.js";
-import { roundCreate, roundCourseParams, roundLoad, roundSave } from "services/rounds.js";
+import { roundNew, roundCourseParams, roundLoad, roundSave } from "services/rounds.js";
 import { SG_SPLINES } from "services/coeffs20231205.js";
-import { getUsableClubs } from "services/clubs.js";
+import { getUsableClubs } from "src/services/clubs.js";
 
 // Static images
 import circleMarkerImg from "./assets/img/unselected-2x.png";
@@ -30,7 +30,7 @@ import flagImg from "./assets/img/flag.png";
 
 // Variables
 let mapView: any;
-let round: Round = roundCreate();
+let round: Round = roundNew();
 let currentHole: Hole = round.holes.at(-1);
 let layers: object = {};
 let currentPosition: GeolocationPosition;

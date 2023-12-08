@@ -6,7 +6,7 @@ import { Feature, FeatureCollection, Point } from "geojson";
 import { featureIntersect } from "./grids";
 import { showError } from "../common/utils";
 
-interface CourseFeatureCollection extends FeatureCollection { course?: Course }
+export interface CourseFeatureCollection extends FeatureCollection { course?: Course }
 
 /**
  * *********
@@ -281,7 +281,11 @@ export async function getHoleGreenCenter(course: Course, holeIndex: number): Pro
  * @returns {FeatureCollection}
  */
 function findBoundaries(collection: FeatureCollection): FeatureCollection {
-    return turf.getCluster(collection, { 'leisure': 'golf_course' });
+    try {
+        return turf.getCluster(collection, { 'leisure': 'golf_course' });
+    } catch (e) {
+        debugger;
+    }
 }
 
 /**
@@ -317,13 +321,13 @@ export async function getGolfHoleBbox(course: Course, holeIndex: number): Promis
 }
 
 /**
- * Returns a terrain type given a point, a feature collection of terrains, and an optional bounds collection
- * @param {Point} point the point to load terrain for
+ * Returns the terrain at a given point within a feature collection
  * @param {FeatureCollection} collection A prescrubbed collection of Features (sorted, single poly'd, etc)
+ * @param {Point} point the point to load terrain for
  * @param {FeatureCollection} [bounds] A prescrubbed collection representing the out_of_bounds boundary, optional
  * @returns {String} the terrain type
  */
-export function findTerrainType(point: Point, collection: FeatureCollection, bounds?: FeatureCollection): string {
+export function findTerrainType(collection: FeatureCollection, point: Point, bounds?: FeatureCollection): string {
     if (!bounds) {
         bounds = findBoundaries(collection);
     }
@@ -352,5 +356,5 @@ export function findTerrainType(point: Point, collection: FeatureCollection, bou
 export async function getTerrainAt(course: Course, location: (number[] | turf.Point)): Promise<string> {
     let golfCourseData = await courseLoad(course);
     let point = location instanceof Array ? turf.flip(turf.point(location)) : location;
-    return findTerrainType(point, golfCourseData);
+    return findTerrainType(golfCourseData, point);
 }

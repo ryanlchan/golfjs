@@ -1,5 +1,5 @@
 import { ControlCard, ControlCardFooter, ControlCardHeader, ControlCardValue } from "src/components/controlCards/controlCard";
-import { getUsableClubs } from "services/clubs";
+import { getUsableClubs } from "src/services/clubs";
 
 export function ClubMenuOption(props: { club: Club, callback?: (club: Club, e: Event) => void }) {
     if (!props.club) return;

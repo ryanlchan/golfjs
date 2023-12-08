@@ -1,11 +1,10 @@
 import { createContext } from 'preact';
 import { useContext } from 'preact/hooks';
+import { useSettings } from 'hooks/useSettings';
 
-interface AppSettings { displayUnits: 'yards' | 'meters', setSetting: (key, value) => void }
-let settings: AppSettings = { displayUnits: 'yards', setSetting: (_k, v) => { } };
-
-export const Settings = createContext(settings)
+// TODO: Fix this, it could create a second settings signal that doesn't track the rest of the app
+export const SettingsContext = createContext(useSettings());
 export const useDisplayUnits = () => {
-    const settings = useContext(Settings);
-    return settings.displayUnits;
+    const settingsStore = useContext(SettingsContext);
+    return settingsStore.settings?.value?.displayUnits;
 }

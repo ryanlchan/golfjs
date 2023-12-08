@@ -1,5 +1,5 @@
 import { formatDistance } from "src/common/projections";
-import type { VNode } from 'preact';
+import type { JSX.Element } from 'preact';
 import { useDisplayUnits } from "contexts/settings";
 import {
     strokeDelete, strokeReorder, strokeDistance, strokeToggleActive,
@@ -12,7 +12,7 @@ import { DispersionLink } from "components/displersionLink";
  * @param {Stroke} stroke
  * @returns {HTMLElement}
  */
-function StrokeDeleteButton(props: { stroke: Stroke }): VNode {
+function StrokeDeleteButton(props: { stroke: Stroke }): JSX.Element {
     const icon = <span>&#215;</span>;
     const clickHandler = (e) => {
         strokeDelete(props.stroke?.holeIndex, props.stroke?.index);
@@ -27,7 +27,7 @@ function StrokeDeleteButton(props: { stroke: Stroke }): VNode {
  * @param {Number} offset the offset for the stroke index
  * @returns {HTMLElement}
  */
-function StrokeMoveButton(props: { stroke: Stroke, offset: number }): VNode {
+function StrokeMoveButton(props: { stroke: Stroke, offset: number }): JSX.Element {
     const stroke = props.stroke;
     const icon = (props.offset > 0 ? <span>&#8595;</span> : <span>&#8593;</span>)
     const clickHandler = (e) => {

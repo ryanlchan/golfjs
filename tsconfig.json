@@ -28,9 +28,6 @@
             "react-dom": [
                 "./node_modules/preact/compat/"
             ],
-            "src/*": [
-                "./src/*"
-            ],
             "assets/*": [
                 "./src/assets/*"
             ],
@@ -49,6 +46,9 @@
             "services/*": [
                 "./src/services/*"
             ],
+            "src/*": [
+                "./src/*"
+            ]
         }
     }
 }

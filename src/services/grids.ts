@@ -1,7 +1,7 @@
 import * as turf from "@turf/turf";
 import { HOLE_OUT_COEFFS, SG_SPLINES } from "./coeffs20231205";
 import { Feature, FeatureCollection, Point } from "geojson";
-import { courseLoad, getTerrainAt } from "./courses";
+import { CourseFeatureCollection, findTerrainType } from "./courses";
 
 export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 
@@ -18,7 +18,8 @@ export interface GridFeatureCollection extends FeatureCollection {
 interface GridProperties {
     terrain: string,
     strokesRemainingStart: number,
-    weightedStrokesGained: number
+    weightedStrokesGained: number,
+    idealStrokesGained?: number
 }
 
 /**
@@ -269,13 +270,13 @@ export function strokesRemaining(distanceToHole: number, terrainType: string): n
  * Given a geographic feature, calculate strokes remaining from its center
  * @param {Feature} feature the geographic feature to calculate from
  * @param {Array} holeCoordinate an array containing [lat, long] coordinates in WGS84
- * @param {Course} course the coursename to get polygons for
+ * @param {Course} courseData the coursename to get polygons for
  * @returns {Number} estimated strokes remaining
  */
-export async function strokesRemainingFrom(feature: FeatureCollection, holeCoordinate: number[], course: Course): Promise<number> {
+export function strokesRemainingFrom(feature: FeatureCollection, holeCoordinate: number[], courseData: CourseFeatureCollection): number {
     const center = turf.center(feature);
     const distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
-    const terrainType = await getTerrainAt(course, center);
+    const terrainType = findTerrainType(courseData, center);
     return strokesRemaining(distanceToHole, terrainType);
 }
 
@@ -287,18 +288,17 @@ export async function strokesRemainingFrom(feature: FeatureCollection, holeCoord
  * @param {Course} course
  * @returns {FeatureCollection} the updated grid
  */
-async function strokesGained(grid: FeatureCollection, holeCoordinate: number[], strokesRemainingStart: number, course: Course): Promise<FeatureCollection> {
-    const asyncFuncs = grid.features.map(async (feature) => {
+function strokesGained(grid: FeatureCollection, holeCoordinate: number[], strokesRemainingStart: number, course: CourseFeatureCollection): FeatureCollection {
+    grid.features.forEach((feature) => {
         let props = feature.properties;
         if (props.strokesRemaining === undefined) {
             const center = turf.center(feature);
             props.distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
-            props.terrainType = await getTerrainAt(course, center);
+            props.terrainType = findTerrainType(course, center);
             props.strokesRemaining = strokesRemaining(props.distanceToHole, props.terrainType);
         }
         props.strokesGained = strokesRemainingStart - props.strokesRemaining - 1;
     });
-    await Promise.all(asyncFuncs);
     return grid;
 }
 
@@ -326,10 +326,9 @@ function weightStrokesGained(grid: FeatureCollection): FeatureCollection {
  * @returns {GridFeatureCollection}
  */
 
-export async function sgGrid(startCoordinate: number[], aimCoordinate: number[],
-    holeCoordinate: number[], dispersion: number, course: Course,
-    startTerrain?: string): Promise<GridFeatureCollection> {
-    const golfCourseData = await courseLoad(course);
+export function sgGrid(startCoordinate: number[], aimCoordinate: number[],
+    holeCoordinate: number[], dispersion: number, courseData: CourseFeatureCollection,
+    startTerrain?: string): GridFeatureCollection {
     const startPoint = turf.flip(turf.point(startCoordinate));
     const aimPoint = turf.flip(turf.point(aimCoordinate));
     const holePoint = turf.flip(turf.point(holeCoordinate));
@@ -338,7 +337,7 @@ export async function sgGrid(startCoordinate: number[], aimCoordinate: number[],
         dispersion = -dispersion * distanceToAim;
         dispersion = Math.max(0.5, dispersion);
     }
-    const terrainTypeStart = startTerrain ? startTerrain : await getTerrainAt(course, startPoint);
+    const terrainTypeStart = startTerrain ? startTerrain : findTerrainType(courseData, startPoint);
     const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000
     const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
     const hexGrid = hexCircleCreate(aimCoordinate.reverse(), dispersion * 3);
@@ -346,8 +345,9 @@ export async function sgGrid(startCoordinate: number[], aimCoordinate: number[],
     // Get probabilities
     probabilityGrid(hexGrid, aimPoint, dispersion);
     addHoleOut(hexGrid, distanceToHole, terrainTypeStart, holePoint);
+    strokesGained(hexGrid, holePoint, strokesRemainingStart, courseData);
     weightStrokesGained(hexGrid);
-    const weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
+    const weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + (feature.properties.weightedStrokesGained || 0), 0);
 
     console.debug('Total Weighted Strokes Gained:', weightedStrokesGained);
     const properties = {
@@ -375,8 +375,8 @@ export async function sgGrid(startCoordinate: number[], aimCoordinate: number[],
  * @param {number} [index] optional param for what subgrid cell this is
  * @returns {GridFeatureCollection} the subgrid
  */
-async function calculateSubGrid(cell: Feature, dispersion: number, superGrid: GridFeatureCollection,
-    distanceToHole: number, terrainTypeStart: string, holePoint: Point, index?: number): Promise<GridFeatureCollection> {
+function calculateSubGrid(cell: Feature, dispersion: number, superGrid: GridFeatureCollection,
+    distanceToHole: number, terrainTypeStart: string, holePoint: Point, index?: number): GridFeatureCollection {
     const subAimPoint = turf.center(cell);
     const subWindow = turf.circle(subAimPoint, 3 * dispersion / 1000, { units: "kilometers" })
     const subGrid = featureWithin(superGrid, subWindow);
@@ -399,9 +399,9 @@ async function calculateSubGrid(cell: Feature, dispersion: number, superGrid: Gr
  * @param {string} [startTerrain] optional
  * @returns {GridFeatureCollection}
  */
-export async function targetGrid(startCoordinate: number[], aimCoordinate: number[],
-    holeCoordinate: number[], dispersion: number, course: Course,
-    startTerrain?: string): Promise<GridFeatureCollection> {
+export function targetGrid(startCoordinate: number[], aimCoordinate: number[],
+    holeCoordinate: number[], dispersion: number, courseData: CourseFeatureCollection,
+    startTerrain?: string): GridFeatureCollection {
     const startPoint = turf.flip(turf.point(startCoordinate));
     const aimPoint = turf.flip(turf.point(aimCoordinate));
     const holePoint = turf.flip(turf.point(holeCoordinate));
@@ -410,7 +410,7 @@ export async function targetGrid(startCoordinate: number[], aimCoordinate: numbe
         dispersion = -dispersion * distanceToAim;
         dispersion = Math.max(0.5, dispersion);
     }
-    const terrainTypeStart = startTerrain ? startTerrain : await getTerrainAt(course, startPoint);
+    const terrainTypeStart = startTerrain ? startTerrain : findTerrainType(courseData, startPoint);
     const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000;
     const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
 
@@ -418,7 +418,7 @@ export async function targetGrid(startCoordinate: number[], aimCoordinate: numbe
     const outcomeGrid = hexCircleCreate(aimCoordinate.reverse(), dispersion * 3 * 2, 8000);
 
     // Add SG info to supergrid
-    await strokesGained(outcomeGrid, holePoint, strokesRemainingStart, course);
+    strokesGained(outcomeGrid, holePoint, strokesRemainingStart, courseData);
 
     // Get each grid cell within the aim window, and use it as the aim point
     const aimGrid = turf.clone(featureNear(outcomeGrid, aimPoint, dispersion));

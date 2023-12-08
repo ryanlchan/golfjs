@@ -1,7 +1,9 @@
-import * as cache from "../common/cache";
-import { courseLoad, getHoleGreenCenter } from "./courses";
-import { FeatureCollection } from "geojson";
 import { typeid } from "typeid-js";
+import { FeatureCollection } from "geojson";
+
+import * as cache from "common/cache";
+import { courseLoad, getHoleGreenCenter } from "services/courses";
+import { defaultCurrentHole } from "services/holes";
 
 /**
  * *************
@@ -12,65 +14,11 @@ import { typeid } from "typeid-js";
 const ROUNDS_NAMESPACE = 'rounds'
 
 /**
- * Save round data to localstorage
- */
-export async function roundSave(round: Round) {
-    await roundSelect(round);
-    return cache.set(round.id, { ...round }, ROUNDS_NAMESPACE);
-}
-
-/**
- * Loads the data from localStorage and initializes the map.
- * @returns {object | undefined} the loaded round or undefined
- */
-export async function roundLoad(id?: string): Promise<Round> {
-    if (!id) id = await cache.get('latest', ROUNDS_NAMESPACE);
-    const loaded = await cache.get(id, ROUNDS_NAMESPACE) as Round;
-    if (loaded) {
-        console.log(`Rehydrating round ${loaded.course} ${loaded.date}`)
-        return loaded;
-    }
-    return undefined;
-}
-
-/**
- * Loads saved round data and initializes relevant variables
- * TODO: needs to be better
- * @returns {Promise} returns the round once all data is loaded
- */
-function loadRoundData(): Promise<Round> {
-    const loaded = loadData();
-    if (!loaded) {
-        return;
-    }
-    console.log("Rehydrating round from cache");
-
-    const params = roundCourseParams(round);
-    if (courses.courseLoad(params) instanceof Error) {
-        return courses.courseLoad(params, true)
-            .then(() => loadRoundData());
-    } else {
-        currentHole = round.holes.at(0);
-        return Promise.resolve(loaded);
-    }
-}
-
-/**
- * Archive current round and load new one
- * @param round the round to swap into
- */
-export async function roundSwap(round: Round): Promise<void> {
-    const current = await roundLoad();
-    if (!roundIsPlayed(current)) roundDelete(current)
-    return cache.set('latest', round.id, ROUNDS_NAMESPACE);
-}
-
-/**
- * Create a new round and clear away all old data
- * @param {Course} course the course
+ * Create a new Round, but do not save or initialize it
+ * @param {Course} course the course to create a round for
  * @returns {Round} a new Round object
  */
-export function roundCreate(course?: Course): Round {
+export function roundNew(course?: Course): Round {
     if (course) {
         return { ...defaultRound(), course: course.name, courseId: course.id };
     } else {
@@ -79,22 +27,13 @@ export function roundCreate(course?: Course): Round {
 }
 
 /**
- * Mark a round as the current round
- * @param round the round to select
+ * Create and initialize a round with data in one call
+ * @param course the course to create a round for
+ * @returns {Promise<Round>}
  */
-export async function roundSelect(round: Round): Promise<void> {
-    return cache.set('latest', round.id, ROUNDS_NAMESPACE);
-}
-
-/**
- * Create and update a round using OSM data
- * @param {Course} course the courseto create a round for
- * @returns {Round} the updated round
- */
-export async function roundInitialize(course: Course): Promise<Round> {
-    const round = roundCreate(course);
-    return courseLoad(roundCourseParams(round), true)
-        .then((data) => roundUpdateWithData(round, data));
+export function roundCreate(course?: Course): Promise<Round> {
+    return courseLoad(course)
+        .then((data) => roundInitialize(roundNew(course), data))
 }
 
 /**
@@ -103,7 +42,7 @@ export async function roundInitialize(course: Course): Promise<Round> {
  * @param {FeatureCollection} courseData the polygons for this course
  * @returns {Round}
  */
-export async function roundUpdateWithData(round: Round, courseData: FeatureCollection): Promise<Round> {
+export async function roundInitialize(round: Round, courseData: FeatureCollection): Promise<Round> {
     let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
     for (let line of lines) {
         const index = parseInt(line.properties.ref) - 1;
@@ -126,6 +65,31 @@ export async function roundUpdateWithData(round: Round, courseData: FeatureColle
 }
 
 /**
+ * Load a new round from the cache
+ * @param id the id of the round to load
+ * @returns {Promise<Round>}
+ */
+export async function roundLoad(id?: string): Promise<Round> {
+    if (!id) id = await cache.get('latest', ROUNDS_NAMESPACE);
+    const loaded = await cache.get(id, ROUNDS_NAMESPACE) as Round;
+    if (loaded) {
+        console.log(`Rehydrating round ${loaded.course} ${loaded.date}`)
+        return loaded;
+    }
+    return undefined;
+}
+
+/**
+ * Saves a round to the backend
+ * @param round the round to save
+ */
+export async function roundSave(round: Round): Promise<void> {
+    if (!roundIsPlayed(round)) return
+    await roundSelect(round);
+    return cache.set(round.id, round, ROUNDS_NAMESPACE);
+}
+
+/**
  * Load all archived rounds as an array
  * @returns {Round[]} An array of all rounds
  */
@@ -136,27 +100,27 @@ export async function roundLoadAll(): Promise<Round[]> {
 }
 
 /**
+ * Get the most recently selected round ID from DB
+ * @returns {Promise<string>}
+ */
+export async function roundLatestID(): Promise<string> {
+    return cache.get('latest', ROUNDS_NAMESPACE);
+}
+
+/**
+ * Mark a round as the current round
+ * @param round the round to select
+ */
+export async function roundSelect(round: Round): Promise<void> {
+    return cache.set('latest', round.id, ROUNDS_NAMESPACE);
+}
+
+/**
  * Drop a round from the archive
  * @param round the round to delete from the archive
  */
 export async function roundDelete(round: Round): Promise<void> {
     return cache.remove(round.id, ROUNDS_NAMESPACE);
-}
-
-/**
- * Delete current round and start over
- */
-export async function roundClear(): Promise<void> {
-    let round = roundCreate();
-    roundSave(round);
-}
-
-export function roundIsPlayed(round: Round): boolean {
-    return round.holes.reduce((acc, hole) => (hole.strokes.length > 0) || acc, false);
-}
-
-export function roundID(round: Round): string {
-    return `${round.course}-${round.courseId}-${round.date}`
 }
 
 /**
@@ -176,7 +140,7 @@ function defaultRound(): Round {
     return {
         id: typeid("round").toString(),
         date: new Date().toISOString(),
-        course: "Rancho Park Golf Course",
+        course: "Pebble Beach Golf Course",
         holes: [defaultCurrentHole()],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -185,24 +149,14 @@ function defaultRound(): Round {
 }
 
 /**
- * Return a default Hole object conforming to the interface
- * @returns {Hole} a default Hole interface
- */
-function defaultCurrentHole(): Hole {
-    return {
-        id: typeid("hole").toString(),
-        index: 0,
-        strokes: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-    };
-}
-
-/**
  * *************
  * * Utilities *
  * *************
  */
+
+export function roundIsPlayed(round: Round): boolean {
+    return round.holes.reduce((acc, hole) => (hole.strokes.length > 0) || acc, false);
+}
 
 export function getHoleFromRound(round: Round, holeIndex: number): Hole {
     return round.holes[holeIndex];
@@ -230,21 +184,8 @@ export function getStrokeEndFromRound(round: Round, stroke: Stroke): Coordinate 
 }
 
 export function getStrokesFromRound(round: Round): Stroke[] {
-    return round.holes.flatMap(hole => hole.strokes);
-}
-
-export async function lookupRoundFromHole(hole: Hole): Promise<Round> {
-    const filter = (id, round) => round.holes.some(hole => hole.id == id)
-    const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
-    if (rounds.length == 0) throw new Error(`No round found for hole ${hole.id}`);
-    return rounds[0];
-}
-
-export async function lookupRoundFromStroke(stroke: Stroke): Promise<Round> {
-    const filter = (id, round) => round.holes.some(hole => hole.strokes.some(stroke => stroke.id == id));
-    const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
-    if (rounds.length == 0) throw new Error(`No round found for stroke ${stroke.id}`);
-    return rounds[0];
+    return round.holes.flatMap(hole => hole.strokes)
+        .sort((a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index);
 }
 
 export function getHoleFromStrokeRound(stroke: Stroke, round: Round): Hole {
@@ -253,3 +194,20 @@ export function getHoleFromStrokeRound(stroke: Stroke, round: Round): Hole {
     if (holes.length == 0) throw new Error(`No hole found for stroke ${stroke.id} in round ${round.id}`);
     return holes[0];
 }
+
+export async function lookupRoundFromHole(hole: Hole): Promise<Round> {
+    throw new Error("Deprecated: Load round and use a prop instead")
+    const filter = (id, round) => round.holes.some(hole => hole.id == id)
+    const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
+    if (rounds.length == 0) throw new Error(`No round found for hole ${hole.id}`);
+    return rounds[0];
+}
+
+export async function lookupRoundFromStroke(stroke: Stroke): Promise<Round> {
+    throw new Error("Deprecated: Load round and use a prop instead")
+    const filter = (id, round) => round.holes.some(hole => hole.strokes.some(stroke => stroke.id == id));
+    const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
+    if (rounds.length == 0) throw new Error(`No round found for stroke ${stroke.id}`);
+    return rounds[0];
+}
+

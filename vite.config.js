@@ -21,13 +21,13 @@ export default defineConfig({
         alias: {
             react: "./node_modules/preact/compat/",
             "react-dom": "./node_modules/preact/compat/",
-            src: "/src",
             assets: "/src/assets",
             components: "/src/components",
             common: "/src/common",
             hooks: "/src/hooks",
             contexts: "/src/contexts",
             services: "/src/services",
+            src: "/src",
         }
     }
 })

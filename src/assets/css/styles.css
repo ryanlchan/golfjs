@@ -641,17 +641,17 @@ table tbody tr.selected {
     background-color: #FFFACD;
 }
 
-tr#expansionTableRow {
+tr.selected {
     background-color: #fff;
 }
 
-tr#expansionTableRow table {
+tr.expanded table {
     position: relative;
     margin: 0 2em 1em;
     border: 1px solid #ddd;
 }
 
-tr#expansionTableRow table::before {
+tr.expanded table::before {
     position: absolute;
     content: '\021B3';
     top: -0.25em;

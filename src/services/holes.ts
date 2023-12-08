@@ -1,52 +1,47 @@
+import { typeid } from "typeid-js";
+import { signal, Signal } from '@preact/signals';
+import type { RoundStore } from "services/rounds";
 /**
  * ====
  * Holes
  * ====
  */
 
-/**
- * Select a new hole and update pointers/views to match
- * @param {number} holeIndex
- */
-function holeSelect(holeIndex: number) {
-    if (holeIndex == -1) {
-        holeViewDelete();
-
-        round.holes.forEach(function (hole) {
-            holeViewCreate(hole);
-        });
-
-        currentHole = undefined;
-        mapRecenter("course");
-    } else if (!(round.holes[holeIndex])) {
-        console.error(`Attempted to select hole i${holeIndex} but does not exist!`);
-        return
-    } else {
-        currentHole = round.holes[holeIndex];
-
-        // Delete all hole-specific layers and active states
-        holeViewDelete();
-
-        // Add all the layers of this new hole
-        holeViewCreate(currentHole);
-        mapRecenter("currentHole");
+interface ActiveHoleStore {
+    ids: string[],
+    activate: (id: string) => void,
+    deactivate: (id: string) => void,
+    deactivateAll: () => void,
+    select: (id: string) => void
+}
+export const useActiveHoles = (roundStore: Signal<RoundStore>) => {
+    const ids: Signal<string[]> = signal([]);
+    const activate = (holeId: string) => {
+        if (ids.value.some((hole) => hole == holeId)) return
+        ids.value = [...ids.value, holeId]
     }
-    rerender("full");
-
+    const deactivate = (holeId: string) => {
+        ids.value = ids.value.filter((id) => id == holeId);
+    }
+    const deactivateAll = () => {
+        ids.value = [];
+    }
+    const select = (holeId: string) => {
+        ids.value = [holeId];
+    }
+    return { ids, activate, deactivate, deactivateAll, select }
 }
 
-
-function handleHoleIncrement(incr) {
-    let curHoleNum = -1;
-    if (currentHole) {
-        curHoleNum = currentHole.index;
-    }
-    curHoleNum += incr;
-
-    if (curHoleNum >= round.holes.length) {
-        curHoleNum = -1;
-    } else if (curHoleNum < -1) {
-        curHoleNum = round.holes.length - 1;
-    }
-    holeSelect(curHoleNum);
+/**
+ * Return a default Hole object conforming to the interface
+ * @returns {Hole} a default Hole interface
+ */
+export function defaultCurrentHole(): Hole {
+    return {
+        id: typeid("hole").toString(),
+        index: 0,
+        strokes: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    };
 }

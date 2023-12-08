@@ -12,6 +12,7 @@ function holeViewCreate(hole: Hole) {
     }
     strokelineCreate(hole);
     holeLineCreate(hole);
+    mapRecenter("currentHole");
 }
 
 /**

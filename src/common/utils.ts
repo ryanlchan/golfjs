@@ -1,5 +1,3 @@
-import { get, set } from "./cache";
-
 /**
  * Utility to have a wait promise
  * @param ms - The number of milliseconds to wait
@@ -49,36 +47,6 @@ export function setter(obj: HasUpdateDates, key: string, val: any): HasUpdateDat
     obj[key] = val;
     touch(obj);
     return obj;
-}
-
-/**
- * **************** 
- * * LocalStorage *
- * **************** 
- */
-
-function getJSON(key: string) {
-    try {
-        return JSON.parse(localStorage.getItem(key));
-    } catch (e) {
-        return;
-    }
-}
-
-function setJSON(key: string, value: any) {
-    return localStorage.setItem(key, JSON.stringify(value));
-}
-
-export function getSetting(setting: string): any {
-    const settings = getJSON('settings');
-    if (!settings) return;
-    return settings[setting];
-}
-
-export function setSetting(setting: string, value: any): void {
-    let settings = getJSON('settings') || {};
-    settings[setting] = value;
-    setJSON('settings', settings);
 }
 
 /**

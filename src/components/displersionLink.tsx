@@ -1,4 +1,4 @@
-import type { VNode } from 'preact'
+import type { JSX.Element } from 'preact'
 import { formatDistance, formatDistanceOptions } from "common/projections";
 import { useDisplayUnits } from "contexts/settings";
 import { showError } from 'common/utils';
@@ -11,7 +11,7 @@ function strokeDistancePrompt(stroke: Stroke) {
     strokeSetDispersion(stroke, disp);
 }
 
-export function DispersionLink(props: { stroke: Stroke, distOptions?: formatDistanceOptions, id?: string }): VNode {
+export function DispersionLink(props: { stroke: Stroke, distOptions?: formatDistanceOptions, id?: string }): JSX.Element {
     const displayUnits = useDisplayUnits();
     const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
     const formattedDistance = formatDistance(props.stroke.dispersion, distOptions);

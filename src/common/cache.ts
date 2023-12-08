@@ -89,3 +89,30 @@ export async function filter(func: (key, val) => boolean, namespace?: string): P
     await lf.iterate((val, key) => { if (func(key, val)) results[key] = val });
     return results;
 }
+
+/**
+ * **************** 
+ * * LocalStorage *
+ * * TODO: Replace with synchronous signals from context *
+ * **************** 
+ */
+
+export function getLocalJSON(key: string) {
+    try {
+        return JSON.parse(localStorage.getItem(key));
+    } catch (e) {
+        return;
+    }
+}
+
+export function setLocalJSON(key: string, value: any) {
+    return localStorage.setItem(key, JSON.stringify(value));
+}
+
+export function getSettings(): any {
+    return getLocalJSON('settings');
+}
+
+export function setSettings(settings: Record<string, any>): void {
+    setLocalJSON('settings', settings);
+}

@@ -1,6 +1,6 @@
 
 
-function AppMenuItem(props: { href: string, icon: VNode, text: string }) {
+function AppMenuItem(props: { href: string, icon: JSX.Element, text: string }) {
     return <a href={props.href}><span className="menuIcon">{props.icon}</span>{props.text}</a>
 }
 

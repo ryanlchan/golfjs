@@ -1,6 +1,6 @@
 import * as utils from "../common/utils";
 import { osmCourseID, courseCacheDelete } from "../services/courses";
-import { roundCreate, roundInitialize, roundClear, roundSelect } from "../services/rounds";
+import { roundNew, roundInitialize, roundClear, roundSelect } from "../services/rounds";
 
 function search(query: string): Promise<void> {
     if (query.length >= 3) {

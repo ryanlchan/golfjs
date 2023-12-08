@@ -21,13 +21,15 @@
   "homepage": "https://github.com/ryanlchan/golfjs#readme",
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.2",
+    "@preact/signals": "^1.2.2",
     "@types/leaflet.gridlayer.googlemutant": "^0.4.6",
     "leaflet": "^1.9.4",
     "leaflet.gridlayer.googlemutant": "^0.14.0",
     "leaflet.smoothwheelzoom": "github:nyko28/Leaflet.SmoothWheelZoom",
     "localforage": "^1.10.0",
     "react-leaflet": "^4.2.1",
-    "react-leaflet-google-layer": "^2.2.0"
+    "react-leaflet-google-layer": "^2.2.0",
+    "swr": "^2.2.4"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.7.0",
