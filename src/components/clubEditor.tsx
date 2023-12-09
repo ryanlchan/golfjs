@@ -1,7 +1,7 @@
 import { batch } from '@preact/signals';
 import { formatDistanceAsNumber } from 'common/projections';
 import { useDisplayUnits } from 'hooks/useDisplayUnits';
-import { ClubStore } from 'hooks/useClubs';
+import { ClubStore } from 'hooks/clubStore';
 import { GolfClub } from 'services/clubs';
 
 

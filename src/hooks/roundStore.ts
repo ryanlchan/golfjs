@@ -1,16 +1,17 @@
 import { signal, Signal, effect } from '@preact/signals';
 import { roundNew, roundSave, roundDelete, roundLoad, roundCreate, roundIsPlayed } from 'services/rounds';
 
-export interface RoundStore {
-    round: Signal<Round>,
-    isLoading: boolean,
-    load: () => Promise<Round>,
-    create: (course: Course) => Promise<Round>,
-    del: () => Promise<void>,
-}
 
+export interface RoundStore {
+    round: Signal<Round>;
+    isLoading: boolean;
+    load: () => Promise<Round>;
+    create: (course: Course) => Promise<Round>;
+    del: () => Promise<void>;
+}
 // A hook that creates a Rounds signal and operators for it
-export function useRound(roundId?: string): RoundStore {
+
+export function initRoundStore(roundId?: string): RoundStore {
     let isLoading = false;
     const round = signal(roundNew());
 
@@ -21,12 +22,12 @@ export function useRound(roundId?: string): RoundStore {
      */
     const create = (course: Course): Promise<Round> => {
         return roundCreate(course)
-            .then((initialized) => round.value = initialized)
-    }
+            .then((initialized) => round.value = initialized);
+    };
 
     /**
-     * Loads the data from backend and initializes the map.
-     * @returns {object | undefined} the loaded round or undefined
+     * Loads a new round from the backend
+     * @returns {Round} the loaded round or undefined
      */
     const load = async (id?: string): Promise<Round> => {
         isLoading = false;
@@ -35,13 +36,26 @@ export function useRound(roundId?: string): RoundStore {
             round.value = loaded;
             return loaded;
         });
-    }
+    };
 
-    const del = async () => roundDelete(round.value);
+    /**
+     * Deletes the current round stored
+     */
+    const del = async () => {
+        roundDelete(round.value);
+        round.value = roundNew();
+    };
+
+    /**
+     * Persists the current round to the backend
+     */
     const save = async () => roundSave(round.value);
 
+    // On initialization, try to load the latest round automatically
     load(roundId);
-    effect(() => roundIsPlayed(round.value) && save())
 
-    return { round, load, create, del, isLoading }
+    // On any changes, automatically persist to backend
+    effect(() => roundIsPlayed(round.value) && save());
+
+    return { round, load, create, del, isLoading };
 }

@@ -21,7 +21,7 @@ const COURSE_NAMESPACE = 'courses';
  * @returns The cache key
  */
 function courseKey(course: Course): string {
-    return `${course.name}-${course.id}`;
+    return `${course?.name}-${course?.id}`;
 }
 
 async function courseCacheGet(course: Course): Promise<CourseFeatureCollection> {

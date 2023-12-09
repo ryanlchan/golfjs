@@ -1,6 +1,6 @@
 import { Signal, computed } from '@preact/signals';
 import { CLUBS_KEY, GolfClub, getDefaultClubs, getUserClubs } from 'services/clubs';
-import { SettingsStore } from 'hooks/useSettings';
+import { SettingsStore } from 'hooks/settingsStore';
 
 /**
  * ClubStore is a derived "view" into a SettingsStore that focuses on the club
@@ -13,7 +13,7 @@ export interface ClubStore {
     remove: (club: GolfClub) => void,
     reset: () => void
 };
-export const useClubs = (settingsStore: SettingsStore): ClubStore => {
+export const initClubStore = (settingsStore: SettingsStore): ClubStore => {
     const settings = settingsStore.settings;
     const clubs: Signal<GolfClub[]> = computed(() => getUserClubs(settings.value));
     const setClubs = (val) => settingsStore.set(CLUBS_KEY, val);

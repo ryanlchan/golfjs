@@ -5,9 +5,9 @@ import { render } from "preact";
 
 import { roundDelete, roundLoadAll, roundSelect, roundCreate } from "services/rounds";
 import { CourseFeatureCollection, courseCacheAll, courseCacheDelete } from "services/courses";
-import { RoundStore, useRound } from "hooks/useRounds";
-import { useClubs } from "hooks/useClubs";
-import { useSettings } from "hooks/useSettings";
+import { RoundStore, initRoundStore } from 'hooks/roundStore';
+import { initClubStore } from "hooks/clubStore";
+import { initSettingsStore } from "hooks/settingsStore";
 import { DISPLAY_UNIT_KEY, useDisplayUnits } from "hooks/useDisplayUnits";
 import { SettingsContext } from "contexts/settingsContext";
 import { ErrorModal } from "components/errorModal";
@@ -115,7 +115,7 @@ const CourseList = ({ initialCourses }: { initialCourses: CourseFeatureCollectio
         if (confirm("Are you sure you want to delete this course?")) {
             event.stopPropagation();
             courseCacheDelete(course);
-            setCourseFCs(courseFCs.filter(el => el.courseId != course.id));
+            setCourseFCs(courseFCs.filter(el => el.course?.id != course.id));
         }
     };
 
@@ -124,7 +124,7 @@ const CourseList = ({ initialCourses }: { initialCourses: CourseFeatureCollectio
             <h2>Saved Courses</h2>
             <ul id="savedCoursesList">
                 {courseFCs.map((courseFc, index) => {
-                    const course = { name: courseFc.course, id: courseFc.courseId };
+                    const course = courseFc.course;
                     return (<CourseListItem course={course} onSelect={() => handleSelectCourse(course)}
                         onDelete={(e) => handleDeleteCourse(course, e)} key={course.id} />)
                 })}
@@ -205,12 +205,12 @@ function SettingsStateProvider() {
         loaded.sort((a, b) => a.course.name.localeCompare(b.course.name));
         return loaded;
     });
-    const roundStore = useRound();
-    const settingsStore = useSettings();
-    const clubStore = useClubs(settingsStore);
+    const roundStore = initRoundStore();
+    const settingsStore = initSettingsStore();
+    const clubStore = initClubStore(settingsStore);
     const props = {
-        roundsState: useSWR("all", fetchRounds),
-        coursesState: useSWR("all", fetchCourses),
+        roundsState: useSWR("allRounds", fetchRounds),
+        coursesState: useSWR("allCourses", fetchCourses),
         roundStore,
         settingsStore,
         clubStore

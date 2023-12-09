@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { AppSettings, SettingsStore } from 'hooks/useSettings';
+import { AppSettings, SettingsStore } from 'hooks/settingsStore';
 import { createContext } from 'preact';
 
 const stub = (_) => { throw new Error("Not loaded yet") };

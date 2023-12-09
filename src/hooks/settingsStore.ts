@@ -10,7 +10,7 @@ export interface SettingsStore {
     set: (key: string, value: any) => void,
     get: (key: string) => any,
 }
-export const useSettings = (): SettingsStore => {
+export const initSettingsStore = (): SettingsStore => {
     const settings = signal((getSettings() || { ...defaultSettings }) as AppSettings);
     const set = (key: string, value: any) => settings.value = { ...settings.value, [key]: value };
     const get = (key: string) => settings.value[key].value;

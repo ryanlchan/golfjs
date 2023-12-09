@@ -1,5 +1,5 @@
 import { CourseFeatureCollection, courseLoad } from 'services/courses';
-import { RoundStore } from 'hooks/useRounds';
+import { RoundStore } from './roundStore';
 import { roundCourseParams } from 'services/rounds';
 import useSWR from 'swr';
 

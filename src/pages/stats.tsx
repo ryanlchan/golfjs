@@ -6,8 +6,8 @@ import { ComponentChildren, JSX, render } from "preact";
 import * as cacheUtils from "common/cache";
 import { formatDistance, formatDistanceOptions } from 'common/projections';
 import { SettingsContext, useDisplayUnits } from "contexts/settingsContext";
-import { RoundStore, useRound } from "hooks/useRounds";
-import { SettingsStore, useSettings } from "hooks/useSettings";
+import { RoundStore, initRoundStore } from 'hooks/roundStore';
+import { SettingsStore, initSettingsStore } from "hooks/settingsStore";
 import { useStats } from "hooks/useStats";
 import type { StrokeStats } from 'services/stats';
 import { columnizeStrokes, groupBy, reduceStrokeColumns, summarizeStrokeGroups } from "services/stats";
@@ -431,8 +431,8 @@ function App({ settingsStore, roundStore }: { settingsStore: SettingsStore, roun
 }
 
 function generateAppState() {
-    const settingsStore = useSettings();
-    const roundStore = useRound();
+    const settingsStore = initSettingsStore();
+    const roundStore = initRoundStore();
     return { settingsStore, roundStore }
 }
 async function generateView() {

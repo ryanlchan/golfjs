@@ -1,5 +1,5 @@
 import { RoundStatsCache, fetchStatsCache } from "services/stats";
-import { RoundStore } from "hooks/useRounds";
+import { RoundStore } from './roundStore';
 import { CourseStore } from "hooks/useCourse";
 import { roundIsPlayed } from "services/rounds";
 import useSWR from 'swr';
@@ -12,7 +12,6 @@ export const useStats = (roundStore: RoundStore, courseStore: CourseStore): Stat
         return fetchStatsCache(roundStore.round.value, courseStore.course)
             .catch((err) => { throw new Error("Failed to generate stats cache: " + err) });
     }
-    const load = () => _load(roundStore.round.value);
     const { data, error, isLoading } = useSWR(roundStore.round.value, _load);
     return { stats: data, error, isLoading }
 }

@@ -31,8 +31,8 @@ import { HoleInfo } from "components/holeInfo";
 import { LeafletMap } from "components/map/leafletMap";
 import { MapControlsLower, MapControlsUpper } from "components/map/mapControls";
 import { Scorecard } from "components/scorecard";
-import { SettingsStore, useSettings } from "hooks/useSettings";
-import { useRound, RoundStore } from "hooks/useRounds";
+import { SettingsStore, initSettingsStore } from "hooks/settingsStore";
+import { initRoundStore, RoundStore } from 'hooks/roundStore';
 import { useCourse } from "hooks/useCourse";
 import { useStats } from "hooks/useStats";
 import { SettingsContext } from "contexts/settingsContext";
@@ -106,8 +106,8 @@ function SubMapControls() {
 }
 
 function generateAppState() {
-    const settingsStore = useSettings();
-    const roundStore = useRound();
+    const settingsStore = initSettingsStore();
+    const roundStore = initRoundStore();
     return { settingsStore, roundStore }
 }
 
