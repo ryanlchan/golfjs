@@ -1,4 +1,4 @@
-import { ControlCard, ControlCardFooter, ControlCardHeader, ControlCardValue } from "src/components/controlCards/controlCard";
+import { ControlCard, ControlCardFooter, ControlCardHeader, ControlCardValue } from "components/controlCards/controlCard";
 import { useState } from 'preact/hooks';
 import { ClubMenu } from "components/clubMenu";
 

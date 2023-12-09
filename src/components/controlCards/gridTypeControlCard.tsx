@@ -1,4 +1,7 @@
-import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "./controlCard";
+import {
+    ControlCard, ControlCardHeader, ControlCardValue,
+    ControlCardFooter
+} from "components/controlCards/controlCard";
 
 export function GridTypeControl() {
     const activeGrid = layerRead('active_grid'); // TODO: replace with a prop/context pass

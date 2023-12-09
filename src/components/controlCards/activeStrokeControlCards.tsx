@@ -1,10 +1,10 @@
-import { BestAimControl } from "./bestAimControlCard";
-import { ClubControl } from "./clubControlCard";
-import { DispersionControl } from "./displersionControlCard";
-import { AimStatsControls } from "./sgAimControlCard";
-import { TerrainControl } from "./terrainControlCard";
+import { BestAimControl } from "components/controlCards/bestAimControlCard";
+import { ClubControl } from "components/controlCards/clubControlCard";
+import { DispersionControl } from "components/controlCards/displersionControlCard";
+import { AimStatsControls } from "components/controlCards/sgAimControlCard";
+import { TerrainControl } from "components/controlCards/terrainControlCard";
 
-function ActiveStrokeControls(props: { activeStroke: Stroke, round: Round }) {
+export function ActiveStrokeControls(props: { activeStroke: Stroke, round: Round }) {
     if (!props.activeStroke) return;
     return <div id="activeStrokeControls" className="buttonRow">
         <div className="cardContainer hoscro">

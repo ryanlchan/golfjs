@@ -1,7 +1,7 @@
-import { PositionError } from "src/common/errors";
-import { touch, showError } from "src/common/utils";
-import { SG_SPLINES } from "src/services/coeffs20231205";
-import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "./controlCard";
+import { PositionError } from "common/errors";
+import { touch, showError } from "common/utils";
+import { SG_SPLINES } from "services/coeffs20231205";
+import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "components/controlCards/controlCard";
 
 
 const terrainIcons = {
