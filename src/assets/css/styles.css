@@ -704,3 +704,13 @@ ol.courseSearchResults li:last-child {
     font-size: 14px;
     margin-top: 5px;
 }
+
+/* Settings styles */
+.roundEditor {
+    width: '100%';
+    height: '80vh';
+}
+
+pre.roundEditor {
+    cursor: pointer;
+}

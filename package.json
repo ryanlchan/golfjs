@@ -21,23 +21,25 @@
   "homepage": "https://github.com/ryanlchan/golfjs#readme",
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.2",
+    "@preact/preset-vite": "^2.7.0",
     "@preact/signals": "^1.2.2",
+    "@turf/turf": "^6.5.0",
+    "@types/geojson": "^7946.0.10",
     "@types/leaflet.gridlayer.googlemutant": "^0.4.6",
+    "chroma-js": "^2.4.2",
     "leaflet": "^1.9.4",
     "leaflet.gridlayer.googlemutant": "^0.14.0",
     "leaflet.smoothwheelzoom": "github:nyko28/Leaflet.SmoothWheelZoom",
     "localforage": "^1.10.0",
+    "osmtogeojson": "github:ryanlchan/osmtogeojson",
+    "preact": "^10.19.3",
     "react-leaflet": "^4.2.1",
     "react-leaflet-google-layer": "^2.2.0",
-    "swr": "^2.2.4"
+    "swr": "^2.2.4",
+    "typeid-js": "^0.3.0",
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
-    "@preact/preset-vite": "^2.7.0",
-    "@turf/turf": "^6.5.0",
-    "@types/geojson": "^7946.0.10",
-    "chroma-js": "^2.4.2",
-    "osmtogeojson": "github:ryanlchan/osmtogeojson",
-    "typeid-js": "^0.3.0",
     "vite": "^5.0.4"
   }
 }

@@ -93,7 +93,6 @@ export async function filter(func: (key, val) => boolean, namespace?: string): P
 /**
  * **************** 
  * * LocalStorage *
- * * TODO: Replace with synchronous signals from context *
  * **************** 
  */
 
@@ -113,6 +112,15 @@ export function getSettings(): any {
     return getLocalJSON('settings');
 }
 
-export function setSettings(settings: Record<string, any>): void {
+export function saveSettings(settings: Record<string, any>): void {
     setLocalJSON('settings', settings);
+}
+
+export function getSetting(key: string): any {
+    return getLocalJSON('settings')[key];
+}
+
+export function setSetting(key: string, value: any): void {
+    const settings = getSettings();
+    return saveSettings({ ...settings, [key]: value });
 }

@@ -5,7 +5,7 @@ import { ComponentChildren, JSX, render } from "preact";
 
 import * as cacheUtils from "common/cache";
 import { formatDistance, formatDistanceOptions } from 'common/projections';
-import { SettingsContext, useDisplayUnits } from "contexts/settings";
+import { SettingsContext, useDisplayUnits } from "contexts/settingsContext";
 import { RoundStore, useRound } from "hooks/useRounds";
 import { SettingsStore, useSettings } from "hooks/useSettings";
 import { useStats } from "hooks/useStats";

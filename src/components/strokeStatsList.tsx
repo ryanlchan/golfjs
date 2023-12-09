@@ -1,6 +1,6 @@
 import { formatDistance } from "src/common/projections";
 import type { JSX.Element } from 'preact';
-import { useDisplayUnits } from "contexts/settings";
+import { useDisplayUnits } from "hooks/useDisplayUnits";
 import {
     strokeDelete, strokeReorder, strokeDistance, strokeToggleActive,
     strokeIsActive

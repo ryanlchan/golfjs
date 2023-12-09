@@ -3,69 +3,12 @@
 
 <head>
     <title>Golf-settings.js</title>
-    <link rel="stylesheet" href="static/css/styles.css" />
+    <link rel="stylesheet" href="src/assets/css/styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 
 <body class="settings">
-    <div id="errorContainer">
-        <div id="error" class="danger inactive">
-            Enable Javascript
-        </div>
-    </div>
-    <div class="bodyContainer">
-        <div id="roundInfo">
-            <div class="buttonRow">
-                <h2>Current Round</h2>
-                <button id="copyToClipboard">Copy to Clipboard</button>
-                <button id="showRoundInfo">Toggle round info</button>
-            </div>
-            <pre id="jsonOutput" class="inactive">
-                <code></code>
-            </pre>
-        </div>
-        <div id="savedRounds">
-            <h2>Saved Rounds</h2>
-            <ol id="savedRoundsList">
-                <li>None</li>
-            </ol>
-        </div>
-        <div id="savedCourses">
-            <h2>Saved Courses</h2>
-            <ol id="savedCoursesList">
-                <li>None</li>
-            </ol>
-        </div>
-        <h2>Preferences</h2>
-        <div id="Units">
-            <label for="units">Distance measurement</label>
-            <select name="units" id="unitSelect">
-                <option value="yards">Yards</option>
-                <option value="meters">Meters</option>
-            </select>
-        </div>
-        <div id="clubs">
-            <h2>Player clubs</h2>
-            <table id="player-clubs">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Club Name</th>
-                        <th>Dispersion (Std dev)</th>
-                        <th>Delete</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-            <div class="buttonRow">
-                <button id="add-row-btn">Add Club</button>
-                <button id="save-btn" class="success">Save</button>
-                <button id="reset-clubs-btn" class="danger">Reset</button>
-            </div>
-        </div>
-    </div>
-    <script type="module" src="static/ts/settings.ts"></script>
+    <script type="module" src="src/pages/settings.tsx"></script>
 </body>
 
 </html>

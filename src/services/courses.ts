@@ -6,7 +6,7 @@ import { Feature, FeatureCollection, Point } from "geojson";
 import { featureIntersect } from "services/grids";
 import { showError } from "common/utils";
 
-export interface CourseFeatureCollection extends FeatureCollection { course?: Course }
+export interface CourseFeatureCollection extends FeatureCollection { course: Course }
 
 /**
  * *********

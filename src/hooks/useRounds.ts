@@ -1,10 +1,9 @@
-import { signal, Signal } from '@preact/signals';
-import { roundNew, roundSave, roundDelete, roundLoad, roundCreate } from 'services/rounds';
+import { signal, Signal, effect } from '@preact/signals';
+import { roundNew, roundSave, roundDelete, roundLoad, roundCreate, roundIsPlayed } from 'services/rounds';
 
 export interface RoundStore {
     round: Signal<Round>,
     isLoading: boolean,
-    save: () => Promise<void>,
     load: () => Promise<Round>,
     create: (course: Course) => Promise<Round>,
     del: () => Promise<void>,
@@ -26,11 +25,6 @@ export function useRound(roundId?: string): RoundStore {
     }
 
     /**
-     * Save round data to backend
-     */
-    const save = async (): Promise<void> => roundSave(round.value)
-
-    /**
      * Loads the data from backend and initializes the map.
      * @returns {object | undefined} the loaded round or undefined
      */
@@ -44,8 +38,10 @@ export function useRound(roundId?: string): RoundStore {
     }
 
     const del = async () => roundDelete(round.value);
+    const save = async () => roundSave(round.value);
 
     load(roundId);
+    effect(() => roundIsPlayed(round.value) && save())
 
-    return { round, save, load, create, del, isLoading }
+    return { round, load, create, del, isLoading }
 }

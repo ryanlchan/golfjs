@@ -1,6 +1,6 @@
 import type { JSX.Element } from 'preact'
 import { formatDistance, formatDistanceOptions } from "common/projections";
-import { useDisplayUnits } from "contexts/settings";
+import { useDisplayUnits } from "hooks/useDisplayUnits";
 import { showError } from 'common/utils';
 import { strokeSetDispersion } from 'services/strokes';
 

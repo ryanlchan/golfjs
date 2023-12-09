@@ -7,26 +7,35 @@ import * as L from "leaflet";
 import "leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant";
 import { enableSmoothZoom } from "leaflet.smoothwheelzoom";
 import { typeid } from "typeid-js";
-import { h, render, JSX.Element } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { h, render, JSX } from 'preact';
+import { useState, useEffect, useErrorBoundary } from 'preact/hooks';
 ;
 
 // Modules
-import * as grids from "services/grids.js";
-import * as courses from "services/courses.js";
-import { getDistance, formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "common/projections.js";
 import { PositionError } from "common/errors.js";
-import { showError, hideError, touch, getUnitsSetting, getSetting } from "common/utils.js";
+import { showError } from "common/utils.js";
 import * as cache from "common/cache.js";
 import { roundNew, roundCourseParams, roundLoad, roundSave } from "services/rounds.js";
 import { SG_SPLINES } from "services/coeffs20231205.js";
-import { getUsableClubs } from "src/services/clubs.js";
+import { getUsableClubs, useClubs } from "services/clubs.js";
 
 // Static images
 import circleMarkerImg from "./assets/img/unselected-2x.png";
 import selectedMarkerImg from "./assets/img/selected-2x.png";
 import targetImg from "./assets/img/targeted-2x.png";
 import flagImg from "./assets/img/flag.png";
+import { getLocationOnMap } from "common/location";
+import { ActiveStrokeControls } from "components/controlCards/activeStrokeControlCards";
+import { ErrorModal } from "components/errorModal";
+import { HoleInfo } from "components/holeInfo";
+import { LeafletMap } from "components/map/leafletMap";
+import { MapControlsLower, MapControlsUpper } from "components/map/mapControls";
+import { Scorecard } from "components/scorecard";
+import { SettingsStore, useSettings } from "hooks/useSettings";
+import { useRound, RoundStore } from "hooks/useRounds";
+import { useCourse } from "hooks/useCourse";
+import { useStats } from "hooks/useStats";
+import { SettingsContext } from "contexts/settingsContext";
 
 // Variables
 let mapView: any;
@@ -40,72 +49,44 @@ let displayUnits = getUnitsSetting();
 
 
 /**
- * ========
- * LayerSet
- * A frontend for tracking and reading back out layers
- * maybe not necessary anymore??
- * ========
- */
-
-/**
- * Store a layer in the layerSet
- * @param {String} id
- * @param {*} object
- */
-function layerCreate(id: string, object: any) {
-    if (layers[id]) {
-        console.error(`Layer Error: ID ${id} already exists!`)
-        return
-    }
-    layers[id] = object
-    mapView.addLayer(object)
-}
-
-/**
- * Get a view layer from the Layer Set using an ID
- * @param {String} id
- * @returns {*} object from db
- */
-function layerRead(id: string): any {
-    return layers[id]
-}
-
-/**
- * Delete a layer with a given ID
- * @param {String} id
- */
-function layerDelete(id: string) {
-    if (layers[id]) {
-        mapView.removeLayer(layers[id])
-        delete layers[id]
-    }
-}
-
-/**
- * Delete all layers
- */
-function layerDeleteAll() {
-    for (const id in layers) {
-        mapView.removeLayer(layers[id])
-        delete layers[id]
-    }
-}
-
-/**
- * Return an object of id to layers
- * @returns {Object}
- */
-function layerReadAll(): object {
-    return layers
-}
-
-
-
-/**
  * =======================
  * Views/Output formatting
  * =======================
  */
+
+/**
+ * Update a given select element with current hole options
+ * @param {number} props.currentHoleIndex
+ * @param {Hole[]} props.holes
+ */
+function HoleSelector(props: { currentHoleIndex: number, holes: Hole[] }) {
+    const handleSelect = (e) => holeSelect(parseInt(e.target.value));
+    const value = Number.isFinite(props.currentHoleIndex) ? props.currentHoleIndex : -1;
+    const selector = (<select id="holeSelector" value={value} onInput={handleSelect}>
+        <option value="-1">Overview</option>
+        {props.holes.map((hole) => <option value={hole.index} key={hole.id}>{`Hole ${hole.index + 1}`}</option>)}
+    </select>);
+    return selector;
+}
+
+function HoleChangeControl() {
+    const holeDec = () => handleHoleIncrement(-1);
+    const holeInc = () => handleHoleIncrement(1);
+    const element = <span className="holeControls">
+        <a href="#" id="holeSelectBack" className="holeSelectNudge" onClick={holeDec}>&lt;</a>
+        <HoleSelector currentHoleIndex={currentHole?.index} holes={round.holes} />
+        <a href="#" id="holeSelectNext" className="holeSelectNudge" onClick={holeInc}>&gt;</a>
+    </span>
+    return element
+}
+
+function HoleControls(props: { hole: Hole, round: Round }) {
+    const id = "holeControlsContainer"
+    return <div className="buttonRow" id={id}>
+        <HoleChangeControl />
+        <HoleInfo hole={props.hole} round={props.round} />
+    </div>
+}
 
 function StrokeAndHoleControls(props: { activeStroke: Stroke, hole: Hole, round: Round }) {
     return <div className="StrokeAndHoleControls">
@@ -124,26 +105,38 @@ function SubMapControls() {
     </>)
 }
 
-function App() {
-    return <div className="app">
-        <ErrorModal message="Test" timeout={1} />
-        <div id='mapid'>
-            <LeafletMap></LeafletMap>
-            <div id="upperMapControls">
-                <MapControlsUpper />
-            </div>
-        </div>
-        <div id="subMapControls" class="bodyContainer">
-            <SubMapControls />
-            <div id="clubStrokeCreateContainer" class="inactive">
-                <div id="clubStrokeCreateContainerCloseContainer">
-                    <button id="clubStrokeCreateContainerClose" class="dark">Close and go back</button>
+function generateAppState() {
+    const settingsStore = useSettings();
+    const roundStore = useRound();
+    return { settingsStore, roundStore }
+}
+
+function App({ roundStore, settingsStore }: { roundStore: RoundStore, settingsStore: SettingsStore }) {
+    const [error, resetError] = useErrorBoundary();
+    const courseStore = useCourse(roundStore);
+    const statsStore = useStats(roundStore, courseStore);
+
+    return <SettingsContext.Provider value={settingsStore}>
+        <div className="app">
+            {error && <ErrorModal message={error} timeout={10} />}
+            <div id='mapid'>
+                <LeafletMap></LeafletMap>
+                <div id="upperMapControls">
+                    <MapControlsUpper />
                 </div>
             </div>
+            <div id="subMapControls" class="bodyContainer">
+                <SubMapControls />
+                <div id="clubStrokeCreateContainer" class="inactive">
+                    <div id="clubStrokeCreateContainerCloseContainer">
+                        <button id="clubStrokeCreateContainerClose" class="dark">Close and go back</button>
+                    </div>
+                </div>
+            </div>
+            <div className="bodyContainer">
+            </div>
         </div>
-        <div className="bodyContainer">
-        </div>
-    </div>
+    </SettingsContext.Provider>
 
 }
 
@@ -181,11 +174,7 @@ function clubStrokeViewToggle() {
  * Handles the window onload event.
  */
 function handleLoad() {
-    loadRoundData().then(() => {
-        render(<App />, document.getElementById('appContainer'))
-        clubStrokeViewCreate(getUsableClubs(), document.getElementById("clubStrokeCreateContainer"));
-        holeSelect(-1);
-    });
+    render(<App />, document.getElementById('appContainer'))
 }
 
 function showPositionError(error: PositionError) {

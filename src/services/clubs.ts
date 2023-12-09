@@ -1,6 +1,7 @@
 import { typeid } from "typeid-js";
-import { getSetting, setSetting } from "../common/utils";
+import { getSettings, setSetting } from "common/cache";
 
+export const CLUBS_KEY = 'clubs';
 export class GolfClub {
     id: string;
     name: string; // actually more like type
@@ -40,8 +41,9 @@ export function getDefaultClubs(): GolfClub[] {
  * Get all user-settable golf clubs
  * @returns {GolfClub[]} An array of all user-set golf clubs
  */
-export function getUserClubs(): GolfClub[] {
-    return getSetting('clubs') || [];
+export function getUserClubs(settingsMap?): GolfClub[] {
+    const settings = settingsMap || getSettings();
+    return settings[CLUBS_KEY] || [];
 }
 
 /**
@@ -53,8 +55,13 @@ export function getUsableClubs(): GolfClub[] {
     if (!clubs || clubs.length == 0) {
         clubs = getDefaultClubs();
     }
-    clubs.push({ id: "15", name: "Penalty", dispersion: 1, class: "danger" })
+    clubs = clubs.concat(getSpecialClubs());
     return clubs;
+}
+
+export function getSpecialClubs(): GolfClub[] {
+    const penalty_club = { id: "15", name: "Penalty", dispersion: 1, class: "danger" }
+    return [penalty_club];
 }
 
 /**
@@ -62,7 +69,8 @@ export function getUsableClubs(): GolfClub[] {
  * @param {GolfClub[]} clubs an array of golf club objects
  */
 export function saveUserClubs(clubs: GolfClub[]): void {
-    return setSetting('clubs', clubs);
+    const userClubs = clubs.filter(club => club.id)
+    return setSetting(CLUBS_KEY, userClubs);
 }
 
 export function resetUserClubs(): void {
