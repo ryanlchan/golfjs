@@ -1,7 +1,5 @@
 import { typeid } from "typeid-js";
 import { getSetting, setSetting } from "../common/utils";
-import { signal } from '@preact/signals';
-import type { Signal } from '@preact/signals';
 
 export class GolfClub {
     id: string;
@@ -15,24 +13,11 @@ export class GolfClub {
     }
 }
 
-export const useClubs = () => {
-    const clubs: Signal<GolfClub[]> = signal(getUsableClubs());
-    const add = (club: GolfClub) => clubs.value = [...clubs.value, club];
-    const remove = (club: GolfClub) => clubs.value = clubs.value.filter(c => c.id == club.id);
-    const save = () => saveUserClubs(clubs.value);
-    const reset = () => {
-        const defaultClubs = getDefaultClubs();
-        saveUserClubs(defaultClubs);
-        clubs.value = getUsableClubs();
-    }
-    return { clubs, add, remove, save, reset };
-}
-
 /**
  * Lookup function to get all default clubs, currently static
  * @returns {GolfClub[]}
  */
-function getDefaultClubs(): GolfClub[] {
+export function getDefaultClubs(): GolfClub[] {
     return [
         { id: "1", name: "D", dispersion: 30 },
         { id: "2", name: "3w", dispersion: 27 },
@@ -55,7 +40,7 @@ function getDefaultClubs(): GolfClub[] {
  * Get all user-settable golf clubs
  * @returns {GolfClub[]} An array of all user-set golf clubs
  */
-function getUserClubs(): GolfClub[] {
+export function getUserClubs(): GolfClub[] {
     return getSetting('clubs') || [];
 }
 
@@ -63,7 +48,7 @@ function getUserClubs(): GolfClub[] {
  * Lookup function to get all usable clubs, including non-user set penalty/undeclared clubs
  * @returns {GolfClub[]} an array of all usable Golf Clubs
  */
-function getUsableClubs(): GolfClub[] {
+export function getUsableClubs(): GolfClub[] {
     let clubs = getUserClubs();
     if (!clubs || clubs.length == 0) {
         clubs = getDefaultClubs();
@@ -76,10 +61,10 @@ function getUsableClubs(): GolfClub[] {
  * Persist a set of user-defined clubs
  * @param {GolfClub[]} clubs an array of golf club objects
  */
-function saveUserClubs(clubs: GolfClub[]): void {
+export function saveUserClubs(clubs: GolfClub[]): void {
     return setSetting('clubs', clubs);
 }
 
-function resetUserClubs(): void {
+export function resetUserClubs(): void {
     return saveUserClubs(getDefaultClubs());
 }
