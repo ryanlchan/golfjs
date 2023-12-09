@@ -2,7 +2,7 @@ import { typeid } from "typeid-js";
 import { FeatureCollection } from "geojson";
 
 import * as cache from "common/cache";
-import { courseLoad, getHoleGreenCenter } from "services/courses";
+import { courseLoad, fetchHoleGreenCenter } from "services/courses";
 import { defaultCurrentHole } from "services/holes";
 
 /**
@@ -46,7 +46,7 @@ export async function roundInitialize(round: Round, courseData: FeatureCollectio
     let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
     for (let line of lines) {
         const index = parseInt(line.properties.ref) - 1;
-        const cog = await getHoleGreenCenter(roundCourseParams(round), index);
+        const cog = await fetchHoleGreenCenter(roundCourseParams(round), index);
         const pin = {
             x: cog[0],
             y: cog[1],

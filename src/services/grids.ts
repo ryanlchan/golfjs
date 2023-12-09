@@ -1,7 +1,7 @@
 import * as turf from "@turf/turf";
 import { HOLE_OUT_COEFFS, SG_SPLINES } from "./coeffs20231205";
 import { Feature, FeatureCollection, Point } from "geojson";
-import { CourseFeatureCollection, findTerrainType } from "./courses";
+import { CourseFeatureCollection, getTerrainAt } from "./courses";
 
 export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
 
@@ -276,7 +276,7 @@ export function strokesRemaining(distanceToHole: number, terrainType: string): n
 export function strokesRemainingFrom(feature: FeatureCollection, holeCoordinate: number[], courseData: CourseFeatureCollection): number {
     const center = turf.center(feature);
     const distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
-    const terrainType = findTerrainType(courseData, center);
+    const terrainType = getTerrainAt(courseData, center);
     return strokesRemaining(distanceToHole, terrainType);
 }
 
@@ -294,7 +294,7 @@ function strokesGained(grid: FeatureCollection, holeCoordinate: number[], stroke
         if (props.strokesRemaining === undefined) {
             const center = turf.center(feature);
             props.distanceToHole = turf.distance(center, holeCoordinate, { units: "kilometers" }) * 1000;
-            props.terrainType = findTerrainType(course, center);
+            props.terrainType = getTerrainAt(course, center);
             props.strokesRemaining = strokesRemaining(props.distanceToHole, props.terrainType);
         }
         props.strokesGained = strokesRemainingStart - props.strokesRemaining - 1;
@@ -337,7 +337,7 @@ export function sgGrid(startCoordinate: number[], aimCoordinate: number[],
         dispersion = -dispersion * distanceToAim;
         dispersion = Math.max(0.5, dispersion);
     }
-    const terrainTypeStart = startTerrain ? startTerrain : findTerrainType(courseData, startPoint);
+    const terrainTypeStart = startTerrain ? startTerrain : getTerrainAt(courseData, startPoint);
     const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000
     const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
     const hexGrid = hexCircleCreate(aimCoordinate.reverse(), dispersion * 3);
@@ -410,7 +410,7 @@ export function targetGrid(startCoordinate: number[], aimCoordinate: number[],
         dispersion = -dispersion * distanceToAim;
         dispersion = Math.max(0.5, dispersion);
     }
-    const terrainTypeStart = startTerrain ? startTerrain : findTerrainType(courseData, startPoint);
+    const terrainTypeStart = startTerrain ? startTerrain : getTerrainAt(courseData, startPoint);
     const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000;
     const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
 

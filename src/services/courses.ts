@@ -221,9 +221,13 @@ export async function courseLoad(course: Course, force?: boolean): Promise<Cours
  * @param {number} holeIndex the 0-base index of the hole in question
  * @returns {Feature} a single line feature
  */
-export async function getHoleLine(course: Course, holeIndex: number): Promise<Feature> {
+export async function fetchHoleLine(course: Course, holeIndex: number): Promise<Feature> {
     const data = await courseLoad(course);
-    return turf.getCluster(data, { 'golf': "hole", 'ref': holeIndex + 1 }).features[0];
+    return getHoleLine(data, holeIndex);
+}
+
+export function getHoleLine(data: CourseFeatureCollection, holeIndex: number): Feature {
+    return data.features.find(el => (el.properties.golf == "hole") && (el.properties.ref == holeIndex + 1));
 }
 
 /**
@@ -232,17 +236,15 @@ export async function getHoleLine(course: Course, holeIndex: number): Promise<Fe
  * @param {number} holeIndex the 0-base index of the hole in question
  * @returns {FeatureCollection} all polys that intersect with the reference playing line
  */
-async function getHolePolys(course: Course, holeIndex: number): Promise<FeatureCollection> {
+async function fetchHolePolys(course: Course, holeIndex: number): Promise<FeatureCollection> {
     const data = await courseLoad(course);
-    const line = await getHoleLine(course, holeIndex);
-    if (!data) {
-        let msg = "Course data is incomplete, please contact support!";
-        console.error(msg);
-        await courseCacheDelete(course);
-        throw new Error(msg);
-    }
+    return getHolePolys(data, holeIndex);
+}
+
+function getHolePolys(data: CourseFeatureCollection, holeIndex: number): FeatureCollection {
+    const line = getHoleLine(data, holeIndex);
     if (!line) {
-        let courseName = course["name"];
+        let courseName = data.course?.name;
         let msg = `No hole line found for course ${courseName} hole ${holeIndex}`;
         console.warn(msg);
         return;
@@ -257,9 +259,14 @@ async function getHolePolys(course: Course, holeIndex: number): Promise<FeatureC
  * @param {number} holeIndex the 0-base index of the hole in question
  * @returns {FeatureCollection} greens that intersect a single hole's reference playing line
  */
-async function getHoleGreen(course: Course, holeIndex: number): Promise<FeatureCollection> {
-    let data = await getHolePolys(course, holeIndex);
-    return turf.getCluster(data, { 'terrainType': "green" });
+async function fetchHoleGreen(course: Course, holeIndex: number): Promise<FeatureCollection> {
+    let data = await fetchHolePolys(course, holeIndex);
+    return getHoleGreen(data, holeIndex);
+}
+
+function getHoleGreen(data: CourseFeatureCollection, holeIndex: number): FeatureCollection {
+    const holePolys = getHolePolys(data, holeIndex);
+    return turf.getCluster(holePolys, { 'terrainType': "green" });
 }
 
 /**
@@ -268,8 +275,13 @@ async function getHoleGreen(course: Course, holeIndex: number): Promise<FeatureC
  * @param {number} holeIndex the hole number
  * @returns {number[]} the center of the green as coordinates
  */
-export async function getHoleGreenCenter(course: Course, holeIndex: number): Promise<number[]> {
-    const green = await getHoleGreen(course, holeIndex);
+export async function fetchHoleGreenCenter(course: Course, holeIndex: number): Promise<number[]> {
+    const data = await fetchHolePolys(course, holeIndex);
+    return getHoleGreenCenter(data, holeIndex);
+}
+
+export function getHoleGreenCenter(data: CourseFeatureCollection, holeIndex: number): number[] {
+    const green = getHoleGreen(data, holeIndex);
     return turf.center(green).geometry.coordinates;
 }
 
@@ -302,9 +314,13 @@ function turfbbToleafbb(turfbb: number[]): number[][] {
  * @param {Course} course
  * @returns {number[number[]]} a 2x2 bbox
  */
-export async function getGolfCourseBbox(course: Course): Promise<number[][]> {
+export async function fetchGolfCourseBbox(course: Course): Promise<number[][]> {
     const polys = await courseLoad(course);
-    return turfbbToleafbb(turf.bbox(polys));
+    return getGolfCourseBbox(polys);
+}
+
+function getGolfCourseBbox(data: CourseFeatureCollection): number[][] {
+    return turfbbToleafbb(turf.bbox(data));
 }
 
 /**
@@ -313,9 +329,15 @@ export async function getGolfCourseBbox(course: Course): Promise<number[][]> {
  * @param {number} holeIndex
  * @returns {number[number[]]} a 2x2 bbox
  */
-export async function getGolfHoleBbox(course: Course, holeIndex: number): Promise<number[][]> {
-    let line = await getHoleLine(course, holeIndex);
-    return turfbbToleafbb(turf.bbox(line));
+export async function fetchGolfHoleBbox(course: Course, holeIndex: number): Promise<number[][]> {
+    let data = await fetchHolePolys(course, holeIndex);
+    return getGolfHoleBbox(data, holeIndex);
+}
+
+function getGolfHoleBbox(data: CourseFeatureCollection, holeIndex: number): number[][] {
+    const line = getHoleLine(data, holeIndex);
+    const buffered = turf.buffer(line, 20, { units: "meters" })
+    return turfbbToleafbb(turf.bbox(buffered))
 }
 
 /**
@@ -325,7 +347,7 @@ export async function getGolfHoleBbox(course: Course, holeIndex: number): Promis
  * @param {FeatureCollection} [bounds] A prescrubbed collection representing the out_of_bounds boundary, optional
  * @returns {String} the terrain type
  */
-export function findTerrainType(collection: FeatureCollection, point: Point, bounds?: FeatureCollection): string {
+export function getTerrainAt(collection: FeatureCollection, point: Point, bounds?: FeatureCollection): string {
     if (!bounds) {
         bounds = findBoundaries(collection);
     }
@@ -351,8 +373,8 @@ export function findTerrainType(collection: FeatureCollection, point: Point, bou
  * @param {number[] | Point} location the location, as a WGS84 latlong coordinate
  * @returns {string} the terrain type
  */
-export async function getTerrainAt(course: Course, location: (number[] | turf.Point)): Promise<string> {
+export async function fetchTerrainAt(course: Course, location: (number[] | turf.Point)): Promise<string> {
     let golfCourseData = await courseLoad(course);
     let point = location instanceof Array ? turf.flip(turf.point(location)) : location;
-    return findTerrainType(golfCourseData, point);
+    return getTerrainAt(golfCourseData, point);
 }
