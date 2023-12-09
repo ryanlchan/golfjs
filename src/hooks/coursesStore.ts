@@ -1,38 +1,46 @@
-import { Signal, signal } from '@preact/signals';
+
 import { CourseFeatureCollection, courseCacheAll, courseCacheDelete } from 'services/courses';
+import { Store, store, asyncMutate, StoreMutator } from 'hooks/core';
+import { useMemo } from 'preact/hooks';
 
-export interface CoursesStore {
-    courses: Signal<CourseFeatureCollection[]>,
-    isLoading: boolean,
+export interface CoursesStore extends StoreMutator<CourseFeatureCollection[]> {
     load: () => Promise<CourseFeatureCollection[]>,
-    del: (course: Course) => Promise<void>,
+    del: (item: CourseFeatureCollection) => Promise<CourseFeatureCollection[]>,
 }
-export const initCoursesStore = (): CoursesStore => {
-    const courses = signal([] as CourseFeatureCollection[]);
-    let isLoading = false;
 
-    /**
-     * Loads all rounds from the backend
-     * @returns {Course[]} all loaded rounds
-     */
-    const load = async (): Promise<CourseFeatureCollection[]> => {
-        isLoading = true;
-        return courseCacheAll().then(loaded => {
+function coursesStore(initialState?): Store<Course[]> {
+    return store(initialState);
+}
+
+function courseMutator(itemStore) {
+    const load = async () => {
+        return asyncMutate(itemStore, async () => {
+            const loaded = await courseCacheAll();
             loaded.sort((a, b) => a.course.name.localeCompare(b.course.name));
-            courses.value = loaded;
-            isLoading = false;
             return loaded
         });
     }
 
-    const del = async (course: Course) => {
-        await courseCacheDelete(course);
-        courses.value = courses.value.filter(c => (
-            course.id == c.course?.id && course.name == c.course?.name
-        ));
+    const del = async (item) => {
+        return asyncMutate(itemStore, async () => {
+            await courseCacheDelete(item);
+            return itemStore.data.value.filter(c => (item.id == c.course?.id && item.name == c.course?.name))
+        })
+
     }
+    return { load, del }
+}
 
-    load();
+export function coursesStoreMutator(initialState?): CoursesStore {
+    const s = coursesStore(initialState);
+    const mutator = courseMutator(s);
+    return { ...s, ...mutator };
+}
 
-    return { courses, load, del, isLoading }
+export function useCourses(initialState?): CoursesStore {
+    return useMemo(() => {
+        const sm = coursesStoreMutator(initialState);
+        sm.load();
+        return sm
+    }, [])
 }

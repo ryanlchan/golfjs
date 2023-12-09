@@ -6,7 +6,7 @@ import { GolfClub } from 'services/clubs';
 
 
 export const ClubEditor = ({ clubStore }: { clubStore: ClubStore }) => {
-    const clubs = clubStore.clubs.value;
+    const clubs = clubStore.data.value;
     const addClub = () => { if (clubs.length < 14) clubStore.add(new GolfClub()) }
     const deleteClub = (club: GolfClub) => { clubStore.remove(club) };
     const updateClub = (updatedClub) => {

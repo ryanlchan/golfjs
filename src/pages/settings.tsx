@@ -1,18 +1,18 @@
-import { signal } from "@preact/signals";
-import useSWR from "swr";
 import { useErrorBoundary, useState } from 'preact/hooks';
 import { render } from "preact";
 
-import { roundDelete, roundLoadAll, roundSelect, roundCreate } from "services/rounds";
-import { CourseFeatureCollection, courseCacheAll, courseCacheDelete } from "services/courses";
-import { RoundStore, initRoundStore } from 'hooks/roundStore';
-import { initClubStore } from "hooks/clubStore";
-import { initSettingsStore } from "hooks/settingsStore";
+import { roundDelete, roundSelect, roundCreate } from "services/rounds";
+import { CourseFeatureCollection, courseCacheDelete } from "services/courses";
+import { RoundStore, roundStoreMutator } from 'hooks/roundStore';
+import { ClubStore, clubStoreMutator } from "hooks/clubStore";
+import { SettingsStore, settingsStoreMutator } from "hooks/settingsStore";
 import { DISPLAY_UNIT_KEY, useDisplayUnits } from "hooks/useDisplayUnits";
 import { SettingsContext } from "contexts/settingsContext";
 import { ErrorModal } from "components/errorModal";
 import { ClubEditor } from "components/clubEditor";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
+import { RoundsStore, roundsStoreMutator } from "hooks/roundsStore";
+import { CoursesStore, coursesStoreMutator } from "hooks/coursesStore";
 
 function RoundEditor({ value, onSave }) {
     const [isEditing, setIsEditing] = useState(false);
@@ -47,10 +47,10 @@ function RoundEditor({ value, onSave }) {
 
 function RoundJSONView({ roundStore }: { roundStore: RoundStore }) {
     const [expanded, setExpanded] = useState(false);
-    const json = JSON.stringify(roundStore.round.value, null, 2);
+    const json = JSON.stringify(roundStore.data.value, null, 2);
     const copy = () => navigator.clipboard.writeText(json);
     const show = () => setExpanded(!expanded);
-    const save = (parsed) => roundStore.round.value = parsed;
+    const save = (parsed) => roundStore.data.value = parsed;
     return <div className="RoundJSON">
         <div className="buttonRow">
             <h2>Export round data</h2>
@@ -59,6 +59,10 @@ function RoundJSONView({ roundStore }: { roundStore: RoundStore }) {
         </div>
         {expanded && <RoundEditor value={json} onSave={save} />}
     </div>
+}
+
+function SignaledRoundList({ roundsStore }) {
+    return <RoundList initialRounds={roundsStore.data.value} />
 }
 
 function RoundList({ initialRounds }: { initialRounds: Round[] }) {
@@ -101,6 +105,10 @@ function RoundListItem({ round, onSelect, onDelete }) {
             </div>
         </div>
     </li>
+}
+
+function SignaledCourseList({ coursesStore }) {
+    return <CourseList initialCourses={coursesStore.data.value} />
 }
 
 const CourseList = ({ initialCourses }: { initialCourses: CourseFeatureCollection[] }) => {
@@ -157,69 +165,60 @@ function UnitSelector({ onChange }: { onChange: (e: Event) => void }) {
     </div>
 }
 
-function SettingsPage({ roundsState, coursesState, roundStore, clubStore, settingsStore }) {
+function SettingsPage({ roundsStore, coursesStore, roundStore, clubStore, settingsStore }:
+    {
+        roundsStore: RoundsStore,
+        coursesStore: CoursesStore,
+        roundStore: RoundStore,
+        clubStore: ClubStore,
+        settingsStore: SettingsStore,
+    }) {
     const [error, _] = useErrorBoundary();
-    if (roundsState.isLoading || coursesState.isLoading) return <LoadingPlaceholder />
     const unitChange = (e) => {
         const newUnit = e.target.value;
-        settingsStore.set(DISPLAY_UNIT_KEY, newUnit);
+        settingsStore.set(DISPLAY_UNIT_KEY, newUnit)
     };
-    return <SettingsContext.Provider value={settingsStore}>
-        <div className="settingsPage">
-            {error && <ErrorModal message={error} timeout={10} />}
-            <RoundJSONView roundStore={roundStore} />
-            <RoundList initialRounds={roundsState.data} />
-            <CourseList initialCourses={coursesState.data} />
-            <h2>Preferences</h2>
-            <UnitSelector onChange={unitChange} />
-            <h2>Player Clubs</h2>
-            <ClubEditor clubStore={clubStore} />
-        </div>
-    </SettingsContext.Provider>
-
+    const debug = () => { debugger };
+    window.secretdebugfunc = debug;
+    return (roundsStore.isLoading.value || coursesStore.isLoading.value || roundStore.isLoading.value) ?
+        <LoadingPlaceholder /> :
+        (<SettingsContext.Provider value={settingsStore}>
+            <div className="settingsPage">
+                {error && <ErrorModal message={error} timeout={10} />}
+                <RoundJSONView roundStore={roundStore} />
+                <SignaledRoundList roundsStore={roundsStore} />
+                <SignaledCourseList coursesStore={coursesStore} />
+                <h2>Preferences</h2>
+                <UnitSelector onChange={unitChange} />
+                <h2>Player Clubs</h2>
+                <ClubEditor clubStore={clubStore} />
+            </div>
+        </SettingsContext.Provider>
+        )
 }
 
-async function generateAppState() {
-    const rounds = signal([])
-    const loadRounds = () => roundLoadAll().then(loaded => {
-        loaded.sort((a, b) => a.date.localeCompare(b.date))
-        rounds.value = loaded;
-    });
-    const roundsStore = { rounds, load: loadRounds }
-
-    const courses = signal([])
-    const loadCourses = () => courseCacheAll().then(loaded => {
-        loaded.sort((a, b) => a.course.name.localeCompare(b.course.name));
-        courses.value = loaded;
-    });
-    const coursesStore = { courses, load: loadCourses };
-    return { roundsStore, coursesStore }
-}
-
-function SettingsStateProvider() {
-    const fetchRounds = (_) => roundLoadAll().then(loaded => {
-        loaded.sort((a, b) => a.date.localeCompare(b.date))
-        return loaded;
-    });
-    const fetchCourses = (_) => courseCacheAll().then(loaded => {
-        loaded.sort((a, b) => a.course.name.localeCompare(b.course.name));
-        return loaded;
-    });
-    const roundStore = initRoundStore();
-    const settingsStore = initSettingsStore();
-    const clubStore = initClubStore(settingsStore);
+function generateAppState() {
+    const roundsStore = roundsStoreMutator();
+    const coursesStore = coursesStoreMutator();
+    const roundStore = roundStoreMutator();
+    const settingsStore = settingsStoreMutator();
+    const clubStore = clubStoreMutator(settingsStore);
+    roundsStore.load();
+    coursesStore.load();
+    roundStore.load();
     const props = {
-        roundsState: useSWR("allRounds", fetchRounds),
-        coursesState: useSWR("allCourses", fetchCourses),
+        roundsStore,
+        coursesStore,
         roundStore,
         settingsStore,
         clubStore
     }
-    return <SettingsPage {...props} />
+    return props
 }
 
 function handleLoad() {
-    render(<SettingsStateProvider />, document.querySelector('body'));
+    const props = generateAppState();
+    render(<SettingsPage {...props} />, document.querySelector('body'));
 }
 
 window.onload = handleLoad;

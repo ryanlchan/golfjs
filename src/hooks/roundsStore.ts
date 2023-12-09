@@ -1,36 +1,46 @@
-import { signal, Signal } from '@preact/signals';
 import { roundDelete, roundLoadAll } from 'services/rounds';
+import { Store, store, asyncMutate, StoreMutator } from 'hooks/core';
+import { useMemo } from 'preact/hooks';
 
-export interface RoundsStore {
-    round: Signal<Round[]>,
-    isLoading: boolean,
+
+export interface RoundsStore extends StoreMutator<Round[]> {
     load: () => Promise<Round[]>,
-    del: (round: Round) => Promise<void>,
+    del: (item: Round) => Promise<Round[]>,
 }
-export function initRoundsStore(): RoundsStore {
-    const rounds = signal([]);
-    let isLoading = false;
 
-    /**
-     * Loads all rounds from the backend
-     * @returns {Round[]} all loaded rounds
-     */
-    const load = async (): Promise<Round[]> => {
-        isLoading = true;
-        return roundLoadAll().then(loaded => {
+function roundsStore(initialState?): Store<Round[]> {
+    return store(initialState);
+}
+
+function roundsMutator(roundsStore) {
+    const load = async () => {
+        return asyncMutate(roundsStore, async () => {
+            const loaded = await roundLoadAll()
             loaded.sort((a, b) => a.date.localeCompare(b.date))
-            rounds.value = loaded;
-            isLoading = false;
-            return loaded
+            return loaded;
         });
     }
 
-    const del = async (round: Round) => {
-        await roundDelete(round);
-        rounds.value = rounds.value.filter(r => round.id == r.id)
+    const del = async (item) => {
+        return asyncMutate(roundsStore, async () => {
+            await roundDelete(item);
+            return roundsStore.data.value.filter(r => item.id == r.id)
+        })
+
     }
+    return { load, del }
+}
 
-    load();
+export function roundsStoreMutator(initialState?) {
+    const s = roundsStore(initialState);
+    const mutator = roundsMutator(s);
+    return { ...s, ...mutator };
+}
 
-    return { round: rounds, load, del, isLoading }
+export function useRounds(initialState?) {
+    return useMemo(() => {
+        const sm = roundsStoreMutator(initialState);
+        sm.load();
+        return sm
+    }, [])
 }
