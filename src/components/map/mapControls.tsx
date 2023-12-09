@@ -37,8 +37,9 @@ function DistanceTracker(props: { location: Coordinate, name: string }) {
     if (!active) return;
     const opt = { to_unit: displayUnits, include_unit: true };
     const pos = currentCoordRead();
-    const dist = formatDistanceAsNumber(getDistance(pos, props.location), opt);
-    if (dist > 650) return
+    const dist = formatDistance(getDistance(pos, props.location), opt);
+    const rawDist = formatDistanceAsNumber(getDistance(pos, props.location), opt);
+    if (rawDist > 650) return
     const id = `distanceTo${props.name}Container`;
     return (<div id={id} className="mapInfoBox">
         <span>{props.name}</span>

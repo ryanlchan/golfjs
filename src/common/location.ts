@@ -1,4 +1,7 @@
 import * as turf from '@turf/turf';
+import L from 'leaflet';
+import { PositionError } from 'common/errors';
+import { showError, hideError } from 'common/utils';
 
 /**
  * =========
@@ -6,27 +9,44 @@ import * as turf from '@turf/turf';
  * =========
  */
 
+let currentPositionEnabled;
+let currentPosition;
+
+/**
+ * Get the user's location from browser or cache and continue to watch it
+ * @param {boolean} force set to true to skip location cache
+ * @returns {Promise} resolves with a GeolocationPositionIsh
+ */
+export async function watchLocation(force?: boolean): Promise<any> {
+    // If location is not yet tracked, turn on BG tracking + force refresh
+    if (!(currentPositionEnabled)) {
+        const updatePosition = (position) => currentPosition = position;
+        const logError = (e) => {
+            console.error(e);
+            console.warn("Geolocation error")
+        }
+        const options = { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+        currentPositionEnabled = navigator.geolocation.watchPosition(updatePosition, logError, options);
+        force = true;
+    }
+    return getLocationOnce(force);
+}
+
 /**
  * Get the user's location from browser or cache
  * @param {boolean} force set to true to skip location cache
  * @returns {Promise} resolves with a GeolocationPositionIsh
  */
-function getLocation(force?: boolean): Promise<any> {
-    // If location is not yet tracked, turn on BG tracking + force refresh
-    if (!(currentPositionEnabled)) {
-        currentPositionUpdate();
-        force = true;
-    }
+export async function getLocationOnce(force?: boolean): Promise<GeolocationPositionIsh> {
     return new Promise((resolve, reject) => {
         const position = currentPositionRead();
         if (position && !(force)) {
             resolve(position);
         } else if (!navigator.geolocation) {
             // Create a custom position error
-            let e = new PositionError("Geolocation is not supported by this browser.", 2);
-            reject(e);
+            throw new PositionError("Geolocation is not supported by this browser.", 2);
         } else {
-            const options = { maximumAge: 5000, timeout: 5000, enableHighAccuracy: true }
+            const options = { maximumAge: 60000, timeout: 5000, enableHighAccuracy: true }
             navigator.geolocation.getCurrentPosition(resolve, reject, options);
         }
     });
@@ -39,8 +59,8 @@ function getLocation(force?: boolean): Promise<any> {
  * @param {Function} condition
  * @returns {Promise} resolves with a GeolocationPositionIsh-ish
  */
-function getLocationIf(condition: Function): Promise<any> {
-    return getLocation().then((position) => {
+export async function getLocationIf(condition: Function): Promise<any> {
+    return watchLocation().then((position) => {
         if (condition(position)) {
             return position;
         } else {
@@ -54,7 +74,7 @@ function getLocationIf(condition: Function): Promise<any> {
  * For example, if the user is way out of bounds
  * @returns {Promise<GeolocationPositionIsh>} the click location as a promise
  */
-function getClickLocation(): Promise<GeolocationPositionIsh> {
+export async function getClickLocation(): Promise<GeolocationPositionIsh> {
     return new Promise((resolve) => {
         const error = new PositionError("Click the map to set location", 0);
         showError(error, -1);
@@ -76,7 +96,7 @@ function getClickLocation(): Promise<GeolocationPositionIsh> {
  * @param {turf.FeatureCollection} bound
  * @returns {Promise} resolves with a GeolocationPositionIsh-ish
  */
-function getLocationWithin(bound: turf.FeatureCollection): Promise<GeolocationPositionIsh> {
+export async function getLocationWithin(bound: turf.FeatureCollection): Promise<GeolocationPositionIsh> {
     return getLocationIf((position) => {
         const point = turf.point([position.coords.longitude, position.coords.latitude])
         return turf.booleanWithin(point, bound)
@@ -88,19 +108,20 @@ function getLocationWithin(bound: turf.FeatureCollection): Promise<GeolocationPo
  * Only useful because polygonizing the map for turf is a pain
  * @returns {Promise} resolves with a GeolocationPositionIsh-ish
  */
-function getLocationOnMap(): Promise<GeolocationPositionIsh> {
+export async function getLocationOnMap(): Promise<GeolocationPositionIsh> {
     return getLocationIf((position) => {
         const userLatLng = L.latLng(position.coords.latitude, position.coords.longitude);
         return mapView.getBounds().contains(userLatLng)
     }).catch(getClickLocation);
 }
 
+
 /**
  * Shortcut to get current position from cache
  * @param {number} maximumAge the maximum length of time since update to accept
  * @returns {GeolocationPosition}
  */
-function currentPositionRead(maximumAge = 5000): GeolocationPosition {
+export function currentPositionRead(maximumAge = 5000): GeolocationPosition {
     // Expire current position if beyond timeout (5s)
     if ((currentPosition?.timestamp < (Date.now() - maximumAge))
         || (currentPosition?.coords.accuracy > 10)) {
@@ -114,7 +135,7 @@ function currentPositionRead(maximumAge = 5000): GeolocationPosition {
  * @param {number} maximumAge the maximum length of time since update to accept
  * @returns {Coordinate}
  */
-function currentCoordRead(maximumAge = 5000): Coordinate {
+export function currentCoordRead(maximumAge = 5000): Coordinate {
     const pos = currentPositionRead(maximumAge);
     if (!pos) return undefined;
     return { x: pos.coords.longitude, y: pos.coords.latitude, crs: "EPSG:4326" };

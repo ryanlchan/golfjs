@@ -15,7 +15,7 @@ jobs:
       - name: Fetch API Data 📦
         uses: JamesIves/fetch-api-data-action@v2
         with:
-          endpoint: https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%3B(relation%5Bleisure%3Dgolf_course%5D%3Bway%5Bleisure%3Dgolf_course%5D%3B)%3Bout+tags%3B
+          endpoint: https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%3B(relation%5Bleisure%3Dgolf_course%5D%3Bway%5Bleisure%3Dgolf_course%5D%3B)%3Bout+tags+center%3B
           configuration: '{ "method": "GET" }'
           save-name: courses
           set-output: false

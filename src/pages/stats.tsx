@@ -12,6 +12,7 @@ import { useStats } from "hooks/useStats";
 import type { StrokeStats } from 'services/stats';
 import { columnizeStrokes, groupBy, reduceStrokeColumns, summarizeStrokeGroups } from "services/stats";
 import { useCourse } from "hooks/useCourse";
+import { LoadingPlaceholder } from "components/loadingPlaceholder";
 
 /**
  * **************
@@ -402,13 +403,6 @@ function StatsTitle({ roundStore, downloadHandler }:
             <a id="downloadAsCSV" href="#" className="undecorated" title="Download as CSV">&#10515;</a>
         </h1>
         <p className="subtext">{roundDate.toLocaleString()}</p>
-    </div>
-}
-
-function LoadingPlaceholder(props) {
-    return <div className="loading">
-        <h3>Loading...</h3>
-        <progress></progress>
     </div>
 }
 

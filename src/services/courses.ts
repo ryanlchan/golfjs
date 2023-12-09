@@ -1,10 +1,10 @@
 import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
-import { OSM_GOLF_TO_TERRAIN, SG_SPLINES } from "./coeffs20231205";
-import * as cache from "../common/cache";
+import { OSM_GOLF_TO_TERRAIN, SG_SPLINES } from "services/coeffs20231205";
+import * as cache from "common/cache";
 import { Feature, FeatureCollection, Point } from "geojson";
-import { featureIntersect } from "./grids";
-import { showError } from "../common/utils";
+import { featureIntersect } from "services/grids";
+import { showError } from "common/utils";
 
 export interface CourseFeatureCollection extends FeatureCollection { course?: Course }
 
@@ -233,14 +233,12 @@ export async function getHoleLine(course: Course, holeIndex: number): Promise<Fe
  * @returns {FeatureCollection} all polys that intersect with the reference playing line
  */
 async function getHolePolys(course: Course, holeIndex: number): Promise<FeatureCollection> {
-    const data = courseLoad(course);
-    const line = getHoleLine(course, holeIndex);
-    try {
-        await Promise.all([data, line]);
-    } catch (e) {
+    const data = await courseLoad(course);
+    const line = await getHoleLine(course, holeIndex);
+    if (!data) {
         let msg = "Course data is incomplete, please contact support!";
         console.error(msg);
-        cache.remove(courseKey(course));
+        await courseCacheDelete(course);
         throw new Error(msg);
     }
     if (!line) {

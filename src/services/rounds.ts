@@ -84,7 +84,6 @@ export async function roundLoad(id?: string): Promise<Round> {
  * @param round the round to save
  */
 export async function roundSave(round: Round): Promise<void> {
-    if (!roundIsPlayed(round)) return
     await roundSelect(round);
     return cache.set(round.id, round, ROUNDS_NAMESPACE);
 }

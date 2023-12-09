@@ -671,3 +671,36 @@ input.buttonInput {
     font-size: 16px;
     padding: 8px;
 }
+
+ol.courseSearchResults {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+ol.courseSearchResults li {
+    border-bottom: 1px solid #c7c7cc;
+    border-radius: 5px;
+    padding: 10px 15px;
+    margin: 10px auto;
+    font-size: 16px;
+}
+
+ol.courseSearchResults a {
+    text-decoration: none;
+}
+
+ol.courseSearchResults li:last-child {
+    border-bottom: none;
+}
+
+.courseName {
+    color: #000000;
+    font-weight: bold;
+}
+
+.courseAddress {
+    color: #8e8e93;
+    font-size: 14px;
+    margin-top: 5px;
+}
