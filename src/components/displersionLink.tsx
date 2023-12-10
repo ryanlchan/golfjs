@@ -1,23 +1,32 @@
-import type { JSX.Element } from 'preact'
-import { formatDistance, formatDistanceOptions } from "common/projections";
-import { useDisplayUnits } from "hooks/useDisplayUnits";
-import { showError } from 'common/utils';
-import { strokeSetDispersion } from 'services/strokes';
+import type { JSX } from 'preact'
+import { formatDistance, formatDistanceAsNumber, formatDistanceOptions } from "common/projections";
+import { StrokesStateManager } from 'hooks/strokesStore';
 
-function strokeDistancePrompt(stroke: Stroke) {
+function strokeDispersionPrompt(stroke: Stroke,
+    strokesStateManager: StrokesStateManager,
+    distOptions?: formatDistanceOptions) {
     let disp = prompt("Enter a dispersion:");
     if (disp === null || disp === "") return;
-    if (!Number.isFinite(parseFloat(disp))) return showError("Invalid dispersion");
-    strokeSetDispersion(stroke, disp);
+    const num = parseFloat(disp);
+    if (!Number.isFinite(num)) throw new Error("Invalid dispersion");
+    const dispersion = distOptions ? formatDistanceAsNumber(num, distOptions) : num;
+    stroke.dispersion = dispersion;
+    strokesStateManager.update(stroke);
 }
 
-export function DispersionLink(props: { stroke: Stroke, distOptions?: formatDistanceOptions, id?: string }): JSX.Element {
-    const displayUnits = useDisplayUnits();
-    const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
-    const formattedDistance = formatDistance(props.stroke.dispersion, distOptions);
+// const displayUnits = useDisplayUnits();
+// const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: true };
+export function DispersionLink({ stroke, strokesStateManager, distOptions, id }:
+    {
+        stroke: Stroke,
+        strokesStateManager: StrokesStateManager,
+        distOptions: formatDistanceOptions,
+        id?: string
+    }): JSX.Element {
+    const formattedDistance = formatDistance(stroke.dispersion, distOptions);
     const clickHandler = (e) => {
-        strokeDistancePrompt(props.stroke);
+        strokeDispersionPrompt(stroke, strokesStateManager, distOptions);
         e.stopPropagation();
     }
-    return (<a href="#" onClick={clickHandler} id={props.id}>{formattedDistance}</a>);
+    return (<a href="#" onClick={clickHandler} id={id}>{formattedDistance}</a>);
 }
