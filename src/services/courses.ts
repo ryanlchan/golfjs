@@ -206,7 +206,9 @@ export async function courseLoad(course: Course, force?: boolean): Promise<Cours
     }
     const cached = await courseCacheGet(course);
     if (!force && cached) return cached;
-    return fetchCourseFromOSM(course);
+    const loaded = await fetchCourseFromOSM(course) as CourseFeatureCollection;
+    loaded.course = course;
+    return loaded;
 }
 
 /**
@@ -226,7 +228,7 @@ export async function fetchHoleLine(course: Course, holeIndex: number): Promise<
     return getHoleLine(data, holeIndex);
 }
 
-export function getHoleLine(data: CourseFeatureCollection, holeIndex: number): Feature {
+export function getHoleLine(data: FeatureCollection, holeIndex: number): Feature {
     return data.features.find(el => (el.properties.golf == "hole") && (el.properties.ref == holeIndex + 1));
 }
 
@@ -241,11 +243,10 @@ async function fetchHolePolys(course: Course, holeIndex: number): Promise<Featur
     return getHolePolys(data, holeIndex);
 }
 
-function getHolePolys(data: CourseFeatureCollection, holeIndex: number): FeatureCollection {
+function getHolePolys(data: FeatureCollection, holeIndex: number): FeatureCollection {
     const line = getHoleLine(data, holeIndex);
     if (!line) {
-        let courseName = data.course?.name;
-        let msg = `No hole line found for course ${courseName} hole ${holeIndex}`;
+        let msg = `No hole line found for hole ${holeIndex}`;
         console.warn(msg);
         return;
     }
@@ -264,7 +265,7 @@ async function fetchHoleGreen(course: Course, holeIndex: number): Promise<Featur
     return getHoleGreen(data, holeIndex);
 }
 
-function getHoleGreen(data: CourseFeatureCollection, holeIndex: number): FeatureCollection {
+function getHoleGreen(data: FeatureCollection, holeIndex: number): FeatureCollection {
     const holePolys = getHolePolys(data, holeIndex);
     return turf.getCluster(holePolys, { 'terrainType': "green" });
 }
@@ -280,7 +281,7 @@ export async function fetchHoleGreenCenter(course: Course, holeIndex: number): P
     return getHoleGreenCenter(data, holeIndex);
 }
 
-export function getHoleGreenCenter(data: CourseFeatureCollection, holeIndex: number): number[] {
+export function getHoleGreenCenter(data: FeatureCollection, holeIndex: number): number[] {
     const green = getHoleGreen(data, holeIndex);
     return turf.center(green).geometry.coordinates;
 }
@@ -316,10 +317,10 @@ function turfbbToleafbb(turfbb: number[]): number[][] {
  */
 export async function fetchGolfCourseBbox(course: Course): Promise<number[][]> {
     const polys = await courseLoad(course);
-    return getGolfCourseBbox(polys);
+    return getBbox(polys);
 }
 
-function getGolfCourseBbox(data: CourseFeatureCollection): number[][] {
+export function getBbox(data: FeatureCollection): number[][] {
     return turfbbToleafbb(turf.bbox(data));
 }
 
@@ -334,7 +335,7 @@ export async function fetchGolfHoleBbox(course: Course, holeIndex: number): Prom
     return getGolfHoleBbox(data, holeIndex);
 }
 
-function getGolfHoleBbox(data: CourseFeatureCollection, holeIndex: number): number[][] {
+function getGolfHoleBbox(data: FeatureCollection, holeIndex: number): number[][] {
     const line = getHoleLine(data, holeIndex);
     const buffered = turf.buffer(line, 20, { units: "meters" })
     return turfbbToleafbb(turf.bbox(buffered))
