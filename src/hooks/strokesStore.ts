@@ -1,15 +1,18 @@
 import { computed } from '@preact/signals';
 import { Store, StateManager } from 'hooks/core';
-import { getHoleFromRound, getStrokesFromRound } from 'services/rounds';
+import { getHoleFromRound, getStrokeFromRound, getStrokesFromRound } from 'services/rounds';
 import { RoundStateManager } from './roundStore';
+import { strokeAdd, strokeDelete, strokeReorder } from 'services/strokes';
 
 export interface StrokesStateManager extends StateManager<Stroke[]> {
     add: (item: Stroke) => void,
     remove: (item: Stroke) => void,
-    update: (item: Stroke) => void
+    update: (item: Stroke, recipe: (draft: Stroke) => void) => void
+    reorder: (item: Stroke, targetIndex: number) => void,
+    source: RoundStateManager
 };
 
-const strokeStore = (roundStore): Store<Stroke[]> => {
+const strokesStore = (roundStore): Store<Stroke[]> => {
     const clubs = computed(() => getStrokesFromRound(roundStore.data.value));
     return {
         data: clubs,
@@ -18,27 +21,28 @@ const strokeStore = (roundStore): Store<Stroke[]> => {
     }
 }
 
-export const strokeStateManager = (roundStateManager: RoundStateManager): StrokesStateManager => {
-    const store = strokeStore(roundStateManager);
+export const strokesStateManager = (roundStateManager: RoundStateManager): StrokesStateManager => {
+    const store = strokesStore(roundStateManager);
     const mutateHole = (item: Stroke, recipe: (hole: Hole) => void) => {
         roundStateManager.mutate(draft => {
             const hole = getHoleFromRound(draft, item.holeIndex);
             recipe(hole);
         })
     }
-    const add = (item: Stroke) => mutateHole(item, (hole) => hole.strokes.push(item));
-    const remove = (item: Stroke) => mutateHole(item, (hole) => {
-        const ix = hole.strokes.findIndex(i => i.id == item.id);
-        if (ix !== -1) hole.strokes.splice(ix, 1);
-    });
-    const update = (item: Stroke) => mutateHole(item, (hole) => {
-        const ix = hole.strokes.findIndex(i => i.id == item.id);
-        if (ix !== -1) hole.strokes.splice(ix, 1);
-    });
+    const update = (item: Stroke, recipe: (stroke: Stroke) => void) => {
+        roundStateManager.mutate(draft => {
+            recipe(getStrokeFromRound(draft, item.holeIndex, item.index));
+        });
+    };
+    const add = (item: Stroke) => roundStateManager.mutate((round) => strokeAdd(item, round));
+    const remove = (item: Stroke) => roundStateManager.mutate((round) => strokeDelete(item, round));
+    const reorder = (item: Stroke, targetIndex: number) => roundStateManager.mutate((round) => strokeReorder(item, targetIndex, round));
     return {
         ...store,
         add,
         remove,
-        update
+        update,
+        reorder,
+        source: roundStateManager
     };
 }
