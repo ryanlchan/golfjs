@@ -1,13 +1,22 @@
 import osmtogeojson from "osmtogeojson";
 import * as turf from "@turf/turf";
+import { type Coord } from "@turf/helpers";
 import { OSM_GOLF_TO_TERRAIN, SG_SPLINES } from "services/coeffs20231205";
 import * as cache from "common/cache";
-import { Feature, FeatureCollection, Point } from "geojson";
+import { Feature, FeatureCollection } from "geojson";
 import { featureIntersect } from "services/grids";
-import { showError } from "common/utils";
 
 export interface CourseFeatureCollection extends FeatureCollection { course: Course }
-
+export const TERRAIN_TYPES = {
+    GREEN: "green",
+    ROUGH: "rough",
+    FAIRWAY: "fairway",
+    PENALTY: "penalty",
+    OUT_OF_BOUNDS: "out_of_bounds",
+    BUNKER: "bunker",
+    RECOVERY: "recovery",
+    TEE: "tee"
+}
 /**
  * *********
  * * Cache *
@@ -186,7 +195,7 @@ async function fetchCourseFromOSM(course: Course): Promise<FeatureCollection> {
         return scrubbedData;
     } catch (error) {
         console.error(error);
-        showError(error);
+        throw error;
     }
 }
 
@@ -344,11 +353,11 @@ function getGolfHoleBbox(data: FeatureCollection, holeIndex: number): number[][]
 /**
  * Returns the terrain at a given point within a feature collection
  * @param {FeatureCollection} collection A prescrubbed collection of Features (sorted, single poly'd, etc)
- * @param {Point} point the point to load terrain for
+ * @param {Coord} point the point to load terrain for
  * @param {FeatureCollection} [bounds] A prescrubbed collection representing the out_of_bounds boundary, optional
  * @returns {String} the terrain type
  */
-export function getTerrainAt(collection: FeatureCollection, point: Point, bounds?: FeatureCollection): string {
+export function getTerrainAt(collection: FeatureCollection, point: Coord, bounds?: FeatureCollection): string {
     if (!bounds) {
         bounds = findBoundaries(collection);
     }
@@ -371,10 +380,10 @@ export function getTerrainAt(collection: FeatureCollection, point: Point, bounds
 /**
  * Get golf terrain at a given coordinate, given a course
  * @param {Course} course the courseto get terrain for
- * @param {number[] | Point} location the location, as a WGS84 latlong coordinate
+ * @param {Coord} location the location, as a WGS84 latlong coordinate
  * @returns {string} the terrain type
  */
-export async function fetchTerrainAt(course: Course, location: (number[] | turf.Point)): Promise<string> {
+export async function fetchTerrainAt(course: Course, location: Coord): Promise<string> {
     let golfCourseData = await courseLoad(course);
     let point = location instanceof Array ? turf.flip(turf.point(location)) : location;
     return getTerrainAt(golfCourseData, point);
