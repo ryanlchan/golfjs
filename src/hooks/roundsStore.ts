@@ -1,9 +1,9 @@
 import { roundDelete, roundLoadAll } from 'services/rounds';
-import { Store, store, asyncMutate, StoreMutator } from 'hooks/core';
+import { Store, store, asyncMutate, StateManager } from 'hooks/core';
 import { useMemo } from 'preact/hooks';
 
 
-export interface RoundsStore extends StoreMutator<Round[]> {
+export interface RoundsStateManager extends StateManager<Round[]> {
     load: () => Promise<Round[]>,
     del: (item: Round) => Promise<Round[]>,
 }
@@ -31,7 +31,7 @@ function roundsMutator(roundsStore) {
     return { load, del }
 }
 
-export function roundsStoreMutator(initialState?) {
+export function roundsStateManager(initialState?) {
     const s = roundsStore(initialState);
     const mutator = roundsMutator(s);
     return { ...s, ...mutator };
@@ -39,7 +39,7 @@ export function roundsStoreMutator(initialState?) {
 
 export function useRounds(initialState?) {
     return useMemo(() => {
-        const sm = roundsStoreMutator(initialState);
+        const sm = roundsStateManager(initialState);
         sm.load();
         return sm
     }, [])

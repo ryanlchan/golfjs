@@ -1,9 +1,11 @@
 import { signal, Signal } from "@preact/signals";
+import { useMemo } from "preact/hooks";
 
 export interface Store<T = any> { data: Signal<T>, isLoading: Signal<boolean>, error: Signal<Error> }
-export interface Mutator<T = any> { [methods: symbol]: (...args: any[]) => any }
-export interface StoreMutator<T = any> extends Store<T>, Mutator<T> { }
+export interface Mutator { [methods: string]: any }
+export interface StateManager<T = any> extends Store<T>, Mutator { }
 type AsyncFunction<T = any> = (...args: any[]) => Promise<T>;
+type AnyFunction = (...args: any[]) => any;
 
 export function store(initialState: any = []): Store {
     const data = signal(initialState);

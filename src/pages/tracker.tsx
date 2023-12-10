@@ -106,13 +106,15 @@ function SubMapControls() {
 }
 
 function generateAppState() {
-    const settingsStore = initSettingsStore();
-    const roundStore = roundStore();
+    const settingsStore = settingsStateManager();
+    const roundStore = roundStateManager();
     return { settingsStore, roundStore }
 }
 
-function App({ roundStore, settingsStore }: { roundStore: RoundStore, settingsStore: SettingsStore }) {
+function App({ roundStore, settingsStore }: { roundStore: RoundStateManager, settingsStore: SettingsStore }) {
     const [error, resetError] = useErrorBoundary();
+    const activeStrokes = idStateManager();
+    const activeHoles = idStateManager();
     const courseStore = useCourse(roundStore);
     const statsStore = useStats(roundStore, courseStore);
 
@@ -174,7 +176,8 @@ function clubStrokeViewToggle() {
  * Handles the window onload event.
  */
 function handleLoad() {
-    render(<App />, document.getElementById('appContainer'))
+    const props = generateAppState()
+    render(<App {...props} />, document.getElementById('appContainer'))
 }
 
 function showPositionError(error: PositionError) {

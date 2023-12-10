@@ -1,12 +1,12 @@
 import { effect, signal } from "@preact/signals";
 import { getSettings, saveSettings } from "common/cache";
-import { Store, StoreMutator, store } from "./core";
+import { Store, StateManager, store } from "./core";
 import { useMemo } from "preact/hooks";
 
 export interface AppSettings { displayUnits?: 'yards' | 'meters', [others: string]: any }
 const defaultSettings: AppSettings = { displayUnits: 'yards' };
 
-export interface SettingsStore extends StoreMutator<AppSettings> {
+export interface SettingsStore extends StateManager<AppSettings> {
     set: (key: string, value: any) => void,
     get: (key: string) => any,
 }
@@ -17,12 +17,12 @@ function settingsMutator(itemStore) {
     effect(() => saveSettings(itemStore.data.value))
     return { set, get }
 }
-export function settingsStoreMutator(initialState?): SettingsStore {
+export function settingsStateManager(initialState?): SettingsStore {
     const s = settingsStore(initialState);
     const mutator = settingsMutator(s);
     return { ...s, ...mutator }
 }
 
 export function useSettings(initialState): SettingsStore {
-    return useMemo(() => settingsStoreMutator(initialState), []);
+    return useMemo(() => settingsStateManager(initialState), []);
 }

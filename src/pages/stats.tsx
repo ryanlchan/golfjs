@@ -6,7 +6,7 @@ import { ComponentChildren, JSX, render } from "preact";
 import * as cacheUtils from "common/cache";
 import { formatDistance, formatDistanceOptions } from 'common/projections';
 import { SettingsContext, useDisplayUnits } from "contexts/settingsContext";
-import { RoundStore, roundStore } from 'hooks/roundStore';
+import { RoundStateManager, roundStore } from 'hooks/roundStore';
 import { SettingsStore, initSettingsStore } from "hooks/settingsStore";
 import { useStats } from "hooks/useStats";
 import type { StrokeStats } from 'services/stats';
@@ -393,7 +393,7 @@ function downloadCSV(jsonArray: any[], filename: string = 'data.csv'): void {
 
 function StatsTitle({ roundStore, downloadHandler }:
     {
-        roundStore: RoundStore,
+        roundStore: RoundStateManager,
         downloadHandler: () => void,
     }) {
     const roundDate = new Date(roundStore.round.value.date);
@@ -406,7 +406,7 @@ function StatsTitle({ roundStore, downloadHandler }:
     </div>
 }
 
-function App({ settingsStore, roundStore }: { settingsStore: SettingsStore, roundStore: RoundStore }) {
+function App({ settingsStore, roundStore }: { settingsStore: SettingsStore, roundStore: RoundStateManager }) {
     const courseStore = useCourse(roundStore);
     const statsStore = useStats(roundStore, courseStore);
     const round = roundStore.round?.value;

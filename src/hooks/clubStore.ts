@@ -1,14 +1,14 @@
-import { Signal, computed } from '@preact/signals';
+import { computed } from '@preact/signals';
 import { CLUBS_KEY, GolfClub, getDefaultClubs, getUserClubs } from 'services/clubs';
 import { SettingsStore } from 'hooks/settingsStore';
-import { Store, StoreMutator } from './core';
+import { Store, StateManager } from 'hooks/core';
 
 /**
  * ClubStore is a derived "view" into a SettingsStore that focuses on the club
  * setting specifically. Must be initialized with a SettingStore, which will
  * manage persistance/etc
  */
-export interface ClubStore extends StoreMutator<GolfClub[]> {
+export interface ClubStateManager extends StateManager<GolfClub[]> {
     add: (club: GolfClub) => void,
     remove: (club: GolfClub) => void,
     reset: () => void
@@ -24,7 +24,7 @@ const clubStore = (settingsStore): Store<GolfClub[]> => {
     }
 }
 
-export const clubStoreMutator = (settingsStore: SettingsStore): ClubStore => {
+export const clubStateManager = (settingsStore: SettingsStore): ClubStateManager => {
     const store = clubStore(settingsStore);
     const clubs = store.data.value;
     const setClubs = (val) => settingsStore.set(CLUBS_KEY, val);

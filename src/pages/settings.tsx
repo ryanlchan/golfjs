@@ -3,16 +3,16 @@ import { render } from "preact";
 
 import { roundDelete, roundSelect, roundCreate } from "services/rounds";
 import { CourseFeatureCollection, courseCacheDelete } from "services/courses";
-import { RoundStore, roundStoreMutator } from 'hooks/roundStore';
-import { ClubStore, clubStoreMutator } from "hooks/clubStore";
-import { SettingsStore, settingsStoreMutator } from "hooks/settingsStore";
+import { RoundStateManager, roundStateManager } from 'hooks/roundStore';
+import { ClubStateManager, clubStateManager } from "hooks/clubStore";
+import { SettingsStore, settingsStateManager } from "hooks/settingsStore";
 import { DISPLAY_UNIT_KEY, useDisplayUnits } from "hooks/useDisplayUnits";
 import { SettingsContext } from "contexts/settingsContext";
 import { ErrorModal } from "components/errorModal";
 import { ClubEditor } from "components/clubEditor";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
-import { RoundsStore, roundsStoreMutator } from "hooks/roundsStore";
-import { CoursesStore, coursesStoreMutator } from "hooks/coursesStore";
+import { RoundsStateManager, roundsStateManager } from "hooks/roundsStore";
+import { CoursesStore, coursesStateManager } from "hooks/coursesStore";
 
 function RoundEditor({ value, onSave }) {
     const [isEditing, setIsEditing] = useState(false);
@@ -45,7 +45,7 @@ function RoundEditor({ value, onSave }) {
     );
 }
 
-function RoundJSONView({ roundStore }: { roundStore: RoundStore }) {
+function RoundJSONView({ roundStore }: { roundStore: RoundStateManager }) {
     const [expanded, setExpanded] = useState(false);
     const json = JSON.stringify(roundStore.data.value, null, 2);
     const copy = () => navigator.clipboard.writeText(json);
@@ -167,10 +167,10 @@ function UnitSelector({ onChange }: { onChange: (e: Event) => void }) {
 
 function SettingsPage({ roundsStore, coursesStore, roundStore, clubStore, settingsStore }:
     {
-        roundsStore: RoundsStore,
+        roundsStore: RoundsStateManager,
         coursesStore: CoursesStore,
-        roundStore: RoundStore,
-        clubStore: ClubStore,
+        roundStore: RoundStateManager,
+        clubStore: ClubStateManager,
         settingsStore: SettingsStore,
     }) {
     const [error, _] = useErrorBoundary();
@@ -198,11 +198,11 @@ function SettingsPage({ roundsStore, coursesStore, roundStore, clubStore, settin
 }
 
 function generateAppState() {
-    const roundsStore = roundsStoreMutator();
-    const coursesStore = coursesStoreMutator();
-    const roundStore = roundStoreMutator();
-    const settingsStore = settingsStoreMutator();
-    const clubStore = clubStoreMutator(settingsStore);
+    const roundsStore = roundsStateManager();
+    const coursesStore = coursesStateManager();
+    const roundStore = roundStateManager();
+    const settingsStore = settingsStateManager();
+    const clubStore = clubStateManager(settingsStore);
     roundsStore.load();
     coursesStore.load();
     roundStore.load();
