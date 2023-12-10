@@ -37,6 +37,8 @@ export interface IdStateManager extends Store<string[]> {
     activateOnly: (id: string) => void,
     deactivate: (id: string) => void,
     deactivateAll: () => void,
+    toggle: (id: string) => void,
+    includes: (id: string) => boolean
 }
 export function idStateManager(initialState: any = []): IdStateManager {
     const s = store(initialState) as Store<string[]>;
@@ -54,7 +56,13 @@ export function idStateManager(initialState: any = []): IdStateManager {
     const activateOnly = (id: string) => {
         ids.value = [id];
     }
-    return { ...s, activate, activateOnly, deactivate, deactivateAll }
+    const includes = (id: string) => {
+        return ids.value.includes(id);
+    }
+    const toggle = (id: string) => {
+        includes(id) ? deactivate(id) : activate(id);
+    }
+    return { ...s, activate, activateOnly, deactivate, deactivateAll, toggle, includes }
 }
 
 export const useIdStore = () => {
