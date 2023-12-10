@@ -146,9 +146,9 @@ export function getStatsCache(r: Round, context: StatsContext) {
     }
 }
 
-export async function fetchStatsCache(r: Round, c: CourseFeatureCollection) {
-    const context = await createStatsContext(r, c);
-    const cache = getStatsCache(r, context);
+export async function fetchStatsCache(round: Round, courseData: CourseFeatureCollection) {
+    const context = await createStatsContext(round, courseData);
+    const cache = getStatsCache(round, context);
     const async = [
         saveRoundStats(cache.round),
         cache.holes.map(hole => saveHoleStats(hole)),
@@ -284,7 +284,8 @@ function calculateHoleStats(hole: Hole, context: StatsContext): HoleStats {
     let hstats: HoleStats = defaultHoleStats(hole);
 
     // Within each hole, calculate strokes gained from last stroke backwards
-    const strokes = hole.strokes.sort((a, b) => a.index - b.index);
+    hole.strokes.sort((a, b) => a.index - b.index);
+    const strokes = hole.strokes;
     const strokeStats = strokes.map(stroke => (getStrokeStats(stroke, context)));
     hstats.strokesRemaining = strokeStats[0]?.strokesRemaining;
     if (!hstats.par) hstats.par = Math.round(strokeStats[0]?.strokesRemaining);
