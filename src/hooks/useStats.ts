@@ -1,17 +1,24 @@
 import { RoundStatsCache, fetchStatsCache } from "services/stats";
-import { RoundStore } from './roundStore';
+import { RoundStateManager } from './roundStore';
 import { CourseStore } from "hooks/useCourse";
 import { roundIsPlayed } from "services/rounds";
-import useSWR from 'swr';
+import { Store, asyncMutate, store } from "hooks/core";
+import { useMemo } from "preact/hooks";
+import { effect } from "@preact/signals";
 
 
-interface StatsStore { stats: RoundStatsCache, error: boolean, isLoading: boolean }
-export const useStats = (roundStore: RoundStore, courseStore: CourseStore): StatsStore => {
-    const _load = (round: Round) => {
-        if (!round || !roundIsPlayed(round)) return;
-        return fetchStatsCache(roundStore.round.value, courseStore.course)
-            .catch((err) => { throw new Error("Failed to generate stats cache: " + err) });
+const statsStore = (roundStore: RoundStateManager, courseStore: CourseStore): Store<RoundStatsCache> => {
+    const s = store({} as RoundStatsCache)
+    const _load = (round: Round): Promise<RoundStatsCache> => {
+        return ((!round || !roundIsPlayed(round)) ?
+            Promise.resolve({} as RoundStatsCache) :
+            fetchStatsCache(roundStore.data.value, courseStore.course));
     }
-    const { data, error, isLoading } = useSWR(roundStore.round.value, _load);
-    return { stats: data, error, isLoading }
+    asyncMutate(s, _load);
+    effect(() => _load(roundStore.data.value))
+    return s;
+}
+
+export const useStats = (roundStore: RoundStateManager, courseStore: CourseStore): Store<RoundStatsCache> => {
+    return useMemo(() => statsStore(roundStore, courseStore), [])
 }
