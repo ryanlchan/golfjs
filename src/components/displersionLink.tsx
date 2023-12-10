@@ -10,8 +10,9 @@ function strokeDispersionPrompt(stroke: Stroke,
     const num = parseFloat(disp);
     if (!Number.isFinite(num)) throw new Error("Invalid dispersion");
     const dispersion = distOptions ? formatDistanceAsNumber(num, distOptions) : num;
-    stroke.dispersion = dispersion;
-    strokesStateManager.update(stroke);
+    strokesStateManager.update(stroke, (draft) => {
+        draft.dispersion = dispersion;
+    });
 }
 
 // const displayUnits = useDisplayUnits();
