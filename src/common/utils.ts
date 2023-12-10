@@ -15,9 +15,16 @@ type WithUpdatedAt<T> = T & HasUpdateDates;
 export function trackUpdates<T extends HasUpdateDates>(obj: T): WithUpdatedAt<T> {
     const handler = {
         set: (target: any, property: string | symbol, value: any) => {
-            target[property] = (value && typeof value === 'object') ? trackUpdates(value) : value;
-            if (property !== 'updatedAt') target.updatedAt = new Date();
+            if (property !== 'updatedAt' && target[property] != value) touch(target);
+            target[property] = value;
             return true;
+        },
+        get: (target: any, property: string | symbol) => {
+            if (property == "__trackingUpdates") return true; // special key to check if it's proxied already
+            const value = target[property];
+            return ((value && typeof value === 'object' && !value["__trackingUpdates"])
+                ? trackUpdates(value)
+                : value);
         }
     };
     return new Proxy(obj, handler) as WithUpdatedAt<T>;
