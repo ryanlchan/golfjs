@@ -7,46 +7,38 @@ export function wait(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-
-/**
- * Shows an error message based on the geolocation error code.
- * @param {Error} error - The geolocation error object.
- */
-export function showError(error: Error | string, timeout = 5000): void {
-    const el = document.getElementById("error");
-    el.classList.remove("inactive");
-    el.innerText = error instanceof Error ? error.message : error;
-    const close = document.createElement("a");
-    close.href = "#";
-    close.innerText = " X "
-    close.addEventListener('click', () => el.classList.add("inactive"));
-    el.appendChild(close);
-    if (timeout > 0) {
-        setTimeout(() => el.classList.add("inactive"), timeout)
-    }
+export function clamp(input: number, min: number, max: number) {
+    return Math.max(Math.min(input, max), min)
 }
 
-
-/**
- * Hide an error
- */
-export function hideError(): void {
-    const el = document.getElementById("error");
-    el.innerText = "";
-    el.classList.add("inactive");
+type WithUpdatedAt<T> = T & HasUpdateDates;
+export function trackUpdates<T extends HasUpdateDates>(obj: T): WithUpdatedAt<T> {
+    const handler = {
+        set: (target: any, property: string | symbol, value: any) => {
+            target[property] = (value && typeof value === 'object') ? trackUpdates(value) : value;
+            if (property !== 'updatedAt') target.updatedAt = new Date();
+            return true;
+        }
+    };
+    return new Proxy(obj, handler) as WithUpdatedAt<T>;
 }
 
 export function touch(...objs: HasUpdateDates[]): HasUpdateDates[] {
+    const now = new Date().toISOString()
     for (let obj of objs) {
-        obj.updatedAt = new Date().toISOString();
+        obj.updatedAt = now;
     }
     return objs;
 }
 
-export function setter(obj: HasUpdateDates, key: string, val: any): HasUpdateDates {
-    obj[key] = val;
-    touch(obj);
-    return obj;
+/**
+ * Sort an array by index. Mutates in place.
+ * @param items an array of items with .index to sort
+ */
+interface WithIndex { index?: number }
+export function indexSort(items: WithIndex[]): WithIndex[] {
+    items.sort((a, b) => a.index - b.index)
+    return items
 }
 
 /**
