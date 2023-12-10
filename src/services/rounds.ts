@@ -161,6 +161,10 @@ export function getHoleFromRound(round: Round, holeIndex: number): Hole {
     return round.holes[holeIndex];
 }
 
+export function getHoleFromRoundByID(round: Round, holeId: string): Hole {
+    return round.holes.find(hole => hole.id == holeId)
+}
+
 export function getHolePinFromRound(round: Round, holeIndex: number): Coordinate {
     const hole = getHoleFromRound(round, holeIndex);
     if (!hole) return
@@ -195,18 +199,18 @@ export function getHoleFromStrokeRound(stroke: Stroke, round: Round): Hole {
 }
 
 export async function lookupRoundFromHole(hole: Hole): Promise<Round> {
+    // const filter = (id, round) => round.holes.some(hole => hole.id == id)
+    // const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
+    // if (rounds.length == 0) throw new Error(`No round found for hole ${hole.id}`);
+    // return rounds[0];
     throw new Error("Deprecated: Load round and use a prop instead")
-    const filter = (id, round) => round.holes.some(hole => hole.id == id)
-    const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
-    if (rounds.length == 0) throw new Error(`No round found for hole ${hole.id}`);
-    return rounds[0];
 }
 
 export async function lookupRoundFromStroke(stroke: Stroke): Promise<Round> {
+    // const filter = (id, round) => round.holes.some(hole => hole.strokes.some(stroke => stroke.id == id));
+    // const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
+    // if (rounds.length == 0) throw new Error(`No round found for stroke ${stroke.id}`);
+    // return rounds[0];
     throw new Error("Deprecated: Load round and use a prop instead")
-    const filter = (id, round) => round.holes.some(hole => hole.strokes.some(stroke => stroke.id == id));
-    const rounds = Object.values(await cache.filter(filter, ROUNDS_NAMESPACE));
-    if (rounds.length == 0) throw new Error(`No round found for stroke ${stroke.id}`);
-    return rounds[0];
 }
 
