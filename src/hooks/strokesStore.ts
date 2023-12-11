@@ -3,6 +3,7 @@ import { Store, StateManager } from 'hooks/core';
 import { getHoleFromRound, getStrokeFromRound, getStrokesFromRound } from 'services/rounds';
 import { RoundStateManager } from './roundStore';
 import { strokeAdd, strokeDelete, strokeReorder } from 'services/strokes';
+import { useMemo } from 'preact/hooks';
 
 export interface StrokesStateManager extends StateManager<Stroke[]> {
     add: (item: Stroke) => void,
@@ -45,4 +46,8 @@ export const strokesStateManager = (roundStateManager: RoundStateManager): Strok
         reorder,
         source: roundStateManager
     };
+}
+
+export const useStrokes = (roundStateManager: RoundStateManager) => {
+    return useMemo(() => strokesStateManager(roundStateManager), []);
 }
