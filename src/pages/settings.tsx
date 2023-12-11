@@ -7,12 +7,12 @@ import { RoundStateManager, roundStateManager } from 'hooks/roundStore';
 import { ClubStateManager, clubStateManager } from "hooks/clubStore";
 import { SettingsStore, settingsStateManager } from "hooks/settingsStore";
 import { DISPLAY_UNIT_KEY, useDisplayUnits } from "hooks/useDisplayUnits";
-import { SettingsContext } from "contexts/settingsContext";
 import { ErrorModal } from "components/errorModal";
 import { ClubEditor } from "components/clubEditor";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
 import { RoundsStateManager, roundsStateManager } from "hooks/roundsStore";
 import { CoursesStore, coursesStateManager } from "hooks/coursesStore";
+import { AppContext } from 'contexts/appContext';
 
 function RoundEditor({ value, onSave }) {
     const [isEditing, setIsEditing] = useState(false);
@@ -173,16 +173,16 @@ function SettingsPage({ roundsStore, coursesStore, roundStore, clubStore, settin
         clubStore: ClubStateManager,
         settingsStore: SettingsStore,
     }) {
+    window.secretdebugfunc = () => { debugger };;
     const [error, _] = useErrorBoundary();
     const unitChange = (e) => {
         const newUnit = e.target.value;
         settingsStore.set(DISPLAY_UNIT_KEY, newUnit)
     };
-    const debug = () => { debugger };
-    window.secretdebugfunc = debug;
+    const appState = { settingsStore }
     return (roundsStore.isLoading.value || coursesStore.isLoading.value || roundStore.isLoading.value) ?
         <LoadingPlaceholder /> :
-        (<SettingsContext.Provider value={settingsStore}>
+        (<AppContext.Provider value={settingsStore}>
             <div className="settingsPage">
                 {error && <ErrorModal message={error} timeout={10} />}
                 <RoundJSONView roundStore={roundStore} />
@@ -193,7 +193,7 @@ function SettingsPage({ roundsStore, coursesStore, roundStore, clubStore, settin
                 <h2>Player Clubs</h2>
                 <ClubEditor clubStore={clubStore} />
             </div>
-        </SettingsContext.Provider>
+        </AppContext.Provider>
         )
 }
 
