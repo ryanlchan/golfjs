@@ -147,30 +147,41 @@ export function getStatsCache(r: Round, context: StatsContext) {
 }
 
 export async function fetchStatsCache(round: Round, courseData: CourseFeatureCollection) {
-    const context = await createStatsContext(round, courseData);
-    const cache = getStatsCache(round, context);
-    const async = [
-        saveRoundStats(cache.round),
-        cache.holes.map(hole => saveHoleStats(hole)),
-        cache.strokes.map(stroke => saveStrokeStats(stroke))
-    ].flat();
-    await Promise.all(async);
-    return cache;
+    try {
+        const context = await createStatsContext(round, courseData);
+        const cache = getStatsCache(round, context);
+        const async = [
+            saveRoundStats(cache.round),
+            cache.holes.map(hole => saveHoleStats(hole)),
+            cache.strokes.map(stroke => saveStrokeStats(stroke))
+        ].flat();
+        await Promise.all(async);
+        return cache;
+    } catch (e) {
+        console.error(e);
+        throw e;
+    }
 }
 
 /**
  * Create the context object storing locally cached versions of required info
  */
 export async function createStatsContext(r: Round, courseData?: CourseFeatureCollection): Promise<StatsContext> {
-    if (!courseData) {
-        const courseParams = roundCourseParams(r);
-        courseData = await courseLoad(courseParams);
+    try {
+
+        if (!courseData || Object.keys(courseData).length == 0) {
+            const courseParams = roundCourseParams(r);
+            courseData = await courseLoad(courseParams);
+        }
+        const round = await fetchRoundStats(r);
+        const strokes = await fetchAllStrokeStats(r);
+        const holes = await fetchAllHoleStats(r);
+        const stats = { round, holes, strokes }
+        return { round: r, courseData, stats }
+    } catch (e) {
+        console.error(e);
+        throw e;
     }
-    const round = await fetchRoundStats(r);
-    const strokes = await fetchAllStrokeStats(r);
-    const holes = await fetchAllHoleStats(r);
-    const stats = { round, holes, strokes }
-    return { round: r, courseData, stats }
 }
 
 /**
@@ -284,9 +295,10 @@ function calculateHoleStats(hole: Hole, context: StatsContext): HoleStats {
     let hstats: HoleStats = defaultHoleStats(hole);
 
     // Within each hole, calculate strokes gained from last stroke backwards
-    hole.strokes.sort((a, b) => a.index - b.index);
+    hole.strokes.sort((a, b) => b.index - a.index);
     const strokes = hole.strokes;
     const strokeStats = strokes.map(stroke => (getStrokeStats(stroke, context)));
+    hole.strokes.sort((a, b) => a.index - b.index);
     hstats.strokesRemaining = strokeStats[0]?.strokesRemaining;
     if (!hstats.par) hstats.par = Math.round(strokeStats[0]?.strokesRemaining);
 
@@ -303,7 +315,7 @@ function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStat
     const nextStroke = getStrokeFollowingFromRound(round, stroke)
     const pin = hole.pin;
     const strokeEnd = nextStroke ? nextStroke.start : pin;
-    const nextStats = getStrokeStats(nextStroke, context);
+    const nextStats = nextStroke && getStrokeStats(nextStroke, context);
     const srnext = nextStats ? nextStats.strokesRemaining : 0;
     const grid = sgGrid(
         [stroke.start.y, stroke.start.x],
