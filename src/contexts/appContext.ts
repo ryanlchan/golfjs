@@ -11,7 +11,7 @@ export interface AppState {
     activeHoles?: IdStateManager,
     settingsStore?: StateManager,
     geolocationResult?: GeolocatedResult,
-    modal: Signal<ModalProps>
+    modal?: Signal<ModalProps>
 }
 const defaultValue = {
     activeStrokes: {} as IdStateManager,
