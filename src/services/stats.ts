@@ -6,7 +6,7 @@ import {
 } from 'services/rounds';
 import * as cacheUtils from 'common/cache';
 import { getDistance, coordToPoint } from 'common/projections';
-import { sgGrid, cdf } from 'services/grids';
+import { cdf, targetGrid } from 'services/grids';
 import { CourseFeatureCollection, courseLoad } from './courses';
 /**
  * *********
@@ -50,6 +50,7 @@ export interface StrokeStats extends HasUpdateDates {
     strokesGainedPredicted: number,
     strokesGainedOverPredicted: number,
     strokesGainedPercentile: number,
+    strokesGainedIdeal: number,
     bearingAim: number,
     bearingPin: number,
     bearingActual: number,
@@ -187,55 +188,55 @@ export async function createStatsContext(r: Round, courseData?: CourseFeatureCol
 /**
  * Sync cache operations
  */
-function getCachedStrokeStats(stroke: Stroke, context: StatsContext): StrokeStats {
+export function getCachedStrokeStats(stroke: Stroke, cache: RoundStatsCache): StrokeStats {
     if (!stroke) return
-    const cached = context?.stats?.strokes?.find((el) => el.id == stroke.id);
+    const cached = cache.strokes?.find((el) => el.id == stroke.id);
     return (!cached || cached.updatedAt < stroke.updatedAt) ? null : cached;
 }
 
-function getCachedHoleStats(hole: Hole, context: StatsContext): HoleStats {
+function getCachedHoleStats(hole: Hole, cache: RoundStatsCache): HoleStats {
     if (!hole) return null
-    const cached = context?.stats?.holes?.find((el) => el.id == hole.id);
+    const cached = cache.holes?.find((el) => el.id == hole.id);
     return (!cached || cached.updatedAt < hole.updatedAt) ? null : cached;
 }
 
-function getCachedRoundStats(round: Round, context: StatsContext): RoundStats {
+function getCachedRoundStats(round: Round, cache: RoundStatsCache): RoundStats {
     if (!round) return
-    const cached = context?.stats?.round;
+    const cached = cache.round;
     return (!cached || cached.updatedAt < round.updatedAt) ? null : cached;
 }
 
-function getAllCachedHoleStats(round: Round, context: StatsContext): HoleStats[] {
-    return round?.holes.map(hole => getCachedHoleStats(hole, context));
+function getAllCachedHoleStats(round: Round, cache: RoundStatsCache): HoleStats[] {
+    return round?.holes.map(hole => getCachedHoleStats(hole, cache));
 }
 
-function getAllCachedStrokeStats(round: Round, context: StatsContext): StrokeStats[] {
-    return context.stats.strokes;
+function getAllCachedStrokeStats(round: Round, cache: RoundStatsCache): StrokeStats[] {
+    return cache.strokes;
 }
 
-function cacheStrokeStats(stats: StrokeStats, context: StatsContext): void {
-    const filtered = context.stats.strokes.filter(el => el.id != stats.id);
-    context.stats.strokes = [...filtered, stats];
+function cacheStrokeStats(stats: StrokeStats, cache: RoundStatsCache): void {
+    const filtered = cache.strokes.filter(el => el.id != stats.id);
+    cache.strokes = [...filtered, stats];
 }
 
-function cacheHoleStats(stats: HoleStats, context: StatsContext): void {
-    const filtered = context.stats.holes.filter(el => el.id != stats.id);
-    context.stats.holes = [...filtered, stats];
+function cacheHoleStats(stats: HoleStats, cache: RoundStatsCache): void {
+    const filtered = cache.holes.filter(el => el.id != stats.id);
+    cache.holes = [...filtered, stats];
 }
 
-function cacheRoundStats(stats: RoundStats, context: StatsContext): void {
-    context.stats.round = stats;
+function cacheRoundStats(stats: RoundStats, cache: RoundStatsCache): void {
+    cache.round = stats;
 }
 
 /**
  * Convenience methods for getting from cache or calculating
  */
 function getStrokeStats(stroke: Stroke, context: StatsContext): StrokeStats {
-    return getCachedStrokeStats(stroke, context) || calculateStrokeStats(stroke, context);
+    return getCachedStrokeStats(stroke, context.stats) || calculateStrokeStats(stroke, context);
 }
 
 function getHoleStats(hole: Hole, context: StatsContext): HoleStats {
-    return getCachedHoleStats(hole, context) || calculateHoleStats(hole, context);
+    return getCachedHoleStats(hole, context.stats) || calculateHoleStats(hole, context);
 }
 
 function getAllStrokeStats(round: Round, context: StatsContext): StrokeStats[] {
@@ -251,7 +252,7 @@ function getAllHoleStats(round: Round, context: StatsContext): HoleStats[] {
 }
 
 function getRoundStats(round: Round, context: StatsContext): RoundStats {
-    return getCachedRoundStats(round, context) || calculateRoundStats(round, context);
+    return getCachedRoundStats(round, context.stats) || calculateRoundStats(round, context);
 }
 
 /**
@@ -278,10 +279,10 @@ export function calculateRoundStats(round: Round, context: StatsContext): RoundS
     });
 
     // Calculate the rest of the hole stats
-    const strokeStats = getAllCachedStrokeStats(round, context);
+    const strokeStats = getAllCachedStrokeStats(round, context.stats);
     let rsummary = summarizeStrokes(strokeStats);
     rstats = { ...rstats, ...rsummary };
-    cacheRoundStats(rstats, context);
+    cacheRoundStats(rstats, context.stats);
     return rstats;
 }
 
@@ -305,7 +306,7 @@ function calculateHoleStats(hole: Hole, context: StatsContext): HoleStats {
     // Calculate the rest of the hole stats
     let hsummary = summarizeStrokes(strokeStats);
     hstats = { ...hstats, ...hsummary };
-    cacheHoleStats(hstats, context);
+    cacheHoleStats(hstats, context.stats);
     return hstats;
 }
 
@@ -317,7 +318,7 @@ function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStat
     const strokeEnd = nextStroke ? nextStroke.start : pin;
     const nextStats = nextStroke && getStrokeStats(nextStroke, context);
     const srnext = nextStats ? nextStats.strokesRemaining : 0;
-    const grid = sgGrid(
+    const grid = targetGrid(
         [stroke.start.y, stroke.start.x],
         [stroke.aim.y, stroke.aim.x],
         [pin.y, pin.x],
@@ -341,6 +342,7 @@ function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStat
         (prior, el) => prior + (el.properties.strokesGained <= strokesGained ? el.properties.probability : 0),
         0
     );
+    const strokesGainedIdeal = grid.properties.idealStrokesGained;
     const bearingAim = bearing(coordToPoint(stroke.start), coordToPoint(stroke.aim));
     const bearingPin = bearing(coordToPoint(stroke.start), coordToPoint(pin));
     const bearingActual = bearing(coordToPoint(stroke.start), coordToPoint(strokeEnd));
@@ -371,6 +373,7 @@ function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStat
         strokesGainedPredicted: strokesGainedPredicted,
         strokesGainedOverPredicted: strokesGainedOverPredicted,
         strokesGainedPercentile: strokesGainedPercentile,
+        strokesGainedIdeal: strokesGainedIdeal,
         bearingAim: bearingAim,
         bearingPin: bearingPin,
         bearingActual: bearingActual,
@@ -378,7 +381,7 @@ function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStat
         updatedAt: new Date().toISOString(),
         category: category
     }
-    cacheStrokeStats(stats, context);
+    cacheStrokeStats(stats, context.stats);
     return stats
 }
 
