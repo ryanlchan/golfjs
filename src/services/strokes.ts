@@ -2,7 +2,7 @@ import { coordToPoint, getDistance } from 'common/projections';
 import { clamp, indexSort, touch, trackUpdates } from 'common/utils';
 import { CourseFeatureCollection, TERRAIN_TYPES, getTerrainAt } from './courses';
 import { typeid } from 'typeid-js';
-import { getHoleFromRound, getHoleFromStrokeRound } from './rounds';
+import { getHoleFromRound, getHoleFromStrokeRound, getStrokeFromRound } from './rounds';
 import { GolfClub } from './clubs';
 
 /**
@@ -50,7 +50,7 @@ function strokeCreate(
     };
     if (hole.pin) stroke.aim = hole.pin;
     if (stroke.index > 0) {
-        const lastStroke = strokeGetLastStroke(stroke, round);
+        const lastStroke = getStrokeFromRound(round, stroke.holeIndex, stroke.index - 1);
         if (lastStroke.terrain == TERRAIN_TYPES.PENALTY) lastStroke.aim = stroke.start;
     }
     hole.strokes.push(stroke);
@@ -58,7 +58,7 @@ function strokeCreate(
 
 export function strokeAdd(stroke: Stroke, round: Round) {
     round = trackUpdates(round);
-    const hole = strokeGetHole(stroke, round)
+    const hole = getHoleFromRound(round, stroke.holeIndex)
     hole.strokes.push(stroke);
 }
 
@@ -91,7 +91,7 @@ function strokeCreateWithClub(position: GeolocationPositionIsh,
  */
 export function strokeDelete(stroke: Stroke, round: Round) {
     round = trackUpdates(round);
-    const hole = strokeGetHole(stroke, round)
+    const hole = getHoleFromRound(round, stroke.holeIndex);
     const strokes = indexSort(hole.strokes);
     strokes.splice(stroke.index, 1);
     strokes.forEach((stroke, index) => stroke.index = index);
@@ -105,7 +105,7 @@ export function strokeDelete(stroke: Stroke, round: Round) {
  */
 export function strokeReorder(stroke: Stroke, index: number, round: Round) {
     round = trackUpdates(round);
-    const hole = strokeGetHole(stroke, round);
+    const hole = getHoleFromRound(round, stroke.holeIndex);
     const strokes = indexSort(hole.strokes);
     const oldIndex = stroke.index;
     index = clamp(index, 0, strokes.length - 1);
@@ -139,69 +139,31 @@ function strokeUpdateTerrain(stroke: Stroke, round: Round, courseData: CourseFea
  */
 function strokeAimReset(stroke: Stroke, round: Round): Stroke {
     round = trackUpdates(round);
-    const hole = strokeGetHole(stroke, round);
+    const hole = getHoleFromRound(round, stroke.holeIndex);
     stroke.aim = hole.pin;
     return stroke;
 }
 
-/**
- * Get the hole for a stroke
- * @param stroke the stroke to get the hole for
- * @param round the Round 
- * @returns the hole for the stroe
- */
-function strokeGetHole(stroke: Stroke, round: Round): Hole {
-    return round.holes[stroke.holeIndex];
-}
-
-function strokeGetNextStroke(stroke: Stroke, round: Round): Stroke {
-    let hole = strokeGetHole(stroke, round);
-    if (!hole || stroke.index == hole.strokes.length) {
-        return undefined;
-    }
-    return hole.strokes[stroke.index + 1];
-}
-
-function strokeGetLastStroke(stroke: Stroke, round: Round): Stroke {
-    let hole = strokeGetHole(stroke, round);
-    if (!hole || stroke.index == 0) {
-        return undefined;
-    }
-    return hole.strokes[stroke.index - 1];
-}
-
-function strokeGetNextStart(stroke: Stroke, round: Round): Coordinate {
-    let nextStroke = strokeGetNextStroke(stroke, round);
+export function strokeGetNextStart(stroke: Stroke, round: Round): Coordinate {
+    let nextStroke = getStrokeFromRound(round, stroke.holeIndex, stroke.index + 1);
     if (nextStroke) {
         return nextStroke.start;
     }
-    return strokeGetHole(stroke, round).pin;
+    return getHoleFromRound(round, stroke.holeIndex)?.pin;
 }
 
-function strokeGetLastStart(stroke: Stroke, round: Round): Coordinate {
-    let lastStroke = strokeGetLastStroke(stroke, round);
-    if (lastStroke) {
-        return lastStroke.start;
-    }
-    return undefined;
+export function strokeGetLastStart(stroke: Stroke, round: Round): Coordinate {
+    return getStrokeFromRound(round, stroke.holeIndex, stroke.index - 1)?.start;
 }
 
-function strokeGetClosestStroke(stroke: Stroke, round: Round): Stroke {
-    let lastStroke = strokeGetLastStroke(stroke, round);
-    let nextStroke = strokeGetNextStroke(stroke, round);
-    if (!lastStroke && !nextStroke) {
-        return undefined
-    } else if (!lastStroke) {
-        return nextStroke;
-    } else if (!nextStroke) {
-        return lastStroke;
+export function strokeGetClosestStroke(stroke: Stroke, round: Round): Stroke {
+    let lastStroke = getStrokeFromRound(round, stroke.holeIndex, stroke.index - 1);
+    let nextStroke = getStrokeFromRound(round, stroke.holeIndex, stroke.index + 1);
+    if (!lastStroke || !nextStroke) {
+        return lastStroke || nextStroke;
     }
 
     let lastDist = getDistance(stroke.start, lastStroke.start);
     let nextDist = getDistance(stroke.start, nextStroke.start);
-    if (lastDist < nextDist) {
-        return lastStroke;
-    } else {
-        return nextStroke;
-    }
+    return (lastDist < nextDist) ? lastStroke : nextStroke;
 }
