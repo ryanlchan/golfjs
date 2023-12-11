@@ -184,12 +184,10 @@ async function fetchCourseFromOSM(course: Course): Promise<FeatureCollection> {
         const data = await response.json();
         if (!data) throw new Error('Course was corrupted, please try again');
 
-        console.debug("Succesfully downloaded OSM polys, starting processing");
         const geojson = osmtogeojson(data);
         const scrubbedData = scrubOSMData(geojson) as CourseFeatureCollection;
         if (scrubbedData.features.length < 18) throw new Error('No polygons returned from OSM');
 
-        console.debug("Succesfully processed OSM polys");
         scrubbedData.course = course;
         await courseCacheSave(course, scrubbedData);
         return scrubbedData;

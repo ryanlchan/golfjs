@@ -190,7 +190,6 @@ function probabilityGrid(grid: FeatureCollection, aimPoint: Point, dispersion: n
  */
 function holeOutRate(distanceToHole: number, terrainType: string): number {
     if (!(terrainType in HOLE_OUT_COEFFS)) {
-        console.debug("Skip: No holeout polynomial for terrainType " + terrainType);
         return 0;
     }
     const polys = HOLE_OUT_COEFFS[terrainType];
@@ -232,7 +231,6 @@ function holeOutRate(distanceToHole: number, terrainType: string): number {
 function addHoleOut(hexGrid, distanceToHole, terrainType, holePoint) {
     // Get holeout rate
     const hor = holeOutRate(distanceToHole, terrainType);
-    console.debug(`${(100 * hor).toFixed(1)}% from ${distanceToHole}m on ${terrainType}`)
     const holeFeature = turf.circle(holePoint, 0.0002, { units: 'kilometers' });
     holeFeature.properties = {
         "distanceToHole": 0,
@@ -333,12 +331,12 @@ export function sgGrid(startCoordinate: number[], aimCoordinate: number[],
     const aimPoint = turf.flip(turf.point(aimCoordinate));
     const holePoint = turf.flip(turf.point(holeCoordinate));
     if (dispersion < 0) {
-        const distanceToAim = turf.distance(startPoint, aimPoint, { units: "kilometers" }) * 1000
+        const distanceToAim = turf.distance(startPoint, aimPoint, { units: "meters" })
         dispersion = -dispersion * distanceToAim;
         dispersion = Math.max(0.5, dispersion);
     }
     const terrainTypeStart = startTerrain ? startTerrain : getTerrainAt(courseData, startPoint);
-    const distanceToHole = turf.distance(startPoint, holePoint, { units: "kilometers" }) * 1000
+    const distanceToHole = turf.distance(startPoint, holePoint, { units: "meters" })
     const strokesRemainingStart = strokesRemaining(distanceToHole, terrainTypeStart);
     const hexGrid = hexCircleCreate(aimCoordinate.reverse(), dispersion * 3);
 
@@ -349,7 +347,8 @@ export function sgGrid(startCoordinate: number[], aimCoordinate: number[],
     weightStrokesGained(hexGrid);
     const weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + (feature.properties.weightedStrokesGained || 0), 0);
 
-    console.debug('Total Weighted Strokes Gained:', weightedStrokesGained);
+    console.debug(`From ${startCoordinate} on ${startTerrain} @ ${dispersion}m dispersion: 
+    Total Weighted Strokes Gained: ${weightedStrokesGained}`);
     const properties = {
         type: gridTypes.STROKES_GAINED,
         strokesRemainingStart: strokesRemainingStart,
@@ -385,7 +384,9 @@ function calculateSubGrid(cell: Feature, dispersion: number, superGrid: GridFeat
     weightStrokesGained(subGrid);
     const weightedStrokesGained = subGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
     subGrid.properties = { ...subGrid.properties, weightedStrokesGained };
-    console.debug(`Processed subgrid cell${` ${index}`}, wsg = ${weightedStrokesGained}`);
+    if (index % 10 == 0) {
+        console.debug(`Processed subgrid cell${` ${index}`}, wsg = ${weightedStrokesGained}`);
+    }
     return subGrid;
 }
 
