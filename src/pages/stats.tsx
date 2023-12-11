@@ -15,7 +15,6 @@ import { useCourse } from "hooks/useCourse";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
 import { AppContext } from "contexts/appContext";
 import { useDisplayUnits } from 'hooks/useDisplayUnits';
-import { roundLoad } from 'services/rounds';
 
 /**
  * **************
