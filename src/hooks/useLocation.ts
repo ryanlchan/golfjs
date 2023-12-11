@@ -75,6 +75,10 @@ export interface GeolocatedResult {
      * Callback you can use to manually trigger the position query.
      */
     getPosition: () => void;
+    /**
+     * The raw GeolocationPosition object
+     */
+    raw: Signal<GeolocationPosition>;
 }
 
 
@@ -119,7 +123,10 @@ export function useGeolocated(config = {} as GeolocatedConfig): GeolocatedResult
     const timestamp = useSignal<EpochTimeStamp>(null);
     const positionError = useSignal<GeolocationPositionError>(null);
     const permissionState = useSignal<PermissionState>(null);
-    const isGeolocationAvailable = useComputed(() => Boolean(geolocationProvider))
+    const isGeolocationAvailable = useComputed(() => {
+        return !!(Boolean(geolocationProvider) && isGeolocationEnabled.value && coords.value)
+    });
+    const raw = useSignal(null as GeolocationPosition);
     const cancelUserDecisionTimeout = useCallback(() => {
         if (userDecisionTimeoutId.value) {
             window.clearTimeout(userDecisionTimeoutId.value);
@@ -143,7 +150,8 @@ export function useGeolocated(config = {} as GeolocatedConfig): GeolocatedResult
                 coords.value = position.coords;
                 timestamp.value = position.timestamp;
                 isGeolocationEnabled.value = true;
-                positionError.value = () => undefined;
+                positionError.value = undefined;
+                raw.value = position;
             });
         }
         onSuccess === null || onSuccess === void 0 ? void 0 : onSuccess(position);
@@ -214,5 +222,6 @@ export function useGeolocated(config = {} as GeolocatedConfig): GeolocatedResult
         isGeolocationEnabled,
         isGeolocationAvailable,
         positionError,
+        raw
     };
 }
