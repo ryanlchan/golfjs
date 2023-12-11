@@ -1,3 +1,4 @@
+import 'preact/debug'
 // stats.ts
 import * as chroma from "chroma-js";
 import { useState } from "preact/hooks";
@@ -5,14 +6,16 @@ import { ComponentChildren, JSX, render } from "preact";
 
 import * as cacheUtils from "common/cache";
 import { formatDistance, formatDistanceOptions } from 'common/projections';
-import { SettingsContext, useDisplayUnits } from "contexts/settingsContext";
-import { RoundStateManager, roundStore } from 'hooks/roundStore';
-import { SettingsStore, initSettingsStore } from "hooks/settingsStore";
+import { RoundStateManager, roundStateManager } from 'hooks/roundStore';
+import { SettingsStore, settingsStateManager } from "hooks/settingsStore";
 import { useStats } from "hooks/useStats";
 import type { StrokeStats } from 'services/stats';
 import { columnizeStrokes, groupBy, reduceStrokeColumns, summarizeStrokeGroups } from "services/stats";
 import { useCourse } from "hooks/useCourse";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
+import { AppContext } from "contexts/appContext";
+import { useDisplayUnits } from 'hooks/useDisplayUnits';
+import { roundLoad } from 'services/rounds';
 
 /**
  * **************
@@ -396,49 +399,52 @@ function StatsTitle({ roundStore, downloadHandler }:
         roundStore: RoundStateManager,
         downloadHandler: () => void,
     }) {
-    const roundDate = new Date(roundStore.round.value.date);
+    const roundDate = new Date(roundStore.data.value?.date);
     return <div id="roundTitleContainer">
         <h1>
-            <span id="roundTitle">{roundStore.round.value.course}</span>
+            <span id="roundTitle">{roundStore.data.value?.course}</span>
             <a id="downloadAsCSV" href="#" className="undecorated" title="Download as CSV">&#10515;</a>
         </h1>
         <p className="subtext">{roundDate.toLocaleString()}</p>
     </div>
 }
 
-function App({ settingsStore, roundStore }: { settingsStore: SettingsStore, roundStore: RoundStateManager }) {
+function StatsPage({ settingsStore, roundStore }: { settingsStore: SettingsStore, roundStore: RoundStateManager }) {
     const courseStore = useCourse(roundStore);
     const statsStore = useStats(roundStore, courseStore);
-    const round = roundStore.round?.value;
-    if (roundStore.isLoading || statsStore.isLoading) return <LoadingPlaceholder />
-
+    const round = roundStore.data?.value;
+    const appState = { settingsStore };
     const roundDate = new Date(round?.date);
     const roundDateString = [roundDate.getFullYear(), roundDate.getMonth(), roundDate.getDate(), roundDate.getHours(), roundDate.getMinutes()].join('');
     const filename = `${round?.course}_${roundDateString}.csv`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const download = () => downloadCSV(statsStore.stats?.strokes, filename);
-
-    return <SettingsContext.Provider value={settingsStore}>
-        <div className="statsPage">
-            <StatsTitle roundStore={roundStore} downloadHandler={download} />
-            <div className="bodyContainer">
-                <h2>Strokes gained by type</h2>
-                <BreakdownTable stats={statsStore.stats?.strokes} />
-                <h2>Strokes gained by hole</h2>
-                <HoleTable stats={statsStore.stats?.strokes} />
+    const download = () => downloadCSV(statsStore.data.value?.strokes, filename);
+    window.secretdebug = () => { debugger };
+    return (roundStore.isLoading.value || statsStore.isLoading.value) ?
+        (<LoadingPlaceholder />) :
+        (< AppContext.Provider value={appState} >
+            <div className="statsPage">
+                <StatsTitle roundStore={roundStore} downloadHandler={download} />
+                <div className="bodyContainer">
+                    <h2>Strokes gained by type</h2>
+                    <BreakdownTable stats={statsStore.data.value.strokes} />
+                    <h2>Strokes gained by hole</h2>
+                    <HoleTable stats={statsStore.data.value.strokes} />
+                </div>
             </div>
-        </div>
-    </SettingsContext.Provider>
+        </AppContext.Provider >
+        )
 }
 
-function generateAppState() {
-    const settingsStore = initSettingsStore();
-    const roundStore = roundStore();
+function generateStatsState() {
+    const settingsStore = settingsStateManager();
+    const roundStore = roundStateManager();
+    roundStore.load();
     return { settingsStore, roundStore }
 }
 async function generateView() {
     await cacheUtils.init();
-    const state = generateAppState();
-    render(<App {...state} />, document.querySelector('body'))
+    const state = generateStatsState();
+    render(<StatsPage {...state} />, document.querySelector('body'))
 }
 
 async function regenerateView() {
