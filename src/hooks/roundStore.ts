@@ -14,15 +14,16 @@ export interface RoundStateManager extends StateManager<Round> {
 }
 
 function roundStore(initialState?): Store<Round> {
-    return store(initialState || roundNew());
+    return store(initialState);
 }
 
 function roundMutator(itemStore) {
     const create = (course) => asyncMutate(itemStore, () => roundCreate(course));
     const load = async (id?) => {
         const val = itemStore.data.value;
-        id = id || (typeof val == 'string' && val);
-        return asyncMutate(itemStore, () => roundLoad(id))
+        if (typeof val == 'string') id = val;
+        return asyncMutate(itemStore, (async () => roundLoad(id))
+        )
     };
     const del = async () => asyncMutate(itemStore, async () => {
         await roundDelete(itemStore.data.value);
