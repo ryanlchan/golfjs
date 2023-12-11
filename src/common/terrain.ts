@@ -1,0 +1,1 @@
+export const formatTerrain = (terrainType: string) => terrainType.replaceAll("_", " ")
