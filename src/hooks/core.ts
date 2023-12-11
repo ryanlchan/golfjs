@@ -22,6 +22,7 @@ export function asyncStore(func: AsyncFunction<any>) {
 
 export function asyncMutate(store: Store<any>, func: AsyncFunction<any>): Promise<any> {
     store.isLoading.value = true;
+    store.error.value = null;
     return func()
         .then((val) => {
             store.isLoading.value = false
