@@ -1,4 +1,4 @@
-import { signal, Signal } from "@preact/signals";
+import { effect, signal, type Signal } from "@preact/signals";
 import { useMemo } from "preact/hooks";
 
 export interface Store<T = any> { data: Signal<T>, isLoading: Signal<boolean>, error: Signal<Error> }
@@ -68,4 +68,11 @@ export function idStateManager(initialState: any = []): IdStateManager {
 
 export const useIdStore = () => {
     return useMemo(() => idStateManager(), [])
+}
+
+type DisposeFunction = () => void
+export const disposableEffect = (cb: (dispose: DisposeFunction) => void): DisposeFunction => {
+    let dispose = null;
+    dispose = effect(() => cb(dispose))
+    return dispose;
 }
