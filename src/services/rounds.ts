@@ -154,11 +154,11 @@ function defaultRound(): Round {
  */
 
 export function roundIsPlayed(round: Round): boolean {
-    return round.holes.reduce((acc, hole) => (hole.strokes.length > 0) || acc, false);
+    return !!round && round.holes?.reduce((acc, hole) => (hole.strokes.length > 0) || acc, false);
 }
 
 export function getHoleFromRound(round: Round, holeIndex: number): Hole {
-    return round.holes[holeIndex];
+    return round.holes.find(hole => hole.index == holeIndex);
 }
 
 export function getHoleFromRoundByID(round: Round, holeId: string): Hole {
@@ -173,7 +173,7 @@ export function getHolePinFromRound(round: Round, holeIndex: number): Coordinate
 
 export function getStrokeFromRound(round: Round, holeIndex: number, strokeIndex: number): Stroke {
     const hole = getHoleFromRound(round, holeIndex);
-    return hole.strokes[strokeIndex]
+    return hole.strokes.find(str => str.index == strokeIndex)
 }
 
 export function getStrokeFollowingFromRound(round: Round, stroke: Stroke): Stroke {
@@ -192,7 +192,8 @@ export function getStrokesFromRound(round: Round): Stroke[] {
 }
 
 export function getHoleFromStrokeRound(stroke: Stroke, round: Round): Hole {
-    const filter = hole => hole.strokes.some(s => s.id == stroke.id)
+    if (!stroke) return;
+    const filter = hole => hole.strokes.some(s => s?.id == stroke?.id)
     const holes = round.holes.filter(filter);
     if (holes.length == 0) throw new Error(`No hole found for stroke ${stroke.id} in round ${round.id}`);
     return holes[0];
