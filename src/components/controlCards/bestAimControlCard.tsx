@@ -1,28 +1,21 @@
 import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "components/controlCards/controlCard";
-
-export function BestAimControl(props: { stroke: Stroke }) {
-    const activeGridLayer = layerRead('active_grid'); // TODO: replace with a prop/context pass
-    const activeGrid = activeGridLayer.options.grid;
-    const activeType = activeGrid?.properties.type;
-    const active = activeType == grids.gridTypes.TARGET;
-    const onClick = () => {
-        if (active) return
-        gridDelete();
-        gridCreate(grids.gridTypes.TARGET)
-        strokeMarkerAimUpdate();
-        rerender('controls');
+import { type StateManager } from "hooks/core";
+import { gridTypes } from "services/grids";
+import { getCachedStrokeStats, type RoundStatsCache } from "services/stats";
+export function BestAimControl({ stroke, statsStore, onGrid }:
+    {
+        stroke: Stroke,
+        statsStore: StateManager<RoundStatsCache>,
+        onGrid: (id: string, type: string) => void
     }
-    let value = "-";
-    let footer = "recalculate";
-    if (active) {
-        const sgi = activeGrid?.properties.idealStrokesGained;
-        const wsg = activeGrid?.properties.weightedStrokesGained;
-        const sgs = wsg - sgi;
-        value = sgs.toFixed(2);
-        footer = "vs best aim";
-    }
+) {
+    const strokeStats = getCachedStrokeStats(stroke, statsStore.data.value);
+    const onClick = () => onGrid(stroke.id, gridTypes.TARGET);
+    const header = "SG: Strategy"
+    const value = strokeStats.strokesGainedIdeal.toFixed(2);
+    const footer = "vs ideal";
     return <ControlCard className="gridTypeControlCard clickable" onClick={onClick}>
-        <ControlCardHeader>SG: Ideal</ControlCardHeader>
+        <ControlCardHeader>{header}</ControlCardHeader>
         <ControlCardValue>{value}</ControlCardValue>
         <ControlCardFooter>{footer}</ControlCardFooter>
     </ControlCard>

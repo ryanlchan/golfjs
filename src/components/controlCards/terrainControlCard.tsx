@@ -1,7 +1,9 @@
-import { PositionError } from "common/errors";
-import { touch, showError } from "common/utils";
-import { SG_SPLINES } from "services/coeffs20231205";
+import { useState } from "preact/hooks";
+
+import { formatTerrain } from "common/terrain";
 import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "components/controlCards/controlCard";
+import { TERRAIN_TYPES } from "services/courses";
+import { type StrokesStateManager } from "hooks/strokesStore";
 
 
 const terrainIcons = {
@@ -14,49 +16,47 @@ const terrainIcons = {
     'penalty': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 512 512"><path d="M256 48a208 208 0 1 1 0 416 208 208 0 1 1 0-416zm0 464A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM175 175c-9.4 9.4-9.4 24.6 0 33.9l47 47-47 47c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l47-47 47 47c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-47-47 47-47c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0l-47 47-47-47c-9.4-9.4-24.6-9.4-33.9 0z" /></svg>,
     'out_of_bounds': <svg xmlns="http://www.w3.org/2000/svg" height="32" width="28" viewBox="0 0 448 512"><path d="M368 128c0 44.4-25.4 83.5-64 106.4V256c0 17.7-14.3 32-32 32H176c-17.7 0-32-14.3-32-32V234.4c-38.6-23-64-62.1-64-106.4C80 57.3 144.5 0 224 0s144 57.3 144 128zM168 176a32 32 0 1 0 0-64 32 32 0 1 0 0 64zm144-32a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM3.4 273.7c7.9-15.8 27.1-22.2 42.9-14.3L224 348.2l177.7-88.8c15.8-7.9 35-1.5 42.9 14.3s1.5 35-14.3 42.9L295.6 384l134.8 67.4c15.8 7.9 22.2 27.1 14.3 42.9s-27.1 22.2-42.9 14.3L224 419.8 46.3 508.6c-15.8 7.9-35 1.5-42.9-14.3s-1.5-35 14.3-42.9L152.4 384 17.7 316.6C1.9 308.7-4.5 289.5 3.4 273.7z" /></svg>,
 }
-function TerrainOption(props: { stroke: Stroke, type: string }) {
-    const onClick = (e) => {
-        if (props.type == "" || props.type in SG_SPLINES) {
-            const stroke = round.holes[props.stroke.holeIndex].strokes[props.stroke.index];
-            stroke.terrain = props.type;
-            touch(stroke);
-            saveData();
-        } else {
-            showError(new PositionError("Terrain type not recognized", 4));
-            console.error(`Terrain type not recognized, got ${props.type}`);
-        }
-        rerender("dragend");
-    }
-    const icon = terrainIcons[props.type];
-    const formattedType = props.type.replaceAll("_", " ");
-    return <ControlCard className={`terrainOption clickable ${props.type}`} onClick={onClick}>
-        <input type="hidden" value={props.type}></input>
+const terrainTypeVals = Object.values(TERRAIN_TYPES);
+function TerrainOption({ stroke, type, strokeMutator }:
+    { stroke: Stroke, type: string, strokeMutator: (stroke, mutator: (draft) => void) => void }
+) {
+    const onClick = () => { strokeMutator(stroke, (strokeDraft) => strokeDraft.terrain = type) }
+    const icon = terrainIcons[type];
+    const formattedType = formatTerrain(type);
+    return <ControlCard className={`terrainOption clickable ${type}`} onClick={onClick}>
+        <input type="hidden" value={type}></input>
         <ControlCardHeader></ControlCardHeader>
         <ControlCardValue>{icon}</ControlCardValue>
         <ControlCardFooter>{formattedType}</ControlCardFooter>
     </ControlCard>
 }
 
-function TerrainMenu(props: { stroke: Stroke, types?: string[] }) {
-    const types = props.types || Object.keys(SG_SPLINES).map((key) => key);
+function TerrainMenu({ stroke, strokeMutator, types }:
+    { stroke: Stroke, strokeMutator: (stroke, mutator: (draft) => void) => void, types?: string[] }
+) {
+    types = types || terrainTypeVals.map((key) => key);
     return <div className="takeover">
         <div className="terrainMenu takeoverMenu cardContainer">
-            {types.map((type) => <TerrainOption type={type} stroke={props.stroke} />)}
+            {types.map((type) => <TerrainOption type={type} stroke={stroke} strokeMutator={strokeMutator} />)}
         </div>
     </div>
 }
 
-export function TerrainControl(props: { stroke: Stroke }) {
+export function TerrainControl({ stroke, strokeStateManager }:
+    { stroke: Stroke, strokeStateManager: StrokesStateManager }
+) {
     const [menuVisible, setMenuVisible] = useState(false);
     const toggleMenu = () => setMenuVisible(!menuVisible);
     const onClick = () => toggleMenu();
-    const currentTerrain = props.stroke?.terrain
-    const formattedTerrain = currentTerrain.replaceAll("_", " ");
+    const currentTerrain = stroke?.terrain;
+    const formattedTerrain = formatTerrain(currentTerrain);
     const icon = terrainIcons[currentTerrain];
-    return <ControlCard className="dispersionControlCard clickable" onClick={onClick}>
-        <ControlCardHeader>Terrain</ControlCardHeader>
+    const header = "Terrain";
+    const classes = "dispersionControlCard clickable";
+    return <ControlCard className={classes} onClick={onClick}>
+        <ControlCardHeader>{header}</ControlCardHeader>
         <ControlCardValue>{icon}</ControlCardValue>
         <ControlCardFooter>{formattedTerrain}</ControlCardFooter>
-        {menuVisible && <TerrainMenu stroke={props.stroke} />}
+        {menuVisible && <TerrainMenu stroke={stroke} strokeMutator={strokeStateManager.update} />}
     </ControlCard>
 }

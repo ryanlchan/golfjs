@@ -1,14 +1,20 @@
 import { formatDistanceOptions, formatDistance } from "src/common/projections";
 import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "components/controlCards/controlCard";
+import { strokeDispersionPrompt } from "components/displersionLink";
+import { StrokesStateManager } from "hooks/strokesStore";
+import { useDistanceOptions } from "hooks/useDisplayUnits";
 
-export function DispersionControl(props: { stroke: Stroke, distOptions?: formatDistanceOptions }) {
-    if (!props.stroke) return;
-    const onClick = () => strokeDispersionPrompt(props.stroke);
-    const distOptions = props.distOptions || { to_unit: displayUnits, precision: 1, include_unit: false };
-    const formattedDistance = formatDistance(props.stroke?.dispersion, distOptions);
-    return <ControlCard className="dispersionControlCard clickable" onClick={onClick}>
-        <ControlCardHeader>Dispersion</ControlCardHeader>
-        <ControlCardValue>{formattedDistance}</ControlCardValue>
-        <ControlCardFooter>{distOptions.to_unit}</ControlCardFooter>
+export function DispersionControl({ stroke, strokesStateManager, distOptions }:
+    { stroke: Stroke, strokesStateManager: StrokesStateManager, distOptions?: formatDistanceOptions }) {
+    const onClick = () => strokeDispersionPrompt(stroke, strokesStateManager);
+    distOptions = distOptions || useDistanceOptions();
+    const header = "Dispersion"
+    const value = formatDistance(stroke?.dispersion, distOptions);
+    const footer = distOptions.to_unit;
+    const classes = "dispersionControlCard clickable";
+    return <ControlCard className={classes} onClick={onClick}>
+        <ControlCardHeader>{header}</ControlCardHeader>
+        <ControlCardValue>{value}</ControlCardValue>
+        <ControlCardFooter>{footer}</ControlCardFooter>
     </ControlCard>
 }
