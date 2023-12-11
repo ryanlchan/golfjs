@@ -1,17 +1,17 @@
 import 'preact/debug'
 // stats.ts
 import * as chroma from "chroma-js";
-import { useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 import { ComponentChildren, JSX, render } from "preact";
 
 import * as cacheUtils from "common/cache";
 import { formatDistance, formatDistanceOptions } from 'common/projections';
-import { RoundStateManager, roundStateManager } from 'hooks/roundStore';
-import { SettingsStore, settingsStateManager } from "hooks/settingsStore";
-import { useStats } from "hooks/useStats";
+import { RoundStore, roundStore } from 'hooks/roundStore';
+import { SettingsStore, settingsStore } from "hooks/settingsStore";
+import { useStats } from "hooks/statsStore";
 import type { StrokeStats } from 'services/stats';
 import { columnizeStrokes, groupBy, reduceStrokeColumns, summarizeStrokeGroups } from "services/stats";
-import { useCourse } from "hooks/useCourse";
+import { useCourse } from "hooks/courseStore";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
 import { AppContext } from "contexts/appContext";
 import { useDisplayUnits } from 'hooks/useDisplayUnits';
@@ -395,7 +395,7 @@ function downloadCSV(jsonArray: any[], filename: string = 'data.csv'): void {
 
 function StatsTitle({ roundStore, downloadHandler }:
     {
-        roundStore: RoundStateManager,
+        roundStore: RoundStore,
         downloadHandler: () => void,
     }) {
     const roundDate = new Date(roundStore.data.value?.date);
@@ -408,11 +408,11 @@ function StatsTitle({ roundStore, downloadHandler }:
     </div>
 }
 
-function StatsPage({ settingsStore, roundStore }: { settingsStore: SettingsStore, roundStore: RoundStateManager }) {
+function StatsPage({ settingsStore, roundStore }: { settingsStore: SettingsStore, roundStore: RoundStore }) {
     const courseStore = useCourse(roundStore);
     const statsStore = useStats(roundStore, courseStore);
     const round = roundStore.data?.value;
-    const appState = { settingsStore };
+    const appState = useMemo(() => ({ settingsStore }), []);
     const roundDate = new Date(round?.date);
     const roundDateString = [roundDate.getFullYear(), roundDate.getMonth(), roundDate.getDate(), roundDate.getHours(), roundDate.getMinutes()].join('');
     const filename = `${round?.course}_${roundDateString}.csv`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -435,10 +435,9 @@ function StatsPage({ settingsStore, roundStore }: { settingsStore: SettingsStore
 }
 
 function generateStatsState() {
-    const settingsStore = settingsStateManager();
-    const roundStore = roundStateManager();
-    roundStore.load();
-    return { settingsStore, roundStore }
+    const state = { settingsStore: settingsStore(), roundStore: roundStore() }
+    state.roundStore.load();
+    return state;
 }
 async function generateView() {
     await cacheUtils.init();

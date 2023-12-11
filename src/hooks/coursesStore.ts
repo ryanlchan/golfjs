@@ -1,15 +1,11 @@
 
-import { CourseFeatureCollection, courseCacheAll, courseCacheDelete } from 'services/courses';
-import { Store, store, asyncMutate, StateManager } from 'hooks/core';
+import { type CourseFeatureCollection, courseCacheAll, courseCacheDelete } from 'services/courses';
+import { type Store, store, asyncMutate } from 'hooks/core';
 import { useMemo } from 'preact/hooks';
 
-export interface CoursesStore extends StateManager<CourseFeatureCollection[]> {
+export interface CoursesStore extends Store<CourseFeatureCollection[]> {
     load: () => Promise<CourseFeatureCollection[]>,
     del: (item: CourseFeatureCollection) => Promise<CourseFeatureCollection[]>,
-}
-
-function coursesStore(initialState?): Store<CourseFeatureCollection[]> {
-    return store(initialState);
 }
 
 function courseMutator(itemStore) {
@@ -31,15 +27,15 @@ function courseMutator(itemStore) {
     return { load, del }
 }
 
-export function coursesStateManager(initialState?): CoursesStore {
-    const s = coursesStore(initialState);
+export function coursesStore(initialState?): CoursesStore {
+    const s = store(initialState);
     const mutator = courseMutator(s);
     return { ...s, ...mutator };
 }
 
 export function useCourses(initialState?): CoursesStore {
     return useMemo(() => {
-        const sm = coursesStateManager(initialState);
+        const sm = coursesStore(initialState);
         sm.load();
         return sm
     }, [])

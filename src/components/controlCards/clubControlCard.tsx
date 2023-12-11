@@ -1,16 +1,16 @@
 import { ControlCard, ControlCardFooter, ControlCardHeader, ControlCardValue } from "components/controlCards/controlCard";
 import { useState } from 'preact/hooks';
 import { ClubMenu } from "components/clubMenu";
-import { StrokesStateManager } from "hooks/strokesStore";
+import { StrokesStore } from "hooks/strokesStore";
 
-export function ClubControl({ stroke, strokesStateManager }:
-    { stroke: Stroke, strokesStateManager: StrokesStateManager }
+export function ClubControl({ stroke, strokesStore }:
+    { stroke: Stroke, strokesStore: StrokesStore }
 ) {
     const [menuVisible, setMenuVisible] = useState(false);
     const toggleMenu = () => setMenuVisible(!menuVisible);
     const onClick = () => toggleMenu();
     const clubClick = (club: Club, e) => {
-        strokesStateManager.update(stroke, (draft) => {
+        strokesStore.update(stroke, (draft) => {
             draft.club = club.name;
         })
     }

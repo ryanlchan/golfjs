@@ -1,17 +1,17 @@
-import { useErrorBoundary, useState } from 'preact/hooks';
+import { useErrorBoundary, useMemo, useState } from 'preact/hooks';
 import { render } from "preact";
 
 import { roundDelete, roundSelect, roundCreate } from "services/rounds";
 import { CourseFeatureCollection, courseCacheDelete } from "services/courses";
-import { RoundStateManager, roundStateManager } from 'hooks/roundStore';
-import { ClubStateManager, clubStateManager } from "hooks/clubStore";
-import { SettingsStore, settingsStateManager } from "hooks/settingsStore";
+import { RoundStore, roundStore } from 'hooks/roundStore';
+import { ClubStore, clubStore } from "hooks/clubStore";
+import { SettingsStore, settingsStore } from "hooks/settingsStore";
 import { DISPLAY_UNIT_KEY, useDisplayUnits } from "hooks/useDisplayUnits";
 import { ErrorModal } from "components/errorModal";
 import { ClubEditor } from "components/clubEditor";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
-import { RoundsStateManager, roundsStateManager } from "hooks/roundsStore";
-import { CoursesStore, coursesStateManager } from "hooks/coursesStore";
+import { RoundsStore, roundsStore } from "hooks/roundsStore";
+import { CoursesStore, coursesStore } from "hooks/coursesStore";
 import { AppContext } from 'contexts/appContext';
 
 function RoundEditor({ value, onSave }) {
@@ -45,7 +45,7 @@ function RoundEditor({ value, onSave }) {
     );
 }
 
-function RoundJSONView({ roundStore }: { roundStore: RoundStateManager }) {
+function RoundJSONView({ roundStore }: { roundStore: RoundStore }) {
     const [expanded, setExpanded] = useState(false);
     const json = JSON.stringify(roundStore.data.value, null, 2);
     const copy = () => navigator.clipboard.writeText(json);
@@ -167,10 +167,10 @@ function UnitSelector({ onChange }: { onChange: (e: Event) => void }) {
 
 function SettingsPage({ roundsStore, coursesStore, roundStore, clubStore, settingsStore }:
     {
-        roundsStore: RoundsStateManager,
+        roundsStore: RoundsStore,
         coursesStore: CoursesStore,
-        roundStore: RoundStateManager,
-        clubStore: ClubStateManager,
+        roundStore: RoundStore,
+        clubStore: ClubStore,
         settingsStore: SettingsStore,
     }) {
     window.secretdebugfunc = () => { debugger };;
@@ -179,10 +179,10 @@ function SettingsPage({ roundsStore, coursesStore, roundStore, clubStore, settin
         const newUnit = e.target.value;
         settingsStore.set(DISPLAY_UNIT_KEY, newUnit)
     };
-    const appState = { settingsStore }
+    const appState = useMemo(() => ({ settingsStore }), []);
     return (roundsStore.isLoading.value || coursesStore.isLoading.value || roundStore.isLoading.value) ?
         <LoadingPlaceholder /> :
-        (<AppContext.Provider value={settingsStore}>
+        (<AppContext.Provider value={appState}>
             <div className="settingsPage">
                 {error && <ErrorModal message={error} timeout={10} />}
                 <RoundJSONView roundStore={roundStore} />
@@ -198,20 +198,20 @@ function SettingsPage({ roundsStore, coursesStore, roundStore, clubStore, settin
 }
 
 function generateAppState() {
-    const roundsStore = roundsStateManager();
-    const coursesStore = coursesStateManager();
-    const roundStore = roundStateManager();
-    const settingsStore = settingsStateManager();
-    const clubStore = clubStateManager(settingsStore);
-    roundsStore.load();
-    coursesStore.load();
-    roundStore.load();
+    const _roundsStore = roundsStore();
+    const _coursesStore = coursesStore();
+    const _roundStore = roundStore();
+    const _settingsStore = settingsStore();
+    const _clubStore = clubStore(_settingsStore);
+    _roundsStore.load();
+    _coursesStore.load();
+    _roundStore.load();
     const props = {
-        roundsStore,
-        coursesStore,
-        roundStore,
-        settingsStore,
-        clubStore
+        roundsStore: _roundsStore,
+        coursesStore: _coursesStore,
+        roundStore: _roundStore,
+        settingsStore: _settingsStore,
+        clubStore: _clubStore
     }
     return props
 }

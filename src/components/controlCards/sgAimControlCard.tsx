@@ -1,11 +1,11 @@
 import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "./controlCard";
 import { RoundStatsCache, getCachedStrokeStats } from "services/stats";
-import { StateManager } from "hooks/core";
+import { Store } from "hooks/core";
 import { gridTypes } from "services/grids";
 
 
 export function AimStatsControls({ stroke, statsStore, onGrid }:
-    { stroke: Stroke, statsStore: StateManager<RoundStatsCache>, onGrid: (id: string, type: string) => void }
+    { stroke: Stroke, statsStore: Store<RoundStatsCache>, onGrid: (id: string, type: string) => void }
 ) {
     const strokeStats = getCachedStrokeStats(stroke, statsStore.data.value);
     const sgp = strokeStats.strokesGainedPredicted;

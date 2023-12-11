@@ -1,9 +1,7 @@
-import { effect, signal, type Signal } from "@preact/signals";
+import { computed, effect, signal, type Signal } from "@preact/signals";
 import { useMemo } from "preact/hooks";
 
-export interface Store<T = any> { data: Signal<T>, isLoading: Signal<boolean>, error: Signal<Error> }
-export interface Mutator { [methods: string]: any }
-export interface StateManager<T = any> extends Store<T>, Mutator { }
+export interface Store<T = any> { data: Signal<T>, isLoading: Signal<boolean>, error: Signal<Error>, [methods: string]: any }
 type AsyncFunction<T = any> = (...args: any[]) => Promise<T>;
 type AnyFunction = (...args: any[]) => any;
 
@@ -20,6 +18,14 @@ export function asyncStore(func: AsyncFunction<any>) {
     return s;
 }
 
+export function computedStore(originStore, init: () => any): Store {
+    return {
+        data: computed(init),
+        isLoading: originStore.isLoading,
+        error: originStore.error
+    }
+}
+
 export function asyncMutate(store: Store<any>, func: AsyncFunction<any>): Promise<any> {
     store.isLoading.value = true;
     store.error.value = null;
@@ -33,7 +39,7 @@ export function asyncMutate(store: Store<any>, func: AsyncFunction<any>): Promis
 }
 
 // Generic ID-based store
-export interface IdStateManager extends Store<string[]> {
+export interface IdStore extends Store<string[]> {
     activate: (id: string) => void,
     activateOnly: (id: string) => void,
     deactivate: (id: string) => void,
@@ -41,7 +47,7 @@ export interface IdStateManager extends Store<string[]> {
     toggle: (id: string) => void,
     includes: (id: string) => boolean
 }
-export function idStateManager(initialState: any = []): IdStateManager {
+export function idStore(initialState: any = []): IdStore {
     const s = store(initialState) as Store<string[]>;
     const ids = s.data;
     const activate = (id: string) => {
@@ -67,7 +73,7 @@ export function idStateManager(initialState: any = []): IdStateManager {
 }
 
 export const useIdStore = () => {
-    return useMemo(() => idStateManager(), [])
+    return useMemo(() => idStore(), [])
 }
 
 type DisposeFunction = () => void

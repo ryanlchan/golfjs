@@ -1,11 +1,11 @@
 import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "components/controlCards/controlCard";
-import { type StateManager } from "hooks/core";
+import { type Store } from "hooks/core";
 import { gridTypes } from "services/grids";
 import { getCachedStrokeStats, type RoundStatsCache } from "services/stats";
 export function BestAimControl({ stroke, statsStore, onGrid }:
     {
         stroke: Stroke,
-        statsStore: StateManager<RoundStatsCache>,
+        statsStore: Store<RoundStatsCache>,
         onGrid: (id: string, type: string) => void
     }
 ) {

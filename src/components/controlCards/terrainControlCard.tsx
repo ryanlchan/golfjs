@@ -3,7 +3,7 @@ import { useState } from "preact/hooks";
 import { formatTerrain } from "common/terrain";
 import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "components/controlCards/controlCard";
 import { TERRAIN_TYPES } from "services/courses";
-import { type StrokesStateManager } from "hooks/strokesStore";
+import { type StrokesStore } from "hooks/strokesStore";
 
 
 const terrainIcons = {
@@ -37,13 +37,13 @@ function TerrainMenu({ stroke, strokeMutator, types }:
     types = types || terrainTypeVals.map((key) => key);
     return <div className="takeover">
         <div className="terrainMenu takeoverMenu cardContainer">
-            {types.map((type) => <TerrainOption type={type} stroke={stroke} strokeMutator={strokeMutator} />)}
+            {types.map((type) => <TerrainOption key={type} type={type} stroke={stroke} strokeMutator={strokeMutator} />)}
         </div>
     </div>
 }
 
-export function TerrainControl({ stroke, strokeStateManager }:
-    { stroke: Stroke, strokeStateManager: StrokesStateManager }
+export function TerrainControl({ stroke, strokeStore }:
+    { stroke: Stroke, strokeStore: StrokesStore }
 ) {
     const [menuVisible, setMenuVisible] = useState(false);
     const toggleMenu = () => setMenuVisible(!menuVisible);
@@ -57,6 +57,6 @@ export function TerrainControl({ stroke, strokeStateManager }:
         <ControlCardHeader>{header}</ControlCardHeader>
         <ControlCardValue>{icon}</ControlCardValue>
         <ControlCardFooter>{formattedTerrain}</ControlCardFooter>
-        {menuVisible && <TerrainMenu stroke={stroke} strokeMutator={strokeStateManager.update} />}
+        {menuVisible && <TerrainMenu stroke={stroke} strokeMutator={strokeStore.update} />}
     </ControlCard>
 }

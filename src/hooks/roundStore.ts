@@ -1,20 +1,16 @@
 import { effect } from '@preact/signals';
 import { roundNew, roundSave, roundDelete, roundLoad, roundCreate, roundIsPlayed } from 'services/rounds';
-import { Store, StateManager, asyncMutate, store } from './core';
+import { type Store, asyncMutate, store } from './core';
 import { useMemo } from 'preact/hooks';
 import { produce } from 'immer';
 import { trackUpdates } from 'common/utils';
 
 
-export interface RoundStateManager extends StateManager<Round> {
+export interface RoundStore extends Store<Round> {
     load: (id?: string) => Promise<Round>,
     create: (course: Course) => Promise<Round>,
     del: () => Promise<void>,
     mutate: ((recipe: (draft: Round) => void) => void)
-}
-
-function roundStore(initialState?): Store<Round> {
-    return store(initialState);
 }
 
 function roundMutator(itemStore) {
@@ -38,15 +34,15 @@ function roundMutator(itemStore) {
     return { load, create, del, mutate };
 }
 
-export function roundStateManager(initialState?): RoundStateManager {
-    const s = roundStore(initialState);
+export function roundStore(initialState?): RoundStore {
+    const s = store(initialState);
     const mutator = roundMutator(s);
     return { ...s, ...mutator };
 }
 
-export function useRound(initialState?): RoundStateManager {
+export function useRound(initialState?): RoundStore {
     return useMemo(() => {
-        const sm = roundStateManager(initialState);
+        const sm = roundStore(initialState);
         sm.load();
         return sm
     }, [])

@@ -2,21 +2,21 @@ import { createContext } from 'preact';
 
 import { store } from 'hooks/core';
 import { signal, type Signal } from '@preact/signals';
-import type { IdStateManager, StateManager } from 'hooks/core';
+import type { IdStore, Store } from 'hooks/core';
 import type { GeolocatedResult } from 'hooks/useLocation';
 import { ModalProps } from "common/modals";
 
 export interface AppState {
-    activeStrokes?: IdStateManager,
-    activeHoles?: IdStateManager,
-    settingsStore?: StateManager,
+    activeStrokes?: IdStore,
+    activeHoles?: IdStore,
+    settingsStore?: Store,
     geolocationResult?: GeolocatedResult,
     modal?: Signal<ModalProps>
 }
 const defaultValue = {
-    activeStrokes: {} as IdStateManager,
-    activeHoles: {} as IdStateManager,
-    settingsStore: store() as StateManager,
+    activeStrokes: {} as IdStore,
+    activeHoles: {} as IdStore,
+    settingsStore: store(),
     geolocationResult: {} as GeolocatedResult,
     modal: signal({} as ModalProps)
 } as AppState

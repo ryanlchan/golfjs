@@ -1,13 +1,13 @@
 import { RoundStatsCache, fetchStatsCache } from "services/stats";
-import { RoundStateManager } from './roundStore';
-import { CourseStateManager } from "hooks/useCourse";
+import { RoundStore } from './roundStore';
+import { CourseStore } from "hooks/courseStore";
 import { roundIsPlayed } from "services/rounds";
-import { Store, asyncMutate, store } from "hooks/core";
+import { type Store, asyncMutate, store } from "hooks/core";
 import { useMemo } from "preact/hooks";
 import { effect } from "@preact/signals";
 
 
-const statsStore = (roundStore: RoundStateManager, courseStore: CourseStateManager): Store<RoundStatsCache> => {
+export const statsStore = (roundStore: RoundStore, courseStore: CourseStore): Store<RoundStatsCache> => {
     const s = store({} as RoundStatsCache)
     const _load = async (round: Round): Promise<RoundStatsCache> => {
         if (!round || !roundIsPlayed(round) || Object.keys(courseStore.data.value).length == 0) {
@@ -21,6 +21,6 @@ const statsStore = (roundStore: RoundStateManager, courseStore: CourseStateManag
     return s;
 }
 
-export const useStats = (roundStore: RoundStateManager, courseStore: CourseStateManager): Store<RoundStatsCache> => {
+export const useStats = (roundStore: RoundStore, courseStore: CourseStore): Store<RoundStatsCache> => {
     return useMemo(() => statsStore(roundStore, courseStore), [])
 }

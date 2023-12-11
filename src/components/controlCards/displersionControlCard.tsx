@@ -1,12 +1,12 @@
 import { formatDistanceOptions, formatDistance } from "src/common/projections";
 import { ControlCard, ControlCardHeader, ControlCardValue, ControlCardFooter } from "components/controlCards/controlCard";
 import { strokeDispersionPrompt } from "components/displersionLink";
-import { StrokesStateManager } from "hooks/strokesStore";
+import { StrokesStore } from "hooks/strokesStore";
 import { useDistanceOptions } from "hooks/useDisplayUnits";
 
-export function DispersionControl({ stroke, strokesStateManager, distOptions }:
-    { stroke: Stroke, strokesStateManager: StrokesStateManager, distOptions?: formatDistanceOptions }) {
-    const onClick = () => strokeDispersionPrompt(stroke, strokesStateManager);
+export function DispersionControl({ stroke, strokesStore, distOptions }:
+    { stroke: Stroke, strokesStore: StrokesStore, distOptions?: formatDistanceOptions }) {
+    const onClick = () => strokeDispersionPrompt(stroke, strokesStore);
     distOptions = distOptions || useDistanceOptions();
     const header = "Dispersion"
     const value = formatDistance(stroke?.dispersion, distOptions);

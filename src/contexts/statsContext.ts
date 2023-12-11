@@ -1,6 +1,6 @@
 import { createContext } from 'preact';
-import { type StateManager } from 'hooks/core';
+import { type Store } from 'hooks/core';
 import { type RoundStatsCache } from 'services/stats';
 
-const defaultValue = {} as StateManager<RoundStatsCache>
+const defaultValue = {} as Store<RoundStatsCache>
 export const StatsContext = createContext(defaultValue);

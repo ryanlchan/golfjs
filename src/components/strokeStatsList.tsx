@@ -2,7 +2,7 @@ import { formatDistance } from "src/common/projections";
 import type { JSX } from 'preact';
 import { useDistanceOptions } from "hooks/useDisplayUnits";
 import { DispersionLink } from "components/displersionLink";
-import { StrokesStateManager } from "hooks/strokesStore";
+import { StrokesStore } from "hooks/strokesStore";
 import { useActiveStrokesContext } from "hooks/useActiveStrokesContext";
 import { strokeGetDistance } from "services/strokes";
 
@@ -11,11 +11,11 @@ import { strokeGetDistance } from "services/strokes";
  * @param {Stroke} stroke
  * @returns {HTMLElement}
  */
-function StrokeDeleteButton({ stroke, strokesStateManager }:
-    { stroke: Stroke, strokesStateManager: StrokesStateManager }): JSX.Element {
+function StrokeDeleteButton({ stroke, strokesStore }:
+    { stroke: Stroke, strokesStore: StrokesStore }): JSX.Element {
     const icon = <span>&#215;</span>;
     const clickHandler = (e) => {
-        strokesStateManager.remove(stroke);
+        strokesStore.remove(stroke);
         e.stopPropagation();
     }
     return <button className="danger" onClick={clickHandler}>{icon}</button>
@@ -27,11 +27,11 @@ function StrokeDeleteButton({ stroke, strokesStateManager }:
  * @param {Number} offset the offset for the stroke index
  * @returns {HTMLElement}
  */
-function StrokeMoveButton({ stroke, strokesStateManager, offset }:
-    { stroke: Stroke, strokesStateManager: StrokesStateManager, offset: number }): JSX.Element {
+function StrokeMoveButton({ stroke, strokesStore, offset }:
+    { stroke: Stroke, strokesStore: StrokesStore, offset: number }): JSX.Element {
     const icon = (offset > 0 ? <span>&#8595;</span> : <span>&#8593;</span>)
     const clickHandler = (e) => {
-        strokesStateManager.reorder(stroke, stroke.index + offset);
+        strokesStore.reorder(stroke, stroke.index + offset);
         e.stopPropagation();
     }
     return <button onClick={clickHandler}>{icon}</button>
@@ -43,10 +43,10 @@ function StrokeMoveButton({ stroke, strokesStateManager, offset }:
  * @param {Stroke} props.stroke
  * @returns {HTMLElement} the li element for the list
  */
-function StrokeStatsListItem({ stroke, strokesStateManager }: { stroke: Stroke, strokesStateManager: StrokesStateManager }) {
+function StrokeStatsListItem({ stroke, strokesStore }: { stroke: Stroke, strokesStore: StrokesStore }) {
     const distOptions = useDistanceOptions();
     const activeStrokes = useActiveStrokesContext();
-    const round = strokesStateManager.source.data.value;
+    const round = strokesStore.source.data.value;
     const distance = formatDistance(strokeGetDistance(stroke, round), distOptions);
     const selectedClass = 'strokeStatsListItemSelected';
     let classArray = ["strokeStatsListItem", "listCell"];
@@ -57,13 +57,13 @@ function StrokeStatsListItem({ stroke, strokesStateManager }: { stroke: Stroke, 
         <div className={classes} id={stroke.id} onClick={clickHandler}>
             <div className="strokeDetails">
                 {`${stroke.index + 1}.  ${stroke.club} (${distance})`} | &#xb1;
-                <DispersionLink stroke={stroke} strokesStateManager={strokesStateManager}
+                <DispersionLink stroke={stroke} strokesStore={strokesStore}
                     distOptions={distOptions} />
             </div>
             <div className="strokeControls">
-                <StrokeMoveButton stroke={stroke} strokesStateManager={strokesStateManager} offset={-1} />
-                <StrokeMoveButton stroke={stroke} strokesStateManager={strokesStateManager} offset={1} />
-                <StrokeDeleteButton stroke={stroke} strokesStateManager={strokesStateManager} />
+                <StrokeMoveButton stroke={stroke} strokesStore={strokesStore} offset={-1} />
+                <StrokeMoveButton stroke={stroke} strokesStore={strokesStore} offset={1} />
+                <StrokeDeleteButton stroke={stroke} strokesStore={strokesStore} />
             </div>
         </div></li>;
 }
@@ -72,11 +72,11 @@ function StrokeStatsListItem({ stroke, strokesStateManager }: { stroke: Stroke, 
  * Generate a list of strokes with controls to adjust them
  * @param {Stroke[]} props.strokes
  */
-export function StrokeStatsList({ strokes, strokesStateManager }:
-    { strokes: Stroke[], strokesStateManager: StrokesStateManager }) {
+export function StrokeStatsList({ strokes, strokesStore }:
+    { strokes: Stroke[], strokesStore: StrokesStore }) {
     return (<div id="strokeList"><ol>
         {strokes.map((stroke) => (
-            <StrokeStatsListItem key={stroke.id} stroke={stroke} strokesStateManager={strokesStateManager} />
+            <StrokeStatsListItem key={stroke.id} stroke={stroke} strokesStore={strokesStore} />
         ))}
     </ol></div>);
 }
