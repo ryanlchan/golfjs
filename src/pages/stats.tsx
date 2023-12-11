@@ -230,15 +230,18 @@ function ColumnTable({ headers, columns, footers, expansions, ...others }: { hea
         <table {...others}>
             <TableHeaders headers={headers} />
             <tbody>
-                {columns[0].map((_, rowIndex) => (
-                    <ExpansionRow key={rowIndex} children={columns.map(column => column[rowIndex])}
-                        expansion={(rowIndex == selected) && expansions[rowIndex]}
-                        onClick={() => onRowClick(rowIndex)} />
+                {columns[0].map((val, rowIndex) => (
+                    <ExpansionRow key={val} expansion={(rowIndex == selected) && expansions[rowIndex]}
+                        onClick={() => onRowClick(rowIndex)}>
+                        {columns.map(column => column[rowIndex])}
+                    </ExpansionRow>
                 ))}
                 {footers && (
-                    <ExpansionRow key="totals" children={footers} className="totals"
+                    <ExpansionRow key="totals" className="totals"
                         expansion={("totals" == selected) && expansions[columns[0].length]}
-                        onClick={() => onRowClick("totals")} />
+                        onClick={() => onRowClick("totals")}>
+                        {footers}
+                    </ExpansionRow>
                 )}
             </tbody>
         </table>
@@ -286,7 +289,7 @@ interface GroupedPivotTableProps {
     [others: string]: any
 }
 function GroupedPivotTable({ input,
-    groupedBy: groupedBy,
+    groupedBy,
     metrics = defaultSummaryStatsMetrics,
     sortBy = (a, b) => a - b,
     includeTotals = true,
@@ -323,7 +326,7 @@ function GroupedPivotTable({ input,
 
     let expansions = []
     if (expandable) {
-        expansions = groupKeys.map((key) => <StrokeStatsTable input={groups[key]} />);
+        expansions = groupKeys.map((key) => <StrokeStatsTable key={key} input={groups[key]} />);
         if (includeTotals) expansions.push(<StrokeStatsTable input={input} />);
     }
     return <ColumnTable headers={headers} columns={dataFrame}
@@ -347,7 +350,7 @@ function explodeCounts(obj: object): JSX.Element {
     let counts = Object.entries(obj);
     counts.sort((a, b) => a[1] - b[1]);
     return <>
-        {counts.map(([key, count]) => <span>{key}:&nbsp;{count}, </span>)}
+        {counts.map(([key, count]) => <>{key}:&nbsp;{count}, </>)}
     </>
 }
 
