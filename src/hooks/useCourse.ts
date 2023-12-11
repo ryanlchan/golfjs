@@ -5,6 +5,7 @@ import { type Store, asyncMutate, store } from 'hooks/core';
 import { CourseFeatureCollection, courseLoad } from 'services/courses';
 import { roundCourseParams } from 'services/rounds';
 
+const emptyFC = { type: "FeatureCollection", features: [] } as CourseFeatureCollection
 export interface CourseStateManager extends Store<CourseFeatureCollection> {
     load: () => void
 }
@@ -16,7 +17,7 @@ export const useCourse = (roundStore: RoundStateManager): CourseStateManager => 
             return Promise.reject("Waiting until round is ready");
         }
     }
-    const s = store({} as CourseFeatureCollection);
+    const s = store(emptyFC);
     const load = async () => asyncMutate(s, async () => _load(roundCourseParams(roundStore.data.value)))
     effect(() => load())
     return { ...s, load }

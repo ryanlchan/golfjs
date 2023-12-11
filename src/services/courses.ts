@@ -301,11 +301,7 @@ export function getHoleGreenCenter(data: FeatureCollection, holeIndex: number): 
  * @returns {FeatureCollection}
  */
 function findBoundaries(collection: FeatureCollection): FeatureCollection {
-    try {
-        return turf.getCluster(collection, { 'leisure': 'golf_course' });
-    } catch (e) {
-        debugger;
-    }
+    return turf.getCluster(collection, { 'leisure': 'golf_course' });
 }
 
 /**
