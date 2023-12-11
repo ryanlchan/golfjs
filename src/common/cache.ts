@@ -1,13 +1,20 @@
 import localForage from 'localforage';
 import { migrateLocalStorageToForage } from '../services/migrations';
 
+const instanceCache = new Map<string, LocalForage>();
+
 function _getInstance(namespace?: string): LocalForage {
     const name = namespace ? `golfjs-${namespace}` : "golfjs";
-    return localForage.createInstance({
+    const cached = instanceCache.get(name);
+    if (cached) return cached;
+    const lf = localForage.createInstance({
         name: name,
         version: 2.1,
     });
+    instanceCache.set(name, lf);
+    return lf;
 }
+
 export async function init() {
     const lf = _getInstance();
     const storedKeys = await lf.length();
