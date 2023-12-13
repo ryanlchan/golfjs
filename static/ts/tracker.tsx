@@ -1912,13 +1912,13 @@ function Scorecard(props: { round: Round }) {
     return (<table className="scorecard">
         <thead><tr>
             {holeCol && <td>Hole</td>}
-            {hdcpCol && <td>Hdcp</td>}
             {parCol && <td>Par</td>}
+            {hdcpCol && <td>Hdcp</td>}
             {scoreCol && <td>Score</td>}
         </tr></thead>
         <tbody>
-            {scoringRound.holes.map((hole) => <ScorecardRow key={hole.id} hole={hole} holeCol hdcpCol parCol scoreCol />)}
-            <ScorecardTotalRow round={round} holeCol hdcpCol parCol scoreCol />
+            {scoringRound.holes.map((hole) => <ScorecardRow key={hole.id} hole={hole} holeCol={holeCol} hdcpCol={hdcpCol} parCol={parCol} scoreCol={scoreCol} />)}
+            <ScorecardTotalRow round={round} holeCol={holeCol} hdcpCol={hdcpCol} parCol={parCol} scoreCol={scoreCol} />
         </tbody>
     </table>);
 }
