@@ -84,7 +84,8 @@ function strokeCreate(position: GeolocationPositionIsh, options: object = {}) {
     touch(currentHole, round);
 
     // Add the stroke to the view
-    strokeMarkerCreate(stroke);
+    const marker = strokeMarkerCreate(stroke);
+    strokeMarkerActivate(marker);
     rerender();
 }
 
@@ -274,6 +275,7 @@ function strokeMarkerCreate(stroke: Stroke, options?: object) {
         { permanent: true, direction: direction, offset: offset });
     marker.on('click', strokeMarkerActivateCallback(marker));
     marker.on('dragend', () => strokeUpdateTerrain(stroke));
+    return marker;
 }
 
 /**
