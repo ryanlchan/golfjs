@@ -21,9 +21,10 @@ export function trackUpdates<T extends HasUpdateDates>(obj: T): WithUpdatedAt<T>
         },
         get: (target: any, property: string | symbol, receiver: Object) => {
             if (property == "__trackingUpdates") return true; // special key to check if it's proxied already
+            if (property == "__toRaw") return target;
             const value = Reflect.get(target, property, receiver);
-            return ((value && typeof value === 'object'
-                && !value["__trackingUpdates"] && isTrackable(target, property))
+            return ((value && typeof value === 'object' && isTrackable(target, property)
+                && !value["__trackingUpdates"])
                 ? trackUpdates(value)
                 : value);
         }

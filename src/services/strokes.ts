@@ -1,5 +1,5 @@
 import { coordToPoint, getDistance } from 'common/projections';
-import { clamp, indexSort, touch, trackUpdates } from 'common/utils';
+import { clamp, indexSort, touch } from 'common/utils';
 import { CourseFeatureCollection, TERRAIN_TYPES, getTerrainAt } from './courses';
 import { typeid } from 'typeid-js';
 import { getHoleFromRound, getHoleFromStrokeRound, getStrokeFromRound } from './rounds';
@@ -32,7 +32,6 @@ export function strokeCreate(
     //     })
     //     holeSelect(currentHole.index);
     // }
-    round = trackUpdates(round);
     const hole = getHoleFromRound(round, holeIndex);
     const stroke: Stroke = {
         id: typeid("stroke").toString(),
@@ -52,15 +51,17 @@ export function strokeCreate(
     if (stroke.index > 0) {
         const lastStroke = getStrokeFromRound(round, stroke.holeIndex, stroke.index - 1);
         if (lastStroke.terrain == TERRAIN_TYPES.PENALTY) lastStroke.aim = stroke.start;
+        touch(lastStroke)
     }
+    touch(hole, round)
     hole.strokes.push(stroke);
     return stroke;
 }
 
 export function strokeAdd(stroke: Stroke, round: Round) {
-    round = trackUpdates(round);
     const hole = getHoleFromRound(round, stroke.holeIndex)
     hole.strokes.push(stroke);
+    touch(hole, round);
 }
 
 /**
@@ -91,11 +92,11 @@ function strokeCreateWithClub(position: GeolocationPositionIsh,
  * @param round the round to delete from
  */
 export function strokeDelete(stroke: Stroke, round: Round) {
-    round = trackUpdates(round);
     const hole = getHoleFromRound(round, stroke.holeIndex);
     const strokes = indexSort(hole.strokes);
     strokes.splice(stroke.index, 1);
     strokes.forEach((stroke, index) => stroke.index = index);
+    touch(hole, round);
 }
 
 /**
@@ -105,7 +106,6 @@ export function strokeDelete(stroke: Stroke, round: Round) {
  * @param round the Round 
  */
 export function strokeReorder(stroke: Stroke, index: number, round: Round) {
-    round = trackUpdates(round);
     const hole = getHoleFromRound(round, stroke.holeIndex);
     const strokes = indexSort(hole.strokes);
     const oldIndex = stroke.index;
@@ -113,6 +113,7 @@ export function strokeReorder(stroke: Stroke, index: number, round: Round) {
     strokes.splice(oldIndex, 1);
     strokes.splice(index, 0, stroke);
     strokes.forEach((stroke, index) => stroke.index = index);
+    touch(hole, round);
 }
 
 /**
@@ -139,10 +140,29 @@ export function strokeUpdateTerrain(stroke: Stroke, round: Round, courseData: Co
  * @returns the updated stroke
  */
 function strokeAimReset(stroke: Stroke, round: Round): Stroke {
-    round = trackUpdates(round);
+    const roundStroke = getStrokeFromRound(round, stroke.holeIndex, stroke.index);
     const hole = getHoleFromRound(round, stroke.holeIndex);
-    stroke.aim = hole.pin;
-    return stroke;
+    roundStroke.aim = hole.pin;
+    touch(roundStroke, hole, round);
+    return roundStroke;
+}
+
+export function strokeUpdateAim(stroke: Stroke, coord: Coordinate, round: Round): Stroke {
+    const roundStroke = getStrokeFromRound(round, stroke.holeIndex, stroke.index);
+    const hole = getHoleFromStrokeRound(stroke, round);
+    roundStroke.aim = coord;
+    touch(roundStroke, hole, round);
+    return roundStroke
+}
+
+export function strokeUpdateStart(stroke: Stroke, coord: Coordinate, round: Round, courseData: CourseFeatureCollection): Stroke {
+    const roundStroke = getStrokeFromRound(round, stroke.holeIndex, stroke.index);
+    const hole = getHoleFromStrokeRound(stroke, round);
+    roundStroke.start = coord;
+    const strokePrior = getStrokeFromRound(round, roundStroke.holeIndex, roundStroke.index);
+    if (strokePrior) touch(strokePrior);
+    strokeUpdateTerrain(roundStroke, round, courseData);
+    touch(roundStroke, hole, round)
 }
 
 export function strokeGetNextStart(stroke: Stroke, round: Round): Coordinate {
