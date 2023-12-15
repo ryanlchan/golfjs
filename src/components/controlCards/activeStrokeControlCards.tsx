@@ -1,28 +1,29 @@
 import { BestAimControl } from "components/controlCards/bestAimControlCard";
 import { ClubControl } from "components/controlCards/clubControlCard";
 import { DispersionControl } from "components/controlCards/displersionControlCard";
-import { AimStatsControls } from "components/controlCards/sgAimControlCard";
+import { SGAimControlCard } from "components/controlCards/sgAimControlCard";
 import { TerrainControl } from "components/controlCards/terrainControlCard";
-import { IdStateManager, type StateManager } from "hooks/core";
-import { type StrokesStateManager } from "hooks/strokesStore";
-import { type RoundStatsCache } from "services/stats";
+import { useStrokesStateManagerContext } from "hooks/useActiveStrokesContext";
+import { useStatsContext } from "hooks/useStatsContext";
+import { type StrokesStore } from "hooks/strokesStore";
+import { useErrorBoundary } from "preact/hooks";
 
-export function ActiveStrokeControls({ stroke, strokesStateManager, statsStateManager, gridManager }:
+export function ActiveStrokeControls({ stroke, strokesStore }:
     {
         stroke: Stroke,
-        strokesStateManager: StrokesStateManager,
-        statsStateManager: StateManager<RoundStatsCache>,
-        gridManager: IdStateManager
+        strokesStore: StrokesStore,
     }
 ) {
-    if (!stroke) return;
-    return <div id="activeStrokeControls" className="buttonRow">
+    const [error, clearError] = useErrorBoundary();
+    const strokeManager = useStrokesStateManagerContext();
+    const statsStore = useStatsContext();
+    return < div id="activeStrokeControls" className="buttonRow" >
         <div className="cardContainer hoscro">
-            <AimStatsControls stroke={stroke} statsStateManager={statsStateManager} />
-            <BestAimControl stroke={stroke} />
-            <TerrainControl stroke={stroke} />
-            <ClubControl stroke={stroke} />
-            <DispersionControl stroke={stroke} />
+            <SGAimControlCard stroke={stroke} statsStore={statsStore} onGrid={strokeManager.activateGrid} />
+            <BestAimControl stroke={stroke} statsStore={statsStore} onGrid={strokeManager.activateGrid} />
+            <TerrainControl stroke={stroke} strokesStore={strokesStore} />
+            <ClubControl stroke={stroke} strokesStore={strokesStore} />
+            <DispersionControl stroke={stroke} strokesStore={strokesStore} />
         </div>
-    </div>
+    </div >
 }

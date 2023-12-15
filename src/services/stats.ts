@@ -6,7 +6,7 @@ import {
 } from 'services/rounds';
 import * as cacheUtils from 'common/cache';
 import { getDistance, coordToPoint } from 'common/projections';
-import { cdf, targetGrid } from 'services/grids';
+import { cdf, sgGrid, targetGrid } from 'services/grids';
 import { CourseFeatureCollection, courseLoad } from './courses';
 /**
  * *********
@@ -50,7 +50,7 @@ export interface StrokeStats extends HasUpdateDates {
     strokesGainedPredicted: number,
     strokesGainedOverPredicted: number,
     strokesGainedPercentile: number,
-    strokesGainedIdeal: number,
+    strokesGainedIdeal?: number,
     bearingAim: number,
     bearingPin: number,
     bearingActual: number,
@@ -156,7 +156,7 @@ export async function fetchStatsCache(round: Round, courseData: CourseFeatureCol
             cache.holes.map(hole => saveHoleStats(hole)),
             cache.strokes.map(stroke => saveStrokeStats(stroke))
         ].flat();
-        await Promise.all(async);
+        // await Promise.all(async);
         return cache;
     } catch (e) {
         console.error(e);
@@ -170,7 +170,7 @@ export async function fetchStatsCache(round: Round, courseData: CourseFeatureCol
 export async function createStatsContext(r: Round, courseData?: CourseFeatureCollection): Promise<StatsContext> {
     try {
 
-        if (!courseData || Object.keys(courseData).length == 0) {
+        if (!courseData || Object.keys(courseData).length == 0 || courseData.features.length == 0) {
             const courseParams = roundCourseParams(r);
             courseData = await courseLoad(courseParams);
         }
@@ -296,10 +296,9 @@ function calculateHoleStats(hole: Hole, context: StatsContext): HoleStats {
     let hstats: HoleStats = defaultHoleStats(hole);
 
     // Within each hole, calculate strokes gained from last stroke backwards
-    hole.strokes.sort((a, b) => b.index - a.index);
-    const strokes = hole.strokes;
+    const strokes = [...hole.strokes]
+    strokes.sort((a, b) => b.index - a.index);
     const strokeStats = strokes.map(stroke => (getStrokeStats(stroke, context)));
-    hole.strokes.sort((a, b) => a.index - b.index);
     hstats.strokesRemaining = strokeStats[0]?.strokesRemaining;
     if (!hstats.par) hstats.par = Math.round(strokeStats[0]?.strokesRemaining);
 
@@ -318,7 +317,7 @@ function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStat
     const strokeEnd = nextStroke ? nextStroke.start : pin;
     const nextStats = nextStroke && getStrokeStats(nextStroke, context);
     const srnext = nextStats ? nextStats.strokesRemaining : 0;
-    const grid = targetGrid(
+    const grid = sgGrid(
         [stroke.start.y, stroke.start.x],
         [stroke.aim.y, stroke.aim.x],
         [pin.y, pin.x],
@@ -339,6 +338,82 @@ function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStat
     const strokesGainedPredicted = grid.properties.weightedStrokesGained;
     const strokesGainedOverPredicted = strokesGained - strokesGainedPredicted;
     const strokesGainedPercentile = grid.features.reduce(
+        (prior, el) => prior + (el.properties.strokesGained <= strokesGained ? el.properties.probability : 0),
+        0
+    );
+    const bearingAim = bearing(coordToPoint(stroke.start), coordToPoint(stroke.aim));
+    const bearingPin = bearing(coordToPoint(stroke.start), coordToPoint(pin));
+    const bearingActual = bearing(coordToPoint(stroke.start), coordToPoint(strokeEnd));
+    let category;
+    if (stroke.club == "P" || terrain == "green") {
+        category = "putts";
+    } else if (distanceToAim <= 90) {
+        category = "chips";
+    } else if (index == 0 && strokesRemaining > 3.4) {
+        category = "drives";
+    } else {
+        category = "approaches";
+    }
+
+    const stats = {
+        id: stroke.id,
+        index: index,
+        holeIndex: holeIndex,
+        club: stroke.club,
+        terrain: terrain,
+        distanceToAim: distanceToAim,
+        distanceToPin: distanceToPin,
+        distanceToActual: distanceToActual,
+        proximityActualToAim: proximityActualToAim,
+        proximityActualToPin: proximityActualToPin,
+        strokesRemaining: strokesRemaining,
+        strokesGained: strokesGained,
+        strokesGainedPredicted: strokesGainedPredicted,
+        strokesGainedOverPredicted: strokesGainedOverPredicted,
+        strokesGainedPercentile: strokesGainedPercentile,
+        bearingAim: bearingAim,
+        bearingPin: bearingPin,
+        bearingActual: bearingActual,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        category: category,
+        grid: grid
+    }
+    cacheStrokeStats(stats, context.stats);
+    return stats
+}
+
+export function calculateStrokeStatsIdeal(stroke: Stroke, context: StatsContext): StrokeStats {
+    const round = context.round;
+    const hole = getHoleFromStrokeRound(stroke, round);
+    const nextStroke = getStrokeFollowingFromRound(round, stroke)
+    const pin = hole.pin;
+    const strokeEnd = nextStroke ? nextStroke.start : pin;
+    const nextStats = nextStroke && getStrokeStats(nextStroke, context);
+    const srnext = nextStats ? nextStats.strokesRemaining : 0;
+    const grid = targetGrid(
+        [stroke.start.y, stroke.start.x],
+        [stroke.aim.y, stroke.aim.x],
+        [pin.y, pin.x],
+        stroke.dispersion,
+        context.courseData,
+        stroke.terrain
+    );
+
+    const index = stroke.index;
+    const holeIndex = stroke.holeIndex;
+    const terrain = grid.properties.terrain;
+    const distanceToAim = getDistance(stroke.start, stroke.aim);
+    const distanceToPin = getDistance(stroke.start, pin);
+    const distanceToActual = getDistance(stroke.start, strokeEnd);
+    const proximityActualToAim = ProximityStatsActualToAim(stroke, strokeEnd);
+    const proximityActualToPin = ProximityStatsActualToPin(stroke, strokeEnd, pin, grid);
+    const strokesRemaining = grid.properties.strokesRemainingStart;
+    const strokesGained = grid.properties.strokesRemainingStart - srnext - 1;
+    const strokesGainedPredicted = grid.properties.weightedStrokesGained;
+    const strokesGainedOverPredicted = strokesGained - strokesGainedPredicted;
+    const subCell = grid.features.find(cell => cell.properties.containsAim);
+    const strokesGainedPercentile = subCell.properties.subGrid.features.reduce(
         (prior, el) => prior + (el.properties.strokesGained <= strokesGained ? el.properties.probability : 0),
         0
     );

@@ -1,9 +1,9 @@
 import { formatDistance } from "src/common/projections";
 import type { JSX } from 'preact';
-import { useDistanceOptions } from "hooks/useDisplayUnits";
+import { useDistanceOptionsContext } from "hooks/useDisplayUnits";
 import { DispersionLink } from "components/displersionLink";
 import { StrokesStore } from "hooks/strokesStore";
-import { useActiveStrokesContext } from "hooks/useActiveStrokesContext";
+import { useStrokesStateManagerContext } from "hooks/useActiveStrokesContext";
 import { strokeGetDistance } from "services/strokes";
 
 /**
@@ -44,13 +44,13 @@ function StrokeMoveButton({ stroke, strokesStore, offset }:
  * @returns {HTMLElement} the li element for the list
  */
 function StrokeStatsListItem({ stroke, strokesStore }: { stroke: Stroke, strokesStore: StrokesStore }) {
-    const distOptions = useDistanceOptions();
-    const activeStrokes = useActiveStrokesContext();
+    const distOptions = useDistanceOptionsContext();
+    const activeStrokes = useStrokesStateManagerContext();
     const round = strokesStore.source.data.value;
     const distance = formatDistance(strokeGetDistance(stroke, round), distOptions);
     const selectedClass = 'strokeStatsListItemSelected';
     let classArray = ["strokeStatsListItem", "listCell"];
-    if (activeStrokes.includes(stroke.id)) classArray.push(selectedClass);
+    if (activeStrokes.isActive(stroke.id)) classArray.push(selectedClass);
     const classes = classArray.join(' ');
     const clickHandler = () => { activeStrokes.toggle(stroke.id) };
     return <li key={stroke.id}>

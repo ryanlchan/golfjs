@@ -19,8 +19,17 @@ export const courseStore = (roundStore: RoundStore): CourseStore => {
         }
     }
     const s = store(emptyFC);
-    const load = async () => asyncMutate(s, async () => _load(roundCourseParams(roundStore.data.value)))
-    effect(() => load())
+    let loadedParams;
+    const load = async () => asyncMutate(s, () => _load(roundCourseParams(roundStore.data.value)));
+    effect(() => {
+        const newParams = roundCourseParams(roundStore.data.value);
+        const nameMatch = loadedParams?.name == newParams.name;
+        const idMatch = loadedParams?.id == newParams.id
+        if (!(nameMatch && idMatch)) {
+            load();
+            loadedParams = newParams;
+        }
+    })
     return { ...s, load }
 }
 

@@ -28,14 +28,17 @@ function roundMutator(itemStore) {
     const save = async () => roundSave(itemStore.data.value)
     effect(() => roundIsPlayed(itemStore.data.value) && save());
     const mutate = (recipe) => {
-        const tracksUpdates = trackUpdates(itemStore.data.value);
-        itemStore.data.value = produce(tracksUpdates, recipe)
+        const updated = produce(itemStore.data.value, (draft) => {
+            const tracksUpdates = trackUpdates(draft);
+            recipe(tracksUpdates);
+        });
+        itemStore.data.value = updated
     }
     return { load, create, del, mutate };
 }
 
 export function roundStore(initialState?): RoundStore {
-    const s = store(initialState);
+    const s = store(initialState || roundNew());
     const mutator = roundMutator(s);
     return { ...s, ...mutator };
 }

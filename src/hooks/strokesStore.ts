@@ -14,12 +14,6 @@ export interface StrokesStore extends Store<Stroke[]> {
 
 export const strokesStore = (roundStore: RoundStore): StrokesStore => {
     const store = computedStore(roundStore, () => getStrokesFromRound(roundStore.data.value));
-    const mutateHole = (item: Stroke, recipe: (hole: Hole) => void) => {
-        roundStore.mutate(draft => {
-            const hole = getHoleFromRound(draft, item.holeIndex);
-            recipe(hole);
-        })
-    }
     const update = (item: Stroke, recipe: (stroke: Stroke) => void) => {
         roundStore.mutate(draft => {
             recipe(getStrokeFromRound(draft, item.holeIndex, item.index));

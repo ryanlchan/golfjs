@@ -1,4 +1,4 @@
-import { computed, effect, signal, type Signal } from "@preact/signals";
+import { batch, computed, effect, signal, type Signal } from "@preact/signals";
 import { useMemo } from "preact/hooks";
 
 export interface Store<T = any> { data: Signal<T>, isLoading: Signal<boolean>, error: Signal<Error>, [methods: string]: any }
@@ -31,8 +31,10 @@ export function asyncMutate(store: Store<any>, func: AsyncFunction<any>): Promis
     store.error.value = null;
     return func()
         .then((val) => {
-            store.isLoading.value = false
-            store.data.value = val;
+            batch(() => {
+                store.data.value = val;
+                store.isLoading.value = false
+            })
             return val;
         })
         .catch(e => store.error.value = e)
@@ -51,13 +53,13 @@ export function idStore(initialState: any = []): IdStore {
     const s = store(initialState) as Store<string[]>;
     const ids = s.data;
     const activate = (id: string) => {
-        if (ids.value.some((holeId) => holeId == id)) return
+        if (ids.value.some((itemId) => itemId == id)) return
         ids.value = [...ids.value, id]
     }
     const deactivate = (id: string) => {
-        ids.value = ids.value.filter((holeId) => holeId == id);
+        ids.value = ids.value.filter((itemId) => itemId != id);
     }
-    const deactivateAll = () => {
+    const deactivateAll = (_?: any) => {
         ids.value = [];
     }
     const activateOnly = (id: string) => {

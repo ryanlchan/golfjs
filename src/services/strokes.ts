@@ -19,7 +19,7 @@ import { GolfClub } from './clubs';
  * @param round - The round to create within
  * @param options - any additional options to set on Stroke
  */
-function strokeCreate(
+export function strokeCreate(
     position: GeolocationPositionIsh,
     holeIndex: number,
     courseData: CourseFeatureCollection,
@@ -54,6 +54,7 @@ function strokeCreate(
         if (lastStroke.terrain == TERRAIN_TYPES.PENALTY) lastStroke.aim = stroke.start;
     }
     hole.strokes.push(stroke);
+    return stroke;
 }
 
 export function strokeAdd(stroke: Stroke, round: Round) {
@@ -125,7 +126,7 @@ export function strokeGetDistance(stroke: Stroke, round: Round): number {
     return getDistance(stroke.start, nextStart);
 }
 
-function strokeUpdateTerrain(stroke: Stroke, round: Round, courseData: CourseFeatureCollection) {
+export function strokeUpdateTerrain(stroke: Stroke, round: Round, courseData: CourseFeatureCollection) {
     stroke.terrain = getTerrainAt(courseData, coordToPoint(stroke.start))
     const hole = getHoleFromStrokeRound(stroke, round);
     touch(stroke, hole, round);

@@ -16,8 +16,16 @@ export const statsStore = (roundStore: RoundStore, courseStore: CourseStore): St
             return fetchStatsCache(roundStore.data.value, courseStore.data.value);
         }
     }
-    const load = async () => asyncMutate(s, () => _load(roundStore.data.value));
-    effect(() => { load() });
+    const load = async (round = roundStore.data.value) => asyncMutate(s, () => _load(round));
+    let loadTimeout;
+    effect(() => {
+        const hook = roundStore.data.value;
+        clearTimeout(loadTimeout);
+        loadTimeout = setTimeout(() => {
+            load();
+            console.log("loading new data from backend")
+        }, 100)
+    });
     return s;
 }
 

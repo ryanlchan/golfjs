@@ -3,7 +3,7 @@ import { HOLE_OUT_COEFFS, SG_SPLINES } from "./coeffs20231205";
 import { Feature, FeatureCollection, Point } from "geojson";
 import { CourseFeatureCollection, getTerrainAt } from "./courses";
 
-export const gridTypes = { STROKES_GAINED: "Strokes Gained", TARGET: "Best Aim" };
+export const gridTypes = { STROKES_GAINED: "Strokes Gained", BEST_AIM: "Best Aim" };
 
 /**
  * =====
@@ -231,12 +231,14 @@ function holeOutRate(distanceToHole: number, terrainType: string): number {
 function addHoleOut(hexGrid, distanceToHole, terrainType, holePoint) {
     // Get holeout rate
     const hor = holeOutRate(distanceToHole, terrainType);
+    const baseSr = strokesRemaining(distanceToHole, terrainType);
     const holeFeature = turf.circle(holePoint, 0.0002, { units: 'kilometers' });
     holeFeature.properties = {
         "distanceToHole": 0,
         "terrainType": "hole",
         "probability": hor,
         "strokesRemaining": 0,
+        "strokesGained": baseSr - 1
     };
 
     // Adjust the probability of all other featuers for hole probability
@@ -437,7 +439,13 @@ export function targetGrid(startCoordinate: number[], aimCoordinate: number[],
         addHoleOut(subGrid, distanceToHole, terrainTypeStart, holePoint);
         weightStrokesGained(subGrid);
         const weightedStrokesGained = subGrid.features.reduce((sum, feature) => sum + feature.properties.weightedStrokesGained, 0);
-        cell.properties.weightedStrokesGained = weightedStrokesGained;
+        const containsAim = turf.booleanContains(cell, aimPoint);
+        cell.properties = {
+            containsAim,
+            weightedStrokesGained,
+            subGrid: containsAim ? subGrid : null,
+            ...cell.properties
+        };
         if (!idealStrokesGained || idealStrokesGained < weightedStrokesGained) idealStrokesGained = weightedStrokesGained;
         console.log(`Processed cell ${ix}, wsg = ${weightedStrokesGained}`);
     });
@@ -452,7 +460,7 @@ export function targetGrid(startCoordinate: number[], aimCoordinate: number[],
 
     // Prep output stats and return
     const properties = {
-        type: gridTypes.TARGET,
+        type: gridTypes.BEST_AIM,
         strokesRemainingStart: strokesRemainingStart,
         distanceToHole: distanceToHole,
         weightedStrokesGained: baseSg,

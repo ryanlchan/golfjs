@@ -4,6 +4,9 @@
  * =====
  */
 
+import { useHolesStateManagerContext } from "hooks/useActiveHolesContext";
+import { useStrokesStateManagerContext } from "hooks/useActiveStrokesContext";
+
 /**
  * Duck type a GridOptions object that allows us to reference the grid from GeoJSON layers
  */

@@ -37,7 +37,12 @@ export async function init() {
  */
 export async function set(key: string, value: any, namespace?: string): Promise<void> {
     const lf = _getInstance(namespace);
-    return lf.setItem(key, value);
+    try {
+        return await lf.setItem(key, value);
+    } catch (e) {
+        console.error(e);
+        throw e;
+    }
 }
 
 /**

@@ -1,4 +1,5 @@
-
+import { type JSX } from 'preact'
+import { useState } from 'preact/hooks';
 
 function AppMenuItem(props: { href: string, icon: JSX.Element, text: string }) {
     return <a href={props.href}><span className="menuIcon">{props.icon}</span>{props.text}</a>
@@ -40,8 +41,8 @@ export function MenuButton() {
         setMenuVisible(!menuVisible);
     };
 
-    return (<div className="menuButton">
-        <button id="menuButton" className="mapButton" onClick={toggleMenu}>
+    return (<div className="menuButton" onClick={toggleMenu}>
+        <button id="menuButton" className="mapButton">
             <svg height="1.25em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M4 18L20 18" stroke="#000000" strokeWidth="2" strokeLinecap="round" />
                 <path d="M4 12L20 12" stroke="#000000" strokeWidth="2" strokeLinecap="round" />

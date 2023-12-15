@@ -78,6 +78,14 @@ export function coordToPoint(coord: Coordinate): Point {
     return point([coord.x, coord.y]);
 }
 
+export function coordToLonLat(coord: Coordinate): [number, number] {
+    return [coord.x, coord.y]
+}
+
+export function coordToLatLon(coord: Coordinate): [number, number] {
+    return [coord.y, coord.x]
+}
+
 export function pointToCoord(pt: Point): Coordinate {
     return { x: pt.coordinates[0], y: pt.coordinates[1], crs: "EPSG:4326" }
 }

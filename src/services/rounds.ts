@@ -176,6 +176,10 @@ export function getStrokeFromRound(round: Round, holeIndex: number, strokeIndex:
     return hole.strokes.find(str => str.index == strokeIndex)
 }
 
+export function getStrokeFromRoundByID(round: Round, strokeId: string): Stroke {
+    return round.holes.map(h => h.strokes).flat().find(s => s.id == strokeId);
+}
+
 export function getStrokeFollowingFromRound(round: Round, stroke: Stroke): Stroke {
     return getStrokeFromRound(round, stroke.holeIndex, stroke.index + 1);
 }
@@ -187,7 +191,7 @@ export function getStrokeEndFromRound(round: Round, stroke: Stroke): Coordinate 
 }
 
 export function getStrokesFromRound(round: Round): Stroke[] {
-    return round.holes.flatMap(hole => hole.strokes)
+    return round.holes?.flatMap(hole => hole.strokes)
         .sort((a, b) => a.holeIndex * 100 + a.index - b.holeIndex * 100 - b.index);
 }
 
@@ -197,6 +201,10 @@ export function getHoleFromStrokeRound(stroke: Stroke, round: Round): Hole {
     const holes = round.holes.filter(filter);
     if (holes.length == 0) throw new Error(`No hole found for stroke ${stroke.id} in round ${round.id}`);
     return holes[0];
+}
+
+export function getParFromRound(round: Round) {
+    return round.holes?.reduce((acc, hole) => acc + hole.par, 0);
 }
 
 export async function lookupRoundFromHole(hole: Hole): Promise<Round> {

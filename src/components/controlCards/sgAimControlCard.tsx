@@ -4,15 +4,15 @@ import { Store } from "hooks/core";
 import { gridTypes } from "services/grids";
 
 
-export function AimStatsControls({ stroke, statsStore, onGrid }:
+export function SGAimControlCard({ stroke, statsStore, onGrid }:
     { stroke: Stroke, statsStore: Store<RoundStatsCache>, onGrid: (id: string, type: string) => void }
 ) {
     const strokeStats = getCachedStrokeStats(stroke, statsStore.data.value);
-    const sgp = strokeStats.strokesGainedPredicted;
-    const sga = strokeStats.strokesGained;
+    const sgp = strokeStats?.strokesGainedPredicted;
+    const sga = strokeStats?.strokesGained;
     const header = "SG: Aim"
-    const value = sgp.toFixed(2);
-    const footer = `${sga.toFixed(2)} SG`
+    const value = sgp?.toFixed(2) || "-";
+    const footer = `${sga?.toFixed(2) || "-"} SG`
     const onClick = onGrid(stroke.id, gridTypes.STROKES_GAINED);
     const classes = "aimStatsControlCard clickable";
     return <ControlCard className={classes} onClick={onClick}>

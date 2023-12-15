@@ -1,34 +1,50 @@
+import * as L from 'leaflet';
+import { Marker, Tooltip } from "react-leaflet";
+import { useState } from "preact/hooks";
 
+import flagImg from "assets/img/flag.png";
 
-/**
- * Adds a pin marker to the map.
- * @param {Hole} hole - The hole to add a pin for
- */
-function pinMarkerCreate(hole: Hole) {
-    console.debug("Creating pin marker for hole i" + hole.index)
-    const coordinate = hole.pin;
+import { coordToLatLon } from "common/projections";
+import { useHoleStoreContext } from "hooks/holeStore";
+
+export const PinMarker = ({ hole }: { hole: Hole }) => {
+    if (!hole.pin) return
+    const [active, setActive] = useState(false);
     const holeIndex = hole.index;
     const flagIcon = L.icon({
         iconUrl: flagImg, // replace with the path to your flag icon
         iconSize: [60, 60], // size of the icon
         iconAnchor: [30, 60]
     });
+    const holeStore = useHoleStoreContext();
+    const eventMap = {
+        drag: (e) => {
+            holeStore.mutate(hole.index, (draft) => {
+                const position = e.target.getLatLon();
+                const coord = { x: position.lng, y: position.lat };
+                hole.strokes.forEach(stroke => { if (stroke.aim == draft.pin) Object.assign(stroke.aim, coord) })
+                Object.assign(draft.pin, coord);
+            })
+        },
+        click: (e) => {
+            setActive(!active);
+        }
+    }
     const options = {
-        draggable: true,
+        position: coordToLatLon(hole.pin),
+        draggable: active,
         icon: flagIcon,
         title: String(holeIndex),
-        zIndexOffset: -1000
+        zIndexOffset: -1000,
+        eventHandlers: eventMap
     };
-    const id = holePinID(hole);
-    markerCreate(id, coordinate, options);
+    return <Marker {...options}>
+        {active && <PinTooltip />}
+    </Marker>
 }
 
-function pinMarkerUpdate(hole: Hole) {
-    const id = holePinID(hole);
-    const layer = layerRead(id);
-    if (!layer) {
-        return
-    }
-
-    layer.setLatLng(L.latLng(hole.pin.y, hole.pin.x))
+const PinTooltip = () => {
+    return <Tooltip direction="top" permanent={true}>
+        Drag to move pin
+    </Tooltip>
 }

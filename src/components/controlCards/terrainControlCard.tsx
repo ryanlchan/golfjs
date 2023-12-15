@@ -42,8 +42,8 @@ function TerrainMenu({ stroke, strokeMutator, types }:
     </div>
 }
 
-export function TerrainControl({ stroke, strokeStore }:
-    { stroke: Stroke, strokeStore: StrokesStore }
+export function TerrainControl({ stroke, strokesStore }:
+    { stroke: Stroke, strokesStore: StrokesStore }
 ) {
     const [menuVisible, setMenuVisible] = useState(false);
     const toggleMenu = () => setMenuVisible(!menuVisible);
@@ -57,6 +57,6 @@ export function TerrainControl({ stroke, strokeStore }:
         <ControlCardHeader>{header}</ControlCardHeader>
         <ControlCardValue>{icon}</ControlCardValue>
         <ControlCardFooter>{formattedTerrain}</ControlCardFooter>
-        {menuVisible && <TerrainMenu stroke={stroke} strokeMutator={strokeStore.update} />}
+        {menuVisible && <TerrainMenu stroke={stroke} strokeMutator={strokesStore.update} />}
     </ControlCard>
 }

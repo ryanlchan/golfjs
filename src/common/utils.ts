@@ -19,15 +19,30 @@ export function trackUpdates<T extends HasUpdateDates>(obj: T): WithUpdatedAt<T>
             target[property] = value;
             return true;
         },
-        get: (target: any, property: string | symbol) => {
+        get: (target: any, property: string | symbol, receiver: Object) => {
             if (property == "__trackingUpdates") return true; // special key to check if it's proxied already
-            const value = target[property];
-            return ((value && typeof value === 'object' && !value["__trackingUpdates"])
+            const value = Reflect.get(target, property, receiver);
+            return ((value && typeof value === 'object'
+                && !value["__trackingUpdates"] && isTrackable(target, property))
                 ? trackUpdates(value)
                 : value);
         }
     };
     return new Proxy(obj, handler) as WithUpdatedAt<T>;
+}
+
+function isTrackable(obj, propName) {
+    const descriptor = Object.getOwnPropertyDescriptor(obj, propName);
+
+    if (!descriptor) {
+        console.log("Property does not exist.");
+        return false;
+    }
+
+    const isReadOnly = descriptor.writable === false;
+    const isNonConfigurable = descriptor.configurable === false;
+
+    return !(isReadOnly && isNonConfigurable);
 }
 
 export function touch(...objs: HasUpdateDates[]): HasUpdateDates[] {

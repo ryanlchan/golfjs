@@ -324,7 +324,10 @@ export async function fetchGolfCourseBbox(course: Course): Promise<number[][]> {
 }
 
 export function getBbox(data: FeatureCollection): number[][] {
-    return turfbbToleafbb(turf.bbox(data));
+    const tbb = turf.bbox(data);
+    if (tbb.some(el => !Number.isFinite(el))) return undefined
+    const bbox = turfbbToleafbb(tbb);
+    return bbox
 }
 
 /**

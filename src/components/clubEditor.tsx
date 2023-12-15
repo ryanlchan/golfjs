@@ -1,6 +1,6 @@
 import { batch } from '@preact/signals';
 import { formatDistanceAsNumber } from 'common/projections';
-import { useDisplayUnits } from 'hooks/useDisplayUnits';
+import { useDisplayUnitsContext } from 'hooks/useDisplayUnits';
 import { ClubStore } from 'hooks/clubStore';
 import { GolfClub } from 'services/clubs';
 
@@ -44,7 +44,7 @@ export const ClubEditor = ({ clubStore }: { clubStore: ClubStore }) => {
 };
 
 const ClubRow = ({ club, index, onUpdateClub, onDeleteClub }) => {
-    const units = useDisplayUnits();
+    const units = useDisplayUnitsContext();
     return (<tr>
         <td>{index + 1}</td>
         <td>

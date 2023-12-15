@@ -14,7 +14,7 @@ import { columnizeStrokes, groupBy, reduceStrokeColumns, summarizeStrokeGroups }
 import { useCourse } from "hooks/courseStore";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
 import { AppContext } from "contexts/appContext";
-import { useDisplayUnits } from 'hooks/useDisplayUnits';
+import { useDisplayUnitsContext } from 'hooks/useDisplayUnits';
 
 /**
  * **************
@@ -259,7 +259,7 @@ function StrokeStatsTable({ input, options = strokeStatsTableDefaultOptions }) {
     const sortedInput = [...input].sort(options.sortBy);
     const headers = metrics.map(col => summaryMetricFormatters[col]['header']);
     const columns = columnizeStrokes(sortedInput, metrics);
-    const displayUnits = useDisplayUnits();
+    const displayUnits = useDisplayUnitsContext();
     const distOptions: formatDistanceOptions = { to_unit: displayUnits, include_unit: true };
     const formatters = metrics.map((col, colIx) => {
         const formatterClass = summaryMetricFormatters[col]['formatter'];
@@ -305,7 +305,7 @@ function GroupedPivotTable({ input,
     const groupFormatter = new BaseFormatter(groupKeys, { class: "groupBy" });
     const headers = [groupName, ...metrics.map((col) => summaryMetricFormatters[col]['header'])];
     const columns = metrics.map((colID) => groupSummariesArray.map((summary) => summary[colID]));
-    const displayUnits = useDisplayUnits();
+    const displayUnits = useDisplayUnitsContext();
     const distOptions: formatDistanceOptions = { to_unit: displayUnits, include_unit: true };
     const formatters = columns.map((col, colIx) => {
         const formatterClass = summaryMetricFormatters[metrics[colIx]]['formatter'];

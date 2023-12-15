@@ -6,7 +6,7 @@ import { CourseFeatureCollection, courseCacheDelete } from "services/courses";
 import { RoundStore, roundStore } from 'hooks/roundStore';
 import { ClubStore, clubStore } from "hooks/clubStore";
 import { SettingsStore, settingsStore } from "hooks/settingsStore";
-import { DISPLAY_UNIT_KEY, useDisplayUnits } from "hooks/useDisplayUnits";
+import { DISPLAY_UNIT_KEY, useDisplayUnitsContext } from "hooks/useDisplayUnits";
 import { ErrorModal } from "components/errorModal";
 import { ClubEditor } from "components/clubEditor";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
@@ -155,7 +155,7 @@ function CourseListItem({ course, onSelect, onDelete }: { course: Course, onSele
 }
 
 function UnitSelector({ onChange }: { onChange: (e: Event) => void }) {
-    const units = useDisplayUnits();
+    const units = useDisplayUnitsContext();
     return <div id="Units">
         <label htmlFor="units">Distance measurement</label>
         <select name="units" id="unitSelect" onChange={onChange} value={units}>

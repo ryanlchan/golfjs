@@ -2,7 +2,7 @@ import { formatDistanceOptions } from 'common/projections';
 import { AppContext } from 'contexts/appContext';
 import { useContext } from 'preact/hooks';
 
-export const useDisplayUnits = () => {
+export const useDisplayUnitsContext = () => {
     const appState = useContext(AppContext);
     return appState?.settingsStore?.data.value?.displayUnits || "yards";
 };
@@ -13,8 +13,8 @@ export const useDisplayUnits = () => {
  * @param options overrides of the default options
  * @returns {formatDistanceOptions}
  */
-export const useDistanceOptions = (options?: formatDistanceOptions) => {
-    const displayUnits = useDisplayUnits();
+export const useDistanceOptionsContext = (options?: formatDistanceOptions) => {
+    const displayUnits = useDisplayUnitsContext();
     return { to_unit: displayUnits, precision: 1, include_unit: true, ...options };
 }
 
