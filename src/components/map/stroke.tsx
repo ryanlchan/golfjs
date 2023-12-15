@@ -7,15 +7,16 @@ import targetImg from "assets/img/targeted-2x.png";
 
 import { coordToLatLon, formatDistance, getDistance } from "common/projections";
 import { useRoundContext } from "hooks/useRoundContext";
-import { strokeGetClosestStroke, strokeGetDistance, strokeUpdateTerrain } from "services/strokes";
+import { strokeGetClosestStroke, strokeGetDistance, strokeUpdateAim, strokeUpdateStart } from "services/strokes";
 import { useCourseContext } from 'hooks/useCourseContext';
 import { useStrokesStateManagerContext } from 'hooks/useActiveStrokesContext';
 import { useHolesStateManagerContext } from 'hooks/useActiveHolesContext';
-import { getHoleFromRound, getStrokeFromRoundByID, getStrokesFromRound } from 'services/rounds';
+import { getHoleFromRound, getStrokeFromRoundByID } from 'services/rounds';
 import { useDistanceOptionsContext } from 'hooks/useDisplayUnits';
 import { useStrokeStatsContext } from 'hooks/useStatsContext';
 import { strokeColumns } from 'hooks/useStateManager';
-import { useRef } from 'preact/hooks';
+import { SGGrid } from 'components/map/sgGrid';
+import { useRef, useState } from 'preact/hooks';
 
 const activeIcon = L.icon({ iconUrl: selectedMarkerImg, iconSize: [30, 30], })
 const inactiveIcon = L.icon({ iconUrl: circleMarkerImg, iconSize: [30, 30], });
@@ -27,26 +28,19 @@ export const StrokeMarker = ({ stroke }) => {
     const icon = active ? activeIcon : inactiveIcon;
     const onClick = () => {
         setActive(!active);
-        let callback;
-        callback = () => {
-            setActive(false);
-            map.removeEventListener('click', callback)
-        };
-        map.addEventListener('click', callback)
     }
-    let dragCallbackId;
+    let isLoading;
     const onDrag = (e) => {
-        clearTimeout(dragCallbackId);
-        dragCallbackId = setTimeout(() => {
-            roundStore.mutate((roundDraft) => {
-                const coord = { x: e.latlng.lng, y: e.latlng.lat };
-                const strokeDraft = getStrokeFromRoundByID(roundDraft, stroke.id);
-                Object.assign(strokeDraft.start, coord);
-                strokeUpdateTerrain(strokeDraft, roundDraft, courseStore.data.value);
-            });
-        }, 33);
-
+        if (isLoading) return
+        isLoading = true;
+        roundStore.mutate((roundDraft) => {
+            const coord = { x: e.latlng.lng, y: e.latlng.lat, crs: "EPSG:4326" };
+            const strokeDraft = getStrokeFromRoundByID(roundDraft, stroke.id);
+            strokeUpdateStart(strokeDraft, coord, roundDraft, courseStore.data.value)
+        });
+        setTimeout(() => isLoading = false, 33);
     }
+    const { eventHandlers, renderDrag } = useDraggable();
     const options = {
         position: coordToLatLon(stroke.start),
         draggable: active,
@@ -56,12 +50,13 @@ export const StrokeMarker = ({ stroke }) => {
         strokeIndex: stroke.index,
         eventHandlers: {
             click: onClick,
-            drag: onDrag
+            drag: onDrag,
+            ...eventHandlers
         }
     }
-    return <Marker {...options}>
+    return renderDrag(<Marker {...options}>
         <StrokeTooltip stroke={stroke} roundStore={roundStore} />
-    </Marker>
+    </Marker>)
 }
 
 const setActiveState = (stroke, toState, round, strokeManager, holeManager) => {
@@ -121,37 +116,56 @@ const StrokeAimMarker = ({ stroke }: { stroke: Stroke }) => {
     });
     const roundStore = useRoundContext();
     const aimCoord = coordToLatLon(stroke.aim);
-    let dragCallbackId;
+    let isLoading;
     const onDrag = (e) => {
-        clearTimeout(dragCallbackId.current);
-        dragCallbackId.current = setTimeout(() => {
-            roundStore.mutate((roundDraft) => {
-                const coord = { x: e.latlng.lng, y: e.latlng.lat };
-                const strokeDraft = getStrokeFromRoundByID(roundDraft, stroke.id);
-                Object.assign(strokeDraft.aim, coord);
-            });
-        }, 33);
+        if (isLoading) return;
+        isLoading = true;
+
+        roundStore.mutate((roundDraft) => {
+            const coord = { x: e.latlng.lng, y: e.latlng.lat, crs: "EPSG:4326" };
+            const strokeDraft = getStrokeFromRoundByID(roundDraft, stroke.id);
+            strokeUpdateAim(strokeDraft, coord, roundDraft)
+        });
+        setTimeout(() => { isLoading = false }, 33);
     }
+    const { eventHandlers, renderDrag } = useDraggable();
     const options = {
         position: aimCoord,
         draggable: true,
         icon: aimIcon,
         title: "Aim point",
         zIndexOffset: 1000,
-        eventHandlers: { drag: onDrag }
+        eventHandlers: { drag: onDrag, ...eventHandlers }
     };
     const circleOptions = {
         center: aimCoord,
         radius: stroke.dispersion,
         color: "white",
         opacity: 0.5,
-        weight: 2
+        weight: 2,
+        eventHandlers: {
+            click: (e) => e.originalEvent.view.L.DomEvent.stopPropagation(e),
+        }
     }
-    return <LayerGroup>
+    return renderDrag(<LayerGroup key={stroke.id}>
         <Marker {...options} />
         <Circle {...circleOptions} />
         <StrokeAimTooltip stroke={stroke} roundStore={roundStore} />
-    </LayerGroup>
+    </LayerGroup>)
+}
+
+const useDraggable = () => {
+    const [dragging, setDrag] = useState(false);
+    const eventHandlers = {
+        dragstart: () => setDrag(true),
+        dragend: () => setDrag(false)
+    }
+    const renderDrag = (components) => {
+        const cachedRender = useRef(null);
+        if (!dragging) cachedRender.current = components
+        return cachedRender.current;
+    }
+    return { dragging, eventHandlers, renderDrag }
 }
 
 const StrokeAimTooltip = ({ stroke, roundStore }) => {
@@ -183,7 +197,9 @@ function strokeMarkerAimTooltip(stroke: Stroke, hole: Hole): string {
 }
 
 const colToComponent = {
-    [strokeColumns.AIM_MARKERS]: StrokeAimMarker
+    [strokeColumns.AIM_MARKERS]: StrokeAimMarker,
+    [strokeColumns.GRID_STROKES_GAINED]: SGGrid,
+    [strokeColumns.GRID_BEST_AIM]: targetGrid
 }
 
 export const StrokesLayers = () => {

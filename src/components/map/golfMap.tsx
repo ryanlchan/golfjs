@@ -38,8 +38,8 @@ export function GolfMap({ children, ...options }: { children?: ComponentChildren
             : <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={24} maxNativeZoom={18} />}
-        <HolesLayers />
         <StrokesLayers />
+        <HolesLayers />
         {children}
     </MapContainer>
 }

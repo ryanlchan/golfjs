@@ -2,6 +2,7 @@ import * as turf from "@turf/turf";
 import { HOLE_OUT_COEFFS, SG_SPLINES } from "./coeffs20231205";
 import { Feature, FeatureCollection, Point } from "geojson";
 import { CourseFeatureCollection, getTerrainAt } from "./courses";
+import { bbox, buffer, distance, point } from "@turf/turf";
 
 export const gridTypes = { STROKES_GAINED: "Strokes Gained", BEST_AIM: "Best Aim" };
 
@@ -89,6 +90,17 @@ function axialToCube(axial: [number, number]): [number, number, number] {
     return [x, y, z];
 }
 
+function axialToCartesian([q, r]: [number, number]) {
+    const x = Math.sqrt(3) * (q + r / 2);
+    const y = 3 / 2 * r;
+    return [x, y]
+}
+
+function isWithinCircle(axial: [number, number], radius: number): boolean {
+    const [x, y] = axialToCartesian(axial);
+    return x ** 2 + y ** 2 <= radius ** 2
+}
+
 // Checks if the hexagon is within the grid radius
 function isWithinGrid(axial: [number, number], radius: number): boolean {
     const cube = axialToCube(axial);
@@ -96,12 +108,12 @@ function isWithinGrid(axial: [number, number], radius: number): boolean {
 }
 
 // Creates a single hexagon feature
-function createHexagon(center: [number, number], size: number, axialCoordinates: [number, number]): Feature {
+function createHexagon(center: [number, number], xsize: number, ysize: number, axialCoordinates: [number, number]): Feature {
     let vertices: [number, number][] = [];
     for (let i = 0; i < SIDES; i++) {
         vertices.push([
-            center[0] + size * cosines[i],
-            center[1] + size * sines[i]
+            center[0] + xsize * cosines[i],
+            center[1] + ysize * sines[i]
         ]);
     }
     vertices.push(vertices[0]); // Closing the hexagon
@@ -111,17 +123,22 @@ function createHexagon(center: [number, number], size: number, axialCoordinates:
 
 // Generates the hexagon grid
 function generateHexagonGrid(center: number[], gridRadius: number, hexagonSize: number): FeatureCollection {
+    const unitOpts = { units: "degrees" };
+    const circle = buffer(point(center), gridRadius * hexagonSize, unitOpts)
+    const [west, south, east, north] = bbox(circle);
+    const xOverY = distance([west, center[1]], [east, center[1]], unitOpts) / distance([center[0], south], [center[0], north], unitOpts);
     let hexagons: Feature[] = [];
     for (let q = -gridRadius; q <= gridRadius; q++) {
         let r1 = Math.max(-gridRadius, -q - gridRadius);
         let r2 = Math.min(gridRadius, -q + gridRadius);
         for (let r = r1; r <= r2; r++) {
-            if (isWithinGrid([q, r], gridRadius)) {
+            if (isWithinCircle([q, r], gridRadius)) {
+                const [x, y] = axialToCartesian([q, r])
                 const hexCenter: [number, number] = [
-                    center[0] + hexagonSize * 3 / 2 * q,
+                    center[0] + hexagonSize * xOverY * 3 / 2 * q,
                     center[1] + hexagonSize * Math.sqrt(3) * (r + q / 2)
                 ];
-                hexagons.push(createHexagon(hexCenter, hexagonSize, [q, r]));
+                hexagons.push(createHexagon(hexCenter, hexagonSize * xOverY, hexagonSize, [q, r]));
             }
         }
     }
@@ -130,7 +147,7 @@ function generateHexagonGrid(center: number[], gridRadius: number, hexagonSize: 
 
 /**
  * Create a circular grid of Hexagons around a point
- * @param center the center point to create around in WGS84 coord
+ * @param center the center point to create around in WGS84 coord, lon/lat
  * @param radius the radius of the grid, in meters
  * @param cells the target number of cells to return
  */

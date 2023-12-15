@@ -6,7 +6,7 @@ import {
 } from 'services/rounds';
 import * as cacheUtils from 'common/cache';
 import { getDistance, coordToPoint } from 'common/projections';
-import { cdf, sgGrid, targetGrid } from 'services/grids';
+import { GridFeatureCollection, cdf, sgGrid, targetGrid } from 'services/grids';
 import { CourseFeatureCollection, courseLoad } from './courses';
 /**
  * *********
@@ -55,6 +55,7 @@ export interface StrokeStats extends HasUpdateDates {
     bearingPin: number,
     bearingActual: number,
     category: string,
+    grid?: GridFeatureCollection
 }
 
 export interface StrokesSummary extends HasUpdateDates {
@@ -309,7 +310,7 @@ function calculateHoleStats(hole: Hole, context: StatsContext): HoleStats {
     return hstats;
 }
 
-function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStats {
+export function calculateStrokeStatsFast(stroke: Stroke, context: StatsContext): StrokeStats {
     const round = context.round;
     const hole = getHoleFromStrokeRound(stroke, round);
     const nextStroke = getStrokeFollowingFromRound(round, stroke)
@@ -383,7 +384,7 @@ function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStat
     return stats
 }
 
-export function calculateStrokeStatsIdeal(stroke: Stroke, context: StatsContext): StrokeStats {
+export function calculateStrokeStats(stroke: Stroke, context: StatsContext): StrokeStats {
     const round = context.round;
     const hole = getHoleFromStrokeRound(stroke, round);
     const nextStroke = getStrokeFollowingFromRound(round, stroke)
@@ -395,7 +396,7 @@ export function calculateStrokeStatsIdeal(stroke: Stroke, context: StatsContext)
         [stroke.start.y, stroke.start.x],
         [stroke.aim.y, stroke.aim.x],
         [pin.y, pin.x],
-        stroke.dispersion,
+        Math.min(stroke.dispersion, 50),
         context.courseData,
         stroke.terrain
     );
@@ -454,7 +455,8 @@ export function calculateStrokeStatsIdeal(stroke: Stroke, context: StatsContext)
         bearingActual: bearingActual,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        category: category
+        category: category,
+        grid: grid
     }
     cacheStrokeStats(stats, context.stats);
     return stats

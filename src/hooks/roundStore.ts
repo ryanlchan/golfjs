@@ -3,7 +3,6 @@ import { roundNew, roundSave, roundDelete, roundLoad, roundCreate, roundIsPlayed
 import { type Store, asyncMutate, store } from './core';
 import { useMemo } from 'preact/hooks';
 import { produce } from 'immer';
-import { trackUpdates } from 'common/utils';
 
 
 export interface RoundStore extends Store<Round> {
@@ -29,8 +28,7 @@ function roundMutator(itemStore) {
     effect(() => roundIsPlayed(itemStore.data.value) && save());
     const mutate = (recipe) => {
         const updated = produce(itemStore.data.value, (draft) => {
-            const tracksUpdates = trackUpdates(draft);
-            recipe(tracksUpdates);
+            recipe(draft);
         });
         itemStore.data.value = updated
     }

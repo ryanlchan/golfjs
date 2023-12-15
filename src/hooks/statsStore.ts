@@ -24,7 +24,7 @@ export const statsStore = (roundStore: RoundStore, courseStore: CourseStore): St
         loadTimeout = setTimeout(() => {
             load();
             console.log("loading new data from backend")
-        }, 100)
+        }, 300)
     });
     return s;
 }
