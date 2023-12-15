@@ -44,7 +44,7 @@ export const PinMarker = ({ hole }: { hole: Hole }) => {
 }
 
 const PinTooltip = () => {
-    return <Tooltip direction="top" permanent={true}>
+    return <Tooltip direction="top" permanent={true} offset={[0, -60]}>
         Drag to move pin
     </Tooltip>
 }
