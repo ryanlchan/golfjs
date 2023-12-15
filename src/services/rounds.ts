@@ -128,7 +128,7 @@ export async function roundDelete(round: Round): Promise<void> {
  * @returns {Course} the course parameters
  */
 export function roundCourseParams(round: Round): Course {
-    return { 'name': round.course, 'id': round.courseId }
+    return { 'name': round?.course, 'id': round?.courseId }
 }
 
 /**
