@@ -1,3 +1,5 @@
+import { signal } from "@preact/signals";
+
 /**
  * Utility to have a wait promise
  * @param ms - The number of milliseconds to wait
@@ -62,6 +64,29 @@ interface WithIndex { index?: number }
 export function indexSort(items: WithIndex[]): WithIndex[] {
     items.sort((a, b) => a.index - b.index)
     return items
+}
+
+export const ratelimit = (func: AnyFunction, interval: number) => {
+    const isLoading = signal(false);
+    const isQueued = signal(null);
+    return (...args) => {
+        if (isLoading.value) {
+            clearTimeout(isQueued.value);
+            isQueued.value = setTimeout(func, interval, ...args);
+            return
+        }
+        setTimeout(() => isLoading.value = false, interval);
+        isLoading.value = true;
+        return func(...args);
+    }
+}
+
+export const debounce = (func: AnyFunction, interval: number) => {
+    const isQueued = signal(null);
+    return (...args) => {
+        clearTimeout(isQueued.peek());
+        isQueued.value = setTimeout(func, interval, ...args);
+    }
 }
 
 /**
