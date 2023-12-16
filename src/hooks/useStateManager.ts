@@ -104,10 +104,10 @@ export const strokeStateManager = (stateManager): StrokeStateManager => {
     }
     const activateOnlyGrid = (id: string, type: string) => {
         const activeCol = strokeGridToGridCol[type];
-        const deactiveCol = Object.values(strokeGridToGridCol).filter(t => t == activeCol)
+        const deactiveCols = Object.values(strokeGridToGridCol).filter(t => t != activeCol)
         const actions = {
-            activate: [activeCol],
-            deactivate: [deactiveCol]
+            activateOnly: [activeCol],
+            deactivateAll: deactiveCols
         }
         stateManager.batch(id, actions);
     }
