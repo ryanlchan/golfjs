@@ -16,7 +16,9 @@ import { useDistanceOptionsContext } from 'hooks/useDisplayUnits';
 import { useStrokeStatsContext } from 'hooks/useStatsContext';
 import { strokeColumns } from 'hooks/useStateManager';
 import { SGGrid } from 'components/map/sgGrid';
-import { useRef, useState } from 'preact/hooks';
+import { BestAimGrid } from './bestAimGrid';
+import { ratelimit } from 'common/utils';
+import { useDraggable } from 'hooks/useDraggable';
 
 const activeIcon = L.icon({ iconUrl: selectedMarkerImg, iconSize: [30, 30], })
 const inactiveIcon = L.icon({ iconUrl: circleMarkerImg, iconSize: [30, 30], });
@@ -116,18 +118,13 @@ const StrokeAimMarker = ({ stroke }: { stroke: Stroke }) => {
     });
     const roundStore = useRoundContext();
     const aimCoord = coordToLatLon(stroke.aim);
-    let isLoading;
-    const onDrag = (e) => {
-        if (isLoading) return;
-        isLoading = true;
-
+    const onDrag = ratelimit((e) => {
         roundStore.mutate((roundDraft) => {
             const coord = { x: e.latlng.lng, y: e.latlng.lat, crs: "EPSG:4326" };
             const strokeDraft = getStrokeFromRoundByID(roundDraft, stroke.id);
             strokeUpdateAim(strokeDraft, coord, roundDraft)
         });
-        setTimeout(() => { isLoading = false }, 33);
-    }
+    }, 33)
     const { eventHandlers, renderDrag } = useDraggable();
     const options = {
         position: aimCoord,
@@ -137,6 +134,17 @@ const StrokeAimMarker = ({ stroke }: { stroke: Stroke }) => {
         zIndexOffset: 1000,
         eventHandlers: { drag: onDrag, ...eventHandlers }
     };
+
+    return <LayerGroup key={stroke.id}>
+        {renderDrag(<Marker {...options} />)}
+        <StrokeAimDispersionCircle stroke={stroke}>
+            <StrokeAimTooltip stroke={stroke} roundStore={roundStore} />
+        </StrokeAimDispersionCircle>
+    </LayerGroup>
+}
+
+const StrokeAimDispersionCircle = ({ stroke, children }) => {
+    const aimCoord = coordToLatLon(stroke.aim);
     const circleOptions = {
         center: aimCoord,
         radius: stroke.dispersion,
@@ -147,37 +155,20 @@ const StrokeAimMarker = ({ stroke }: { stroke: Stroke }) => {
             click: (e) => e.originalEvent.view.L.DomEvent.stopPropagation(e),
         }
     }
-    return renderDrag(<LayerGroup key={stroke.id}>
-        <Marker {...options} />
-        <Circle {...circleOptions} />
-        <StrokeAimTooltip stroke={stroke} roundStore={roundStore} />
-    </LayerGroup>)
-}
-
-const useDraggable = () => {
-    const [dragging, setDrag] = useState(false);
-    const eventHandlers = {
-        dragstart: () => setDrag(true),
-        dragend: () => setDrag(false)
-    }
-    const renderDrag = (components) => {
-        const cachedRender = useRef(null);
-        if (!dragging) cachedRender.current = components
-        return cachedRender.current;
-    }
-    return { dragging, eventHandlers, renderDrag }
+    return <Circle {...circleOptions}>{children}</Circle>
 }
 
 const StrokeAimTooltip = ({ stroke, roundStore }) => {
-    const options = {
-        permanent: true,
-        direction: "top" as L.Direction,
-        offset: [-15, 0] as L.PointExpression
-    }
     const round = roundStore.data.value;
     const hole = getHoleFromRound(round, stroke.holeIndex);
+    const options = {
+        position: coordToLatLon(stroke.aim),
+        permanent: true,
+        direction: "top" as L.Direction,
+        offset: [0, -15] as L.PointExpression
+    }
     return <Tooltip {...options}>
-        {strokeMarkerAimTooltip(stroke, hole)}
+        <span dangerouslySetInnerHTML={{ __html: strokeMarkerAimTooltipText(stroke, hole) }} />
     </Tooltip>
 }
 
@@ -185,25 +176,26 @@ const StrokeAimTooltip = ({ stroke, roundStore }) => {
  * Output the content for a Stroke's Aim marker's tooltip
  * @returns {String}
  */
-function strokeMarkerAimTooltip(stroke: Stroke, hole: Hole): string {
+function strokeMarkerAimTooltipText(stroke: Stroke, hole: Hole): string {
     const distanceOptions = useDistanceOptionsContext();
     const aimDistance = formatDistance(getDistance(stroke.start, stroke.aim), distanceOptions);
     const pinDistance = formatDistance(getDistance(stroke.aim, hole.pin), distanceOptions);
     const strokeStats = useStrokeStatsContext(stroke);
-    const sgp = strokeStats?.strokesGainedPredicted
+    const sgp = strokeStats?.strokesGainedPredicted.toFixed(2)
     let text = `${aimDistance} to aim<br> ${pinDistance} to pin`;
-    if (sgp) text += `<br> SG Aim ${sgp}`
+    if (sgp) text += `<br> ${sgp} SG Aim `
     return text
 }
 
 const colToComponent = {
     [strokeColumns.AIM_MARKERS]: StrokeAimMarker,
     [strokeColumns.GRID_STROKES_GAINED]: SGGrid,
-    [strokeColumns.GRID_BEST_AIM]: targetGrid
+    [strokeColumns.GRID_BEST_AIM]: BestAimGrid
 }
 
 export const StrokesLayers = () => {
-    const round = useRoundContext().data.value;
+    const round = useRoundContext()?.data?.value;
+    if (!round) return
     const manager = useStrokesStateManagerContext();
     const groups = Object.values(strokeColumns).map((col) => {
         const active = manager.getAllActive(col).map(stroke => getStrokeFromRoundByID(round, stroke));
