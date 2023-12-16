@@ -1,11 +1,13 @@
 import chroma from "chroma-js";
+import { ratelimit } from "common/utils";
 import { useCourseContext } from "hooks/useCourseContext";
 import { useRoundContext } from "hooks/useRoundContext";
 import { useStatsContext } from "hooks/useStatsContext";
-import { useEffect, useMemo, useRef } from "preact/hooks";
+import { useUpdateableGrid } from "hooks/useUpdateableGrid";
+import { useMemo } from "preact/hooks";
 import { GeoJSON } from "react-leaflet";
 import { erf } from "services/grids";
-import { calculateStrokeStatsFast } from "services/stats";
+import { calculateStrokeStatsFast, updateCachedStrokeStats } from "services/stats";
 /**
  * Create a Strokes Gained probability grid around the current aim point
  */
@@ -27,13 +29,8 @@ export const SGGrid = ({ stroke }: { stroke: Stroke }) => {
         zIndex: 2001,
         onEachFeature: addPopupCallback(stroke)
     }
-    console.debug(stroke.id + stroke.updatedAt);
-
     // Prevent flashing on rerender by just adding/removing data and reusing layer
-    const layer = useRef(null);
-    useEffect(() => {
-        if (layer.current) layer.current.clearLayers().addData(grid);
-    }, [grid])
+    const layer = useUpdateableGrid(grid);
     return <GeoJSON ref={layer} key={stroke.id} data={grid} {...options}></GeoJSON>
 }
 
@@ -41,19 +38,21 @@ const useGrid = (stroke: Stroke) => {
     const courseData = useCourseContext();
     const roundStore = useRoundContext();
     const statsStore = useStatsContext();
-    const context = {
-        round: roundStore.data.value,
-        courseData: courseData.data.value,
-        stats: statsStore.data.value
-    }
-    const newStats = calculateStrokeStatsFast(stroke, context);
-    const oldStats = context.stats.strokes.find(s => stroke.id == s.id);
-    if (!oldStats || oldStats.updatedAt < stroke.updatedAt) {
-        const stats = context.stats.strokes.filter(s => s.id != stroke.id);
-        stats.push(newStats);
-        statsStore.data.value.strokes = stats;
-    }
-    return newStats.grid;
+    const calc = ratelimit(() => {
+        const context = {
+            round: roundStore.data.value,
+            courseData: courseData.data.value,
+            stats: statsStore.data.value
+        }
+        const newStats = calculateStrokeStatsFast(stroke, context);
+        const oldStats = context.stats.strokes?.find(s => stroke.id == s.id);
+        if (!oldStats || oldStats.updatedAt < stroke.updatedAt) {
+            updateCachedStrokeStats(newStats, statsStore.data.value)
+            statsStore.data.value = { ...statsStore.data.value } // force signal to update
+        }
+        return newStats.grid;
+    }, 100);
+    return calc();
 }
 
 const addPopupCallback = (stroke) => {
