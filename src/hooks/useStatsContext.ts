@@ -4,7 +4,7 @@ import { getCachedStrokeStats } from "services/stats";
 
 export const useStatsContext = () => useContext(StatsContext)
 
-export const useStrokeStatsContext = (stroke: Stroke) => (
-    getCachedStrokeStats(stroke, useStatsContext().data.value
-    )
-);
+export const useStrokeStatsContext = (stroke: Stroke) => {
+    const context = useStatsContext();
+    return getCachedStrokeStats(stroke, context.data.value);
+}
