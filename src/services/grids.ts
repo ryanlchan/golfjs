@@ -17,7 +17,9 @@ export interface GridFeatureCollection extends FeatureCollection {
 }
 
 interface GridProperties {
+    type: string,
     terrain: string,
+    distanceToHole: number,
     strokesRemainingStart: number,
     weightedStrokesGained: number,
     idealStrokesGained?: number
@@ -366,15 +368,14 @@ export function sgGrid(startCoordinate: number[], aimCoordinate: number[],
     weightStrokesGained(hexGrid);
     const weightedStrokesGained = hexGrid.features.reduce((sum, feature) => sum + (feature.properties.weightedStrokesGained || 0), 0);
 
-    console.debug(`From ${startCoordinate} on ${startTerrain} @ ${dispersion}m dispersion: 
-    Total Weighted Strokes Gained: ${weightedStrokesGained}`);
+    console.debug(`${(new Date).toISOString()}: From ${startCoordinate} on ${startTerrain} @ ${dispersion}m dispersion: Total Weighted Strokes Gained: ${weightedStrokesGained}`);
     const properties = {
         type: gridTypes.STROKES_GAINED,
-        strokesRemainingStart: strokesRemainingStart,
+        terrain: terrainTypeStart,
         distanceToHole: distanceToHole,
+        strokesRemainingStart: strokesRemainingStart,
         weightedStrokesGained: weightedStrokesGained,
-        terrain: terrainTypeStart
-    }
+    } as GridProperties;
     hexGrid.properties = properties
 
     return hexGrid;
@@ -464,7 +465,6 @@ export function targetGrid(startCoordinate: number[], aimCoordinate: number[],
             ...cell.properties
         };
         if (!idealStrokesGained || idealStrokesGained < weightedStrokesGained) idealStrokesGained = weightedStrokesGained;
-        console.log(`Processed cell ${ix}, wsg = ${weightedStrokesGained}`);
     });
 
     // baseline against middle aim point
@@ -478,11 +478,12 @@ export function targetGrid(startCoordinate: number[], aimCoordinate: number[],
     // Prep output stats and return
     const properties = {
         type: gridTypes.BEST_AIM,
-        strokesRemainingStart: strokesRemainingStart,
+        terrain: terrainTypeStart,
         distanceToHole: distanceToHole,
+        strokesRemainingStart: strokesRemainingStart,
         weightedStrokesGained: baseSg,
         idealStrokesGained
-    }
+    } as GridProperties;
     aimGrid.properties = properties
 
     return aimGrid;
