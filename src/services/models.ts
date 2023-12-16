@@ -66,3 +66,6 @@ interface GeolocationPositionIsh {
         longitude: any
     }
 }
+
+type AsyncFunction<T = any> = (...args: any[]) => Promise<T>;
+type AnyFunction = (...args: any[]) => any;
