@@ -19,8 +19,8 @@ export function ActiveStrokeControls({ stroke, strokesStore }:
     const statsStore = useStatsContext();
     return < div id="activeStrokeControls" className="buttonRow" >
         <div className="cardContainer hoscro">
-            <SGAimControlCard stroke={stroke} statsStore={statsStore} onGrid={strokeManager.activateGrid} />
-            <BestAimControl stroke={stroke} statsStore={statsStore} onGrid={strokeManager.activateGrid} />
+            <SGAimControlCard stroke={stroke} statsStore={statsStore} onGrid={strokeManager.activateOnlyGrid} />
+            <BestAimControl stroke={stroke} statsStore={statsStore} onGrid={strokeManager.activateOnlyGrid} />
             <TerrainControl stroke={stroke} strokesStore={strokesStore} />
             <ClubControl stroke={stroke} strokesStore={strokesStore} />
             <DispersionControl stroke={stroke} strokesStore={strokesStore} />

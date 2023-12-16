@@ -11,8 +11,8 @@ export function BestAimControl({ stroke, statsStore, onGrid }:
 ) {
     const strokeStats = getCachedStrokeStats(stroke, statsStore.data.value);
     const onClick = () => onGrid(stroke.id, gridTypes.BEST_AIM);
-    const header = "SG: Strategy"
-    const value = strokeStats?.strokesGainedIdeal?.toFixed(2);
+    const header = "SG: Intent"
+    const value = strokeStats?.strokesGainedIdeal?.toFixed(2) || "...";
     const footer = "vs ideal";
     return <ControlCard className="gridTypeControlCard clickable" onClick={onClick}>
         <ControlCardHeader>{header}</ControlCardHeader>

@@ -1,3 +1,5 @@
+import { Signal } from "@preact/signals";
+
 function longestWord(text: string) {
     const matches: string[] = text.match(/\S+/g) || [];
     let longest: string = "";
@@ -8,6 +10,7 @@ function longestWord(text: string) {
 }
 
 function valueLengthClass(words: string | any) {
+    if (words instanceof Signal) words = words.value;
     if (typeof words !== "string") return ""
     const length = words.length;
     const wordLength = longestWord(words);
