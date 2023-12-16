@@ -6,7 +6,7 @@ import {
 } from 'services/rounds';
 import * as cacheUtils from 'common/cache';
 import { getDistance, coordToPoint } from 'common/projections';
-import { GridFeatureCollection, cdf, sgGrid, targetGrid } from 'services/grids';
+import { GridFeatureCollection, cdf, sgGrid, strokesRemaining as calcStrokesRemaining, targetGrid } from 'services/grids';
 import { CourseFeatureCollection, courseLoad } from './courses';
 /**
  * *********
@@ -229,6 +229,18 @@ function cacheRoundStats(stats: RoundStats, cache: RoundStatsCache): void {
     cache.round = stats;
 }
 
+export function updateCachedStrokeStats(stats: StrokeStats, cache: RoundStatsCache): void {
+    const strokes = cache.strokes || [];
+    const ix = strokes.findIndex(s => s.id == stats.id);
+    const oldStats = strokes[ix];
+    if (oldStats?.updatedAt > stats.updatedAt) {
+        console.warn("Won't overwrite newer stats")
+        return
+    }
+    strokes.splice(ix, 1);
+    strokes.push(stats);
+}
+
 /**
  * Convenience methods for getting from cache or calculating
  */
@@ -316,8 +328,10 @@ export function calculateStrokeStatsFast(stroke: Stroke, context: StatsContext):
     const nextStroke = getStrokeFollowingFromRound(round, stroke)
     const pin = hole.pin;
     const strokeEnd = nextStroke ? nextStroke.start : pin;
-    const nextStats = nextStroke && getStrokeStats(nextStroke, context);
-    const srnext = nextStats ? nextStats.strokesRemaining : 0;
+    const nextStats = nextStroke && getCachedStrokeStats(nextStroke, context.stats);
+    const srnext = nextStats?.strokesRemaining
+        || (nextStroke && calcStrokesRemaining(getDistance(strokeEnd, pin), nextStroke.terrain))
+        || 0
     const grid = sgGrid(
         [stroke.start.y, stroke.start.x],
         [stroke.aim.y, stroke.aim.x],
@@ -380,7 +394,6 @@ export function calculateStrokeStatsFast(stroke: Stroke, context: StatsContext):
         category: category,
         grid: grid
     }
-    cacheStrokeStats(stats, context.stats);
     return stats
 }
 
@@ -390,8 +403,10 @@ export function calculateStrokeStats(stroke: Stroke, context: StatsContext): Str
     const nextStroke = getStrokeFollowingFromRound(round, stroke)
     const pin = hole.pin;
     const strokeEnd = nextStroke ? nextStroke.start : pin;
-    const nextStats = nextStroke && getStrokeStats(nextStroke, context);
-    const srnext = nextStats ? nextStats.strokesRemaining : 0;
+    const nextStats = nextStroke && getCachedStrokeStats(nextStroke, context.stats);
+    const srnext = nextStats?.strokesRemaining
+        || (nextStroke && calcStrokesRemaining(getDistance(strokeEnd, pin), nextStroke.terrain))
+        || 0
     const grid = targetGrid(
         [stroke.start.y, stroke.start.x],
         [stroke.aim.y, stroke.aim.x],
@@ -697,7 +712,7 @@ async function saveHoleStats(stats: HoleStats): Promise<void> {
     return cacheUtils.set(stats.id, stats, STATS_HOLES_NAMESPACE);
 }
 
-async function saveStrokeStats(stats: StrokeStats): Promise<void> {
+export async function saveStrokeStats(stats: StrokeStats): Promise<void> {
     return cacheUtils.set(stats.id, stats, STATS_STROKES_NAMESPACE);
 }
 
