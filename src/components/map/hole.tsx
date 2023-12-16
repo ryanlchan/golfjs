@@ -63,7 +63,8 @@ const colToComponent = {
 }
 
 export const HolesLayers = () => {
-    const round = useRoundContext().data.value;
+    const round = useRoundContext()?.data?.value;
+    if (!round) return;
     const holeManager = useHolesStateManagerContext();
     const groups = Object.values(holeColumns).map((col) => {
         const activeHoles = holeManager.getAllActive(col).map(hole => getHoleFromRoundByID(round, hole));
@@ -78,7 +79,8 @@ export const HolesLayers = () => {
 }
 
 const _HolesLayers = () => {
-    const round = useRoundContext().data.value;
+    const round = useRoundContext()?.data?.value;
+    if (!round) return;
     const activeHoles = useActiveHolesContext(round);
     const holes = activeHoles.length > 0 ? activeHoles : round.holes;
     return <LayerGroup>
