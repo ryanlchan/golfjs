@@ -441,15 +441,15 @@ div#strokeList ol {
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     padding: 20px;
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     text-align: center;
     margin: 10px;
     flex-shrink: 0;
 }
 
 .cardTitle {
-    height: 18px;
+    height: 26px;
     color: #555;
     font-size: 14px;
     font-weight: 600;
@@ -466,7 +466,7 @@ div#strokeList ol {
 
 .cardValue {
     color: #000;
-    font-size: 34px;
+    font-size: 30px;
     font-weight: 700;
     overflow: hidden;
     height: auto;
@@ -485,7 +485,7 @@ div#strokeList ol {
 }
 
 .cardFooter {
-    height: 18px;
+    height: 20px;
     color: #555;
     font-size: 14px;
     font-weight: 600;
