@@ -2,8 +2,6 @@ import { batch, computed, effect, signal, type Signal } from "@preact/signals";
 import { useMemo } from "preact/hooks";
 
 export interface Store<T = any> { data: Signal<T>, isLoading: Signal<boolean>, error: Signal<Error>, [methods: string]: any }
-type AsyncFunction<T = any> = (...args: any[]) => Promise<T>;
-type AnyFunction = (...args: any[]) => any;
 
 export function store(initialState: any = []): Store {
     const data = signal(initialState);
