@@ -5,6 +5,7 @@ import { roundIsPlayed } from "services/rounds";
 import { type Store, asyncMutate, store } from "hooks/core";
 import { useMemo } from "preact/hooks";
 import { effect } from "@preact/signals";
+import { debounce } from "common/utils";
 
 
 export const statsStore = (roundStore: RoundStore, courseStore: CourseStore): Store<RoundStatsCache> => {
@@ -17,14 +18,14 @@ export const statsStore = (roundStore: RoundStore, courseStore: CourseStore): St
         }
     }
     const load = async (round = roundStore.data.value) => asyncMutate(s, () => _load(round));
-    let loadTimeout;
+    const limitedLoad = debounce(() => {
+        console.log("Fetching from stats store");
+        load();
+    }, 500);
     effect(() => {
         const hook = roundStore.data.value;
-        clearTimeout(loadTimeout);
-        loadTimeout = setTimeout(() => {
-            load();
-            console.log("loading new data from backend")
-        }, 300)
+        if (s.isLoading.peek()) return;
+        limitedLoad();
     });
     return s;
 }
