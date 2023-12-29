@@ -157,9 +157,8 @@ export function useGeolocated(config = {} as GeolocatedConfig): GeolocatedResult
         onSuccess === null || onSuccess === void 0 ? void 0 : onSuccess(position);
     }, [onSuccess, cancelUserDecisionTimeout]);
     const getPosition = useCallback(() => {
-        if (!geolocationProvider ||
-            !geolocationProvider.getCurrentPosition ||
-            !geolocationProvider.watchPosition) {
+        if (!geolocationProvider?.getCurrentPosition ||
+            !geolocationProvider?.watchPosition) {
             throw new Error("The provided geolocation provider is invalid");
         }
         if (userDecisionTimeout) {

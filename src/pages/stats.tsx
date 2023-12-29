@@ -405,7 +405,7 @@ function StatsTitle({ roundStore, downloadHandler }:
     return <div id="roundTitleContainer">
         <h1>
             <span id="roundTitle">{roundStore.data.value?.course}</span>
-            <a id="downloadAsCSV" href="#" className="undecorated" title="Download as CSV">&#10515;</a>
+            <a id="downloadAsCSV" href="#download" className="undecorated" title="Download as CSV">&#10515;</a>
         </h1>
         <p className="subtext">{roundDate.toLocaleString()}</p>
     </div>
