@@ -71,14 +71,12 @@ function DistanceTracker(props: { location: Coordinate, target: Coordinate, name
 }
 
 function PinDistanceTracker() {
-    const geolocationResult = useLocationContext();
-    if (!geolocationResult.isGeolocationAvailable.value) return
     const round = useRoundContext().data.value;
     const activeHoles = useActiveHolesContext(round);
     const pinCoord = activeHoles[0]?.pin;
     const coord = useCoordinateContext();
     const name = "Pin"
-    return <DistanceTracker target={pinCoord} location={coord} name={name} />
+    return coord && pinCoord && <DistanceTracker target={pinCoord} location={coord} name={name} />
 }
 
 

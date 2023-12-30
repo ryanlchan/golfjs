@@ -19,6 +19,7 @@ import { HolesLayers } from './hole';
 import { type ComponentChildren } from 'preact';
 import { StrokesLayers } from './stroke';
 import { useHolesStateManagerContext } from 'hooks/useActiveHolesContext';
+import { CurrentPositionMarker } from './currentPositionMarker';
 
 export function GolfMap({ children, ...options }: { children?: ComponentChildren }) {
     const [map, setMap] = useState(null);
@@ -40,6 +41,7 @@ export function GolfMap({ children, ...options }: { children?: ComponentChildren
                 url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={24} maxNativeZoom={18} />}
         <StrokesLayers />
         <HolesLayers />
+        <CurrentPositionMarker />
         {children}
     </MapContainer>
 }
