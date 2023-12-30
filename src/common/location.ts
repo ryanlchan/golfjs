@@ -16,7 +16,7 @@ import { Signal } from '@preact/signals';
  * The condition function will be called with the GeolocationPositionIsh, should
  * return True to accept the geolocation or False to reject the promise
  * @param {Function} condition
- * @returns {Promise} resolves with a GeolocationPositionIsh-ish
+ * @returns {Promise} resolves with a GeolocationPositionIsh-ish or rejects
  */
 export async function getLocationIf(
     gr: GeolocatedResult,
@@ -24,7 +24,7 @@ export async function getLocationIf(
 ): Promise<any> {
     if (gr.isGeolocationAvailable.value && condition(gr.raw.value)) {
         return Promise.resolve(gr.raw.value);
-    } else if (!gr.isGeolocationEnabled) {
+    } else if (!gr.isGeolocationEnabled.value) {
         gr.getPosition();
         return new Promise((resolve, reject) => {
             const disposeCb = disposableEffect((dispose) => {
@@ -39,7 +39,7 @@ export async function getLocationIf(
             }, 5000);
         });
     } else {
-        return null;
+        return Promise.reject("Failed condition");
     }
 }
 
@@ -80,7 +80,7 @@ export async function getLocationWithin(
     map: L.Map,
     modalSignal: Signal<ModalProps>): Promise<GeolocationPositionIsh> {
     return getLocationIf(gr, (position) => {
-        const point = turf.point([position.coords.longitude, position.coords.latitude])
+        const point = turf.point([position?.coords?.longitude, position?.coords?.latitude])
         return turf.booleanWithin(point, bound)
     }).catch(() => getClickLocation(map, modalSignal));
 }
@@ -95,7 +95,7 @@ export async function getLocationOnMap(
     map: L.Map,
     modalSignal: Signal<ModalProps>): Promise<GeolocationPositionIsh> {
     return getLocationIf(gr, (position) => {
-        const userLatLng = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const userLatLng = { lat: position?.coords?.latitude, lng: position?.coords?.longitude };
         return map.getBounds().contains(userLatLng)
     }).catch(() => getClickLocation(map, modalSignal));
 }
