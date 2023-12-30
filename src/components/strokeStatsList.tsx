@@ -14,7 +14,9 @@ import { strokeGetDistance } from "services/strokes";
 function StrokeDeleteButton({ stroke, strokesStore }:
     { stroke: Stroke, strokesStore: StrokesStore }): JSX.Element {
     const icon = <span>&#215;</span>;
+    const stateManager = useStrokesStateManagerContext();
     const clickHandler = (e) => {
+        stateManager.deactivate(stroke.id);
         strokesStore.remove(stroke);
         e.stopPropagation();
     }
