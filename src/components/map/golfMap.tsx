@@ -56,9 +56,10 @@ export interface MapMutator {
     recenter: () => void,
     recenterBbox: (bbox: number[], flyoptions?: FlyOptions) => void,
     recenterCourse: (options?: FlyOptions) => void,
-    recenterHole: (options?: FlyOptions) => void
+    recenterHole: (options?: FlyOptions) => void,
+    map: L.Map
 }
-function mapMutator(map, stateManager, courseStore, roundStore): MapMutator {
+function mapMutator(map: L.Map, stateManager, courseStore, roundStore): MapMutator {
     const recenterBbox = (bbox, flyoptions = { animate: true, duration: 0.33 }) => {
         map?.flyToBounds(bbox, flyoptions);
     }
@@ -83,7 +84,7 @@ function mapMutator(map, stateManager, courseStore, roundStore): MapMutator {
         const activeHoleManager = holeStateManager(stateManager);
         activeHoleManager.getAllActive().length > 0 ? recenterHole(flyoptions) : recenterCourse(flyoptions)
     }
-    return { recenter, recenterBbox, recenterCourse, recenterHole }
+    return { recenter, recenterBbox, recenterCourse, recenterHole, map }
 }
 
 const useMapMutator = (map): Signal<MapMutator> => {
