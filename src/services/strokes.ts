@@ -42,7 +42,7 @@ export function strokeCreate(
             y: position.coords.latitude,
             crs: "EPSG:4326",
         },
-        terrain: getTerrainAt(courseData, [position.coords.latitude, position.coords.longitude]),
+        terrain: getTerrainAt(courseData, [position.coords.longitude, position.coords.latitude]),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...options
