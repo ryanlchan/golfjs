@@ -14,9 +14,10 @@ import { useMapMutatorContext } from "hooks/useMapMutatorContext";
 import { useAppContext } from "contexts/appContext";
 import { useDataContext } from "contexts/dataContext";
 import { getHolePinFromRound, getStrokesFromRound } from "services/rounds";
-import { strokeCreate } from "services/strokes";
+import { strokeCreateWithClub } from "services/strokes";
 import { useActiveStrokesContext } from "hooks/useActiveStrokesContext";
 import { strokesStore } from "hooks/strokesStore";
+import { getLocationOnMap } from "common/location";
 
 function MapRecenterButton() {
     const mapMutator = useMapMutatorContext().value;
@@ -78,14 +79,16 @@ function PinDistanceTracker() {
  ***********/
 
 export function MapControlsLower() {
+    const onAddWithClub = useAddWithClubCallback();
+    const onAimReset = useAimResetCallback();
     return (
         <div id="mapControlsWrapper">
             <div className="mapControlsContainer" id="mapControlsRight">
                 <MapRecenterButton />
-                <StrokeAddButton onAddWithClub={useAddWithClubCallback()} />
+                <StrokeAddButton onAddWithClub={onAddWithClub} />
             </div>
             <div className="mapControlsContainer" id="mapControlsLeft">
-                <StrokeAimResetButton onAimReset={useAimResetCallback()} />
+                <StrokeAimResetButton onAimReset={onAimReset} />
             </div>
         </div>
     )
@@ -101,15 +104,18 @@ export function MapControlsUpper() {
 const useAddWithClubCallback = () => {
     const appContext = useAppContext();
     const dataContext = useDataContext();
-    return (club: GolfClub) => {
-        const round = dataContext.roundStore?.data.value;
-        const course = dataContext.courseStore?.data.value;
-        const strokes = getStrokesFromRound(round);
-        const holes = useActiveHolesContext(round);
-        const hole = holes.at(-1).index || strokes.reduce((acc, s) => s.holeIndex > acc ? s.holeIndex : acc, 0)
-        const location = appContext.geolocationResult.raw.value;
+    const map = appContext.mapMutator.value.map;
+    const round = dataContext.roundStore?.data.value;
+    const course = dataContext.courseStore?.data.value;
+    const strokes = getStrokesFromRound(round);
+    const holes = useActiveHolesContext(round);
+    const hole = holes.at(-1)?.index || strokes.reduce((acc, s) => s.holeIndex > acc ? s.holeIndex : acc, 0)
+    const gr = appContext.geolocationResult;
+    const modal = appContext.modal;
+    return async (club: GolfClub) => {
+        const location = await getLocationOnMap(gr, map, modal);
         dataContext.roundStore?.mutate((draft) => {
-            strokeCreate(
+            strokeCreateWithClub(
                 location,
                 hole,
                 course,

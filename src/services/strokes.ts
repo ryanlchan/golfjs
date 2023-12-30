@@ -73,11 +73,13 @@ export function strokeAdd(stroke: Stroke, round: Round) {
  * @param round - The round to create within
  * @param options - any additional options to set on Stroke
  */
-function strokeCreateWithClub(position: GeolocationPositionIsh,
+export function strokeCreateWithClub(
+    position: GeolocationPositionIsh,
     holeIndex: number,
-    club: GolfClub,
     courseData: CourseFeatureCollection,
-    round: Round,) {
+    round: Round,
+    club: GolfClub,
+) {
     let options = {
         club: club.name,
         dispersion: club.dispersion,
