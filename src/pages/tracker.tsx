@@ -64,7 +64,8 @@ function TrackerPage({ roundStore, settingsStore }: { roundStore: RoundStore, se
         positionOptions: { enableHighAccuracy: true, maximumAge: 60000, timeout: 5000 },
         watchPosition: true,
         userDecisionTimeout: 10000,
-        suppressLocationOnMount: true
+        suppressLocationOnMount: true,
+        isOptimisticGeolocationEnabled: false,
     })
     if (error && modal.value != error) modal.value = {
         message: error.message, timeout: 10000, type: MODAL_TYPES.ERROR

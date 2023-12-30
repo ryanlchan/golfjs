@@ -60,7 +60,7 @@ export interface GeolocatedResult {
      */
     timestamp: Signal<EpochTimeStamp | undefined>;
     /**
-     * Flag indicating that the browser supports the Geolocation API.
+     * Flag indicating that the browser supports the Geolocation API and that a location is available.
      */
     isGeolocationAvailable: Signal<boolean>;
     /**

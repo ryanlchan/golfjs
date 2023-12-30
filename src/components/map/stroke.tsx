@@ -25,7 +25,6 @@ const inactiveIcon = L.icon({ iconUrl: circleMarkerImg, iconSize: [30, 30], });
 export const StrokeMarker = ({ stroke }) => {
     const roundStore = useRoundContext();
     const courseStore = useCourseContext();
-    const map = useMap();
     const [active, setActive] = useActiveState(stroke);
     const icon = active ? activeIcon : inactiveIcon;
     const onClick = () => {
