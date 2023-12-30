@@ -39,7 +39,7 @@ export const StrokeMarker = ({ stroke }) => {
             const strokeDraft = getStrokeFromRoundByID(roundDraft, stroke.id);
             strokeUpdateStart(strokeDraft, coord, roundDraft, courseStore.data.value)
         });
-        setTimeout(() => isLoading = false, 33);
+        setTimeout(() => isLoading = false, 100);
     }
     const { eventHandlers, renderDrag } = useDraggable();
     const options = {
