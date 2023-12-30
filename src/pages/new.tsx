@@ -6,8 +6,8 @@ import { osmCourseID, courseCacheDelete } from "services/courses";
 import { roundCreate, roundSave } from "services/rounds";
 import { LoadingPlaceholder } from "components/loadingPlaceholder";
 import { ErrorModal } from "components/errorModal";
-import { currentCoordRead, watchLocation } from 'common/location';
-import { formatDistance, formatDistanceAsNumber, getDistance } from 'common/projections';
+import { useGeolocated } from 'hooks/useLocation';
+import { formatDistanceAsNumber, getDistance } from 'common/projections';
 
 let loads = 0;
 function NewPage({ courseJSON }) {
@@ -27,25 +27,24 @@ function NewPage({ courseJSON }) {
     const [searchInput, setSearchInput] = useState("");
     const [results, setResults] = useState([]);
 
+    // Set up geolocation
+    const result = useGeolocated();
+
     // Add functions that perform searches
     const onSearch = (e) => { setSearchInput(e.target.value) }
     const search = async (token) => {
-        console.log("Loading search #" + loads++);
+        console.log("Loading search #" + loads++ + " " + token);
         const resultIxs = findIndexes(tags, token);
         if (resultIxs.length == 0) return;
         const entries = resultIxs.map(ix => data.elements[ix]);
-        let location;
-        try {
-            location = await watchLocation()
-        } catch (e) {
-            console.error(e);
+        if (result.positionError.value || !result.isGeolocationAvailable.value) {
             console.warn("Geolocation denied, won't distance-order results")
             setResults(entries);
             return
         }
         const pos = {
-            x: location.coords.longitude,
-            y: location.coords.latitude,
+            x: result.coords.value.longitude,
+            y: result.coords.value.latitude,
             crs: "EPSG:4326"
         }
         const opt = { to_unit: "miles", include_unit: false };
@@ -82,7 +81,7 @@ function NewPage({ courseJSON }) {
 
 function findIndexes(corpus: string[], token: string) {
     if (token.length < 4) return [];
-    return corpus.reduce((results, tags, index) => (tags.includes(token) ? [...results, index] : results), [])
+    return corpus.reduce((results, tags, index) => (tags.includes(token.toLocaleLowerCase()) ? [...results, index] : results), [])
 
 }
 
