@@ -14,11 +14,11 @@ import { useMapMutatorContext } from 'hooks/useMapMutatorContext';
 import { useStateManagerContext } from 'hooks/useStateManagerContext';
 import { useCourseContext } from 'hooks/useCourseContext';
 import { useRoundContext } from 'hooks/useRoundContext';
-import { type Signal, signal, effect } from '@preact/signals';
+import { type Signal } from '@preact/signals';
 import { HolesLayers } from './hole';
 import { type ComponentChildren } from 'preact';
 import { StrokesLayers } from './stroke';
-import { useActiveHolesContext, useHolesStateManagerContext } from 'hooks/useActiveHolesContext';
+import { useHolesStateManagerContext } from 'hooks/useActiveHolesContext';
 
 export function GolfMap({ children, ...options }: { children?: ComponentChildren }) {
     const [map, setMap] = useState(null);
@@ -73,7 +73,8 @@ function mapMutator(map, stateManager, courseStore, roundStore): MapMutator {
         const activeIds = holeStateManager(stateManager).getAllActive();
         const activeHoles = activeIds.map(id => getHoleFromRoundByID(roundStore.data.value, id));
         const polys = turf.featureCollection(activeHoles.map((hole) => getHoleLine(courseStore.data.value, hole.index)));
-        let bbox = getBbox(polys);
+        const buffered = turf.buffer(polys, 1, { units: "meters" });
+        let bbox = getBbox(buffered);
         if (!bbox) console.warn("Cannot recenter onto hole")
         recenterBbox(bbox, flyoptions)
     }
