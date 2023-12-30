@@ -25,11 +25,12 @@ import { DataContext } from "contexts/dataContext";
 
 // Components
 import { ErrorModal } from "components/errorModal";
-import { MODAL_TYPES } from "common/modals";
+import { MODAL_TYPES, ModalProps } from "common/modals";
 import { GolfMap } from "components/map/golfMap";
 import { MapControlsLower, MapControlsUpper } from "components/map/mapControls";
 import { ActiveHoleControls } from "components/holeSelector";
 import { StrokeControls } from "components/strokeControls";
+import { SignaledModal } from "components/modal";
 
 /**
  * =======================
@@ -58,7 +59,7 @@ function TrackerPage({ roundStore, settingsStore }: { roundStore: RoundStore, se
     const stateManager = useStateManager();
     const courseStore = useCourse(roundStore);
     const statsStore = useStats(roundStore, courseStore);
-    const modal = useSignal(null);
+    const modal = useSignal(null as ModalProps);
     const geolocationResult = useGeolocated({
         positionOptions: { enableHighAccuracy: true, maximumAge: 60000, timeout: 5000 },
         watchPosition: true,
@@ -79,6 +80,7 @@ function TrackerPage({ roundStore, settingsStore }: { roundStore: RoundStore, se
     return <TrackerContext appContext={appContext} dataContext={dataContext} statsContext={statsStore}>
         <div className="app">
             {error && <ErrorModal message={error} timeout={10} />}
+            <SignaledModal sig={modal} />
             <div id='mapid'>
                 <GolfMap />
                 <div id="upperMapControls">

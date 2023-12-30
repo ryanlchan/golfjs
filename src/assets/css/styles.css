@@ -130,14 +130,14 @@ button {
 /* 
 * Structural components
 */
-#errorContainer {
+.modalContainer {
     margin-top: 2em;
     width: 100%;
     position: fixed;
     z-index: 1001;
 }
 
-#error {
+.modal {
     border-radius: 15px;
     padding: 0.5em;
     text-align: center;
