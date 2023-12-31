@@ -123,32 +123,19 @@ function createHexagon(center: [number, number], xsize: number, ysize: number, a
     return turf.polygon([vertices], { axialCoordinates })
 }
 
-// Generates the hexagon grid
-function generateHexagonGrid(center: number[], gridRadius: number, hexagonSize: number): FeatureCollection {
-    const unitOpts = { units: "degrees" };
-    const circle = buffer(point(center), gridRadius * hexagonSize, unitOpts)
-    const [west, south, east, north] = bbox(circle);
-    const xOverY = distance([west, center[1]], [east, center[1]], unitOpts) / distance([center[0], south], [center[0], north], unitOpts);
-    let hexagons: Feature[] = [];
-    for (let q = -gridRadius; q <= gridRadius; q++) {
-        let r1 = Math.max(-gridRadius, -q - gridRadius);
-        let r2 = Math.min(gridRadius, -q + gridRadius);
-        for (let r = r1; r <= r2; r++) {
-            if (isWithinCircle([q, r], gridRadius)) {
-                const [x, y] = axialToCartesian([q, r])
-                const hexCenter: [number, number] = [
-                    center[0] + hexagonSize * xOverY * 3 / 2 * q,
-                    center[1] + hexagonSize * Math.sqrt(3) * (r + q / 2)
-                ];
-                hexagons.push(createHexagon(hexCenter, hexagonSize * xOverY, hexagonSize, [q, r]));
-            }
-        }
-    }
-    return turf.featureCollection(hexagons)
+// Converts meters to latitude degrees
+function metersToLatDegrees(meters: number, latitude: number): number {
+    return meters / 111139;
+}
+
+// Converts meters to longitude degrees at a specific latitude
+function metersToLonDegrees(meters: number, latitude: number): number {
+    const metersPerDegree = Math.cos(latitude * Math.PI / 180) * 111319.488;
+    return meters / metersPerDegree;
 }
 
 /**
- * Create a circular grid of Hexagons around a point
+ * Create a hexagonal grid of Hexagons around a point
  * @param center the center point to create around in WGS84 coord, lon/lat
  * @param radius the radius of the grid, in meters
  * @param cells the target number of cells to return
@@ -159,9 +146,28 @@ function hexCircleCreate(center: number[], radius: number, target_cells = 2000):
     const minR = 0.16;
     const maxR = 10;
     const r = Math.min(Math.max(minR, _r), maxR);
-    const hexSize = turf.lengthToDegrees(r, 'meters');
-    const hexRadius = Math.round((radius / r) / 1.5);
-    return generateHexagonGrid(center, hexRadius, hexSize);
+
+    // Calculate grid radius in hexagon units
+    const hexRadius = Math.round((radius / r));
+
+    // Correct for latitude distortion on degrees
+    const hexSizeLatDeg = metersToLatDegrees(r, center[1]);
+    const hexSizeLonDeg = metersToLonDegrees(r, center[1]);
+
+    let hexagons: Feature[] = [];
+    for (let q = -hexRadius; q <= hexRadius; q++) {
+        let r1 = Math.max(-hexRadius, -q - hexRadius);
+        let r2 = Math.min(hexRadius, -q + hexRadius);
+        for (let r = r1; r <= r2; r++) {
+            if (!isWithinCircle([q, r], hexRadius)) continue;
+            const hexCenter: [number, number] = [
+                center[0] + hexSizeLonDeg * 3 / 2 * q,
+                center[1] + hexSizeLatDeg * Math.sqrt(3) * (r + q / 2)
+            ];
+            hexagons.push(createHexagon(hexCenter, hexSizeLonDeg, hexSizeLatDeg, [q, r]));
+        }
+    }
+    return turf.featureCollection(hexagons);
 }
 
 /**
