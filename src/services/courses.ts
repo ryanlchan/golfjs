@@ -40,7 +40,7 @@ async function courseCacheGet(course: Course): Promise<CourseFeatureCollection> 
 
 export async function courseCacheDelete(course: Course): Promise<void> {
     const key = courseKey(course);
-    return cache.remove(key);
+    return cache.remove(key, COURSE_NAMESPACE);
 }
 
 async function courseCacheSave(course: Course, features: FeatureCollection): Promise<void> {

@@ -122,8 +122,9 @@ const CourseList = ({ initialCourses }: { initialCourses: CourseFeatureCollectio
     const handleDeleteCourse = (course: Course, event: Event) => {
         if (confirm("Are you sure you want to delete this course?")) {
             event.stopPropagation();
-            courseCacheDelete(course);
-            setCourseFCs(courseFCs.filter(el => el.course?.id != course.id));
+            courseCacheDelete(course).then(() => {
+                setCourseFCs(courseFCs.filter(el => el.course?.id != course.id));
+            })
         }
     };
 
