@@ -290,7 +290,10 @@ export async function fetchHoleGreenCenter(course: Course, holeIndex: number): P
 
 export function getHoleGreenCenter(data: FeatureCollection, holeIndex: number): number[] {
     const green = getHoleGreen(data, holeIndex);
-    return turf.center(green).geometry.coordinates;
+    if (green.features.length > 0) return turf.center(green).geometry.coordinates;
+    const line = getHoleLine(data, holeIndex);
+    if (line) return line.geometry.coordinates.at(-1);
+    return undefined;
 }
 
 /**
