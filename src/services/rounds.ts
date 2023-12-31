@@ -43,25 +43,30 @@ export function roundCreate(course?: Course): Promise<Round> {
  * @returns {Round}
  */
 export async function roundInitialize(round: Round, courseData: FeatureCollection): Promise<Round> {
-    let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
-    for (let line of lines) {
-        const index = parseInt(line.properties.ref) - 1;
-        const cog = getHoleGreenCenter(courseData, index);
-        const pin = {
-            x: cog[0],
-            y: cog[1],
-            crs: "EPSG:4326",
-        };
-        let hole = { ...defaultCurrentHole(), index: index, pin: pin };
-        if (line.properties.par) {
-            hole["par"] = parseInt(line.properties.par)
+    try {
+        let lines = courseData.features.filter((feature) => feature.properties.golf && feature.properties.golf == "hole")
+        for (let line of lines) {
+            const index = parseInt(line.properties.ref) - 1;
+            const cog = getHoleGreenCenter(courseData, index);
+            const pin = {
+                x: cog[0],
+                y: cog[1],
+                crs: "EPSG:4326",
+            }
+            let hole = { ...defaultCurrentHole(), index: index, pin: pin };
+            if (line.properties.par) {
+                hole["par"] = parseInt(line.properties.par)
+            }
+            if (line.properties.handicap) {
+                hole["handicap"] = parseInt(line.properties.handicap)
+            }
+            round.holes[hole.index] = { ...hole, ...round.holes[hole.index] }
         }
-        if (line.properties.handicap) {
-            hole["handicap"] = parseInt(line.properties.handicap)
-        }
-        round.holes[hole.index] = { ...hole, ...round.holes[hole.index] }
+        return round;
+    } catch (e) {
+        console.error(e);
+        throw e;
     }
-    return round;
 }
 
 /**

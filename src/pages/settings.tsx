@@ -115,8 +115,10 @@ const CourseList = ({ initialCourses }: { initialCourses: CourseFeatureCollectio
     const [courseFCs, setCourseFCs] = useState(initialCourses);
 
     const handleSelectCourse = async (course) => {
-        await roundCreate(course).then(roundSelect);
-        window.location.href = import.meta.env.BASE_URL;
+        roundCreate(course)
+            .then(roundSelect)
+            .then(() => window.location.href = import.meta.env.BASE_URL)
+            .catch((e) => console.error(e));
     };
 
     const handleDeleteCourse = (course: Course, event: Event) => {
